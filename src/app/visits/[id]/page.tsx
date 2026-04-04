@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
@@ -19,12 +19,30 @@ export default function VisitDetailPage() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
+  const fetchVisit = useCallback(() => {
     getVisitById(id)
       .then(setVisit)
       .catch(() => setVisit(null))
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => { fetchVisit(); }, [fetchVisit]);
+
+  // 編集画面から戻ったときにデータを再取得
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetchVisit();
+    };
+    const handlePopState = () => fetchVisit();
+    window.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('focus', fetchVisit);
+    return () => {
+      window.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('focus', fetchVisit);
+    };
+  }, [fetchVisit]);
 
   const handleDelete = async () => {
     if (!visit || deleting) return;
@@ -65,13 +83,8 @@ export default function VisitDetailPage() {
           <ChevronLeft size={24} />
           <span className="text-sm">戻る</span>
         </button>
-        <h1 className="text-base font-bold truncate flex-1 text-center">訪問記録</h1>
-        <Link
-          href={`/visits/new?memberId=${visit.memberId}&visitId=${visit.id}`}
-          className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 transition-colors shrink-0"
-        >
-          <Pencil size={18} className="text-gray-500" />
-        </Link>
+        <h1 className="text-base font-bold truncate flex-1 text-center">訪問ログ</h1>
+        <div className="w-[52px] shrink-0" />
       </nav>
 
       {/* コンテンツ */}
@@ -92,10 +105,18 @@ export default function VisitDetailPage() {
 
           {/* 訪問情報カード */}
           <div className="ios-card p-4 space-y-4 hover:!opacity-100">
-            {/* 日付 */}
-            <div>
-              <div className="text-[10px] text-[var(--color-subtext)] mb-1">日付</div>
-              <div className="text-sm font-medium">{formatDate(visit.visitedAt, 'yyyy年M月d日')}</div>
+            {/* 日付 + 編集ボタン */}
+            <div className="flex items-center">
+              <div className="flex-1">
+                <div className="text-[10px] text-[var(--color-subtext)] mb-1">日付</div>
+                <div className="text-sm font-medium">{formatDate(visit.visitedAt, 'yyyy年M月d日')}</div>
+              </div>
+              <Link
+                href={`/visits/new?memberId=${visit.memberId}&visitId=${visit.id}`}
+                className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 transition-colors shrink-0"
+              >
+                <Pencil size={18} className="text-gray-500" />
+              </Link>
             </div>
 
             {/* カテゴリ & 対応者 */}
@@ -127,10 +148,24 @@ export default function VisitDetailPage() {
                 <p className="text-sm leading-relaxed whitespace-pre-wrap">{visit.summary}</p>
               </div>
             )}
+
+            {/* 写真 */}
+            {visit.images && visit.images.length > 0 && (
+              <div>
+                <div className="text-[10px] text-[var(--color-subtext)] mb-1">写真</div>
+                <div className="flex gap-2 flex-wrap">
+                  {visit.images.map((url, i) => (
+                    <div key={i} className="w-[60px] h-20 rounded-lg overflow-hidden bg-[#F0F0F0]">
+                      <img src={url} alt="" className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* 削除ボタン */}
-          <div className="flex justify-end mt-1">
+          <div className="flex justify-end">
             <button
               onClick={handleDelete}
               disabled={deleting}

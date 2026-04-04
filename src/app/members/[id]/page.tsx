@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, Plus } from 'lucide-react';
 import Link from 'next/link';
@@ -18,7 +18,7 @@ export default function MemberDetailPage() {
   const [visits, setVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchData = useCallback(() => {
     Promise.all([getMember(id), getVisits(id)])
       .then(([m, v]) => {
         setMember(m);
@@ -27,6 +27,24 @@ export default function MemberDetailPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // 編集画面から戻ったときにデータを再取得
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') fetchData();
+    };
+    const handlePopState = () => fetchData();
+    window.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('focus', fetchData);
+    return () => {
+      window.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('focus', fetchData);
+    };
+  }, [fetchData]);
 
   if (loading) {
     return (

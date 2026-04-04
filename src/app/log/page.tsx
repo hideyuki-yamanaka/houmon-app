@@ -54,7 +54,7 @@ export default function LogPage() {
   return (
     <div className="h-full flex flex-col bg-[var(--color-bg)]">
       <div className="ios-nav px-4 py-3">
-        <h1 className="text-xl font-bold text-center">ログ</h1>
+        <h1 className="text-xl font-bold text-center">ダッシュボード</h1>
       </div>
 
       <div className="flex-1 overflow-y-auto">

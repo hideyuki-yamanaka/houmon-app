@@ -189,7 +189,7 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
           <span className="text-sm">戻る</span>
         </button>
         <h1 className="text-base font-bold truncate flex-1 text-center">
-          {member.name} への訪問記録
+          {member.name}さんへの訪問ログ
         </h1>
         <div className="w-[52px] shrink-0" />
       </nav>
