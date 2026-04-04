@@ -28,7 +28,7 @@ export default function MemberCard({ member }: Props) {
 
   return (
     <Link href={`/members/${member.id}`} className="block">
-      <div className="ios-card px-3 py-3.5 flex items-center gap-2">
+      <div className="ios-card px-3 py-3.5 flex items-center gap-3">
         <PinIcon visited={hasVisits} />
         <div className="flex-1 min-w-0">
           {member.nameKana && (
