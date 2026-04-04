@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ChevronLeft, Pencil, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import type { Visit } from '../../../lib/types';
 import { getVisitById, softDeleteVisit } from '../../../lib/storage';
@@ -80,18 +80,18 @@ export default function VisitDetailPage() {
 
           {/* メンバー名 + 地区 */}
           <Link href={`/members/${visit.memberId}`} className="block">
-            <div className="ios-card px-4 py-3 flex items-center gap-3 active:bg-[#F5F5F5] transition-colors">
-              <div className="flex-1">
-                <span className="font-bold text-base">{visit.memberName}</span>
-                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)] ml-2">
-                  {visit.memberDistrict.replace(/豊岡部|光陽部|豊岡中央支部/g, '')}
-                </span>
-              </div>
+            <div className="ios-card px-4 py-3 flex items-center gap-2 active:bg-[#F5F5F5] transition-colors">
+              <span className="font-bold text-base">{visit.memberName}</span>
+              <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0" />
+              <span className="flex-1" />
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)]">
+                {visit.memberDistrict.replace(/豊岡部|光陽部|豊岡中央支部/g, '')}
+              </span>
             </div>
           </Link>
 
           {/* 訪問情報カード */}
-          <div className="ios-card p-4 space-y-4">
+          <div className="ios-card p-4 space-y-4 hover:!opacity-100">
             {/* 日付 */}
             <div>
               <div className="text-[10px] text-[var(--color-subtext)] mb-1">日付</div>
