@@ -39,7 +39,7 @@ export default function CalendarGrid({
   return (
     <div>
       {/* 月ナビ */}
-      <div className="flex items-center justify-between px-4 py-3">
+      <div className="flex items-center justify-between px-4 pt-3 pb-4">
         <button onClick={onPrevMonth} className="p-2 -ml-2 text-[var(--color-primary)]">
           <ChevronLeft size={28} />
         </button>

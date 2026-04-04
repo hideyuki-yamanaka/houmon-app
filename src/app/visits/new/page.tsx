@@ -11,6 +11,7 @@ function NewVisitContent() {
   const searchParams = useSearchParams();
   const memberId = searchParams.get('memberId');
   const visitId = searchParams.get('visitId');
+  const dateParam = searchParams.get('date');
   const [member, setMember] = useState<Member | null>(null);
   const [allMembers, setAllMembers] = useState<Member[]>([]);
   const [existingVisit, setExistingVisit] = useState<Visit | undefined>(undefined);
@@ -69,7 +70,7 @@ function NewVisitContent() {
     );
   }
 
-  return <VisitForm member={member} existingVisit={existingVisit} />;
+  return <VisitForm member={member} existingVisit={existingVisit} initialDate={dateParam ?? undefined} />;
 }
 
 export default function NewVisitPage() {

@@ -13,14 +13,15 @@ import TiptapEditor from './TiptapEditor';
 interface Props {
   member: Member;
   existingVisit?: Visit;
+  initialDate?: string;
 }
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 
-export default function VisitForm({ member, existingVisit }: Props) {
+export default function VisitForm({ member, existingVisit, initialDate }: Props) {
   const router = useRouter();
   const [visitId, setVisitId] = useState<string | null>(existingVisit?.id ?? null);
-  const [date, setDate] = useState(existingVisit?.visitedAt ?? today());
+  const [date, setDate] = useState(existingVisit?.visitedAt ?? initialDate ?? today());
   const [status, setStatus] = useState<VisitStatus>(existingVisit?.status ?? 'met');
   const [respondent, setRespondent] = useState<Respondent | undefined>(existingVisit?.respondent);
   const [notes, setNotes] = useState<Record<string, unknown> | undefined>(existingVisit?.notes);
