@@ -134,7 +134,7 @@ export default function MembersPage() {
                   <button
                     onClick={() => setShowFilterMenu(!showFilterMenu)}
                     className={`flex items-center gap-1 text-sm px-3 py-1.5 rounded-lg transition-colors ${
-                      categoryFilter !== 'all' ? 'bg-[var(--color-primary)] text-white' : 'bg-[#F0F0F0] text-[var(--color-subtext)]'
+                      categoryFilter !== 'all' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--color-subtext)]'
                     }`}
                   >
                     <Filter size={14} />
