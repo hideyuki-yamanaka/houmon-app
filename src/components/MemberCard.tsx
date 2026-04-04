@@ -46,7 +46,7 @@ export default function MemberCard({ member }: Props) {
               <Clock size={12} strokeWidth={1.8} />
               {member.lastVisitDate
                 ? `${formatDate(member.lastVisitDate, 'yyyy年M月d日')}（${member.totalVisits}回）`
-                : `${member.totalVisits}回`}
+                : '----年--月--日'}
             </span>
           </div>
         </div>
