@@ -63,7 +63,7 @@ export default function LogPage() {
 
           {/* サマリー — リングチャート + 訪問回数 */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="ios-card p-4 flex flex-col items-center">
+            <div className="ios-card p-4 flex flex-col items-center hover:!opacity-100">
               <div className="relative w-20 h-20">
                 <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
                   <circle cx="18" cy="18" r="14" fill="none" stroke="#EBEBEB" strokeWidth="3.5" />
@@ -80,7 +80,7 @@ export default function LogPage() {
                 <div className="text-sm font-medium text-[var(--color-text)]">{stats.uniqueMembersVisited}/{stats.totalMembers}人</div>
               </div>
             </div>
-            <div className="ios-card p-4 flex flex-col items-center justify-center">
+            <div className="ios-card p-4 flex flex-col items-center justify-center hover:!opacity-100">
               <div className="text-3xl font-bold">{stats.monthVisitCount}</div>
               <div className="text-xs text-[var(--color-subtext)] mt-1">{monthLabel}の訪問回数</div>
             </div>
@@ -89,7 +89,7 @@ export default function LogPage() {
           {/* 地区別統計 & ランキング — PC: 2カラム / スマホ: 縦積み */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {/* 地区別統計 */}
-            <div className="ios-card p-4">
+            <div className="ios-card p-4 hover:!opacity-100">
               <div className="flex items-center gap-2 mb-3">
                 <MapPin size={16} className="text-[#111]" />
                 <h3 className="text-sm font-bold">地区別訪問カバー率</h3>
@@ -118,7 +118,7 @@ export default function LogPage() {
             </div>
 
             {/* メンバー訪問回数ランキング */}
-            <div className="ios-card p-4">
+            <div className="ios-card p-4 hover:!opacity-100">
               <h3 className="text-sm font-bold mb-3">訪問回数ランキング</h3>
               <div className="space-y-2">
                 {members
@@ -127,7 +127,7 @@ export default function LogPage() {
                   .slice(0, 5)
                   .map((m, i) => {
                     return (
-                      <Link key={m.id} href={`/members/${m.id}`} className="flex items-center gap-3 py-1">
+                      <Link key={m.id} href={`/members/${m.id}`} className="flex items-center gap-3 py-1 transition-opacity hover:opacity-70">
                         <span className="text-base font-bold text-[var(--color-subtext)] w-5">{i + 1}</span>
                         <span className="text-base flex-1">{m.name}</span>
                         <span className="text-base font-bold">{m.totalVisits}回</span>
