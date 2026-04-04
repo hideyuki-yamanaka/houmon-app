@@ -28,7 +28,9 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
   const [summary, setSummary] = useState(existingVisit?.summary ?? '');
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [images, setImages] = useState<string[]>(existingVisit?.images ?? []);
+  const [localPreviews, setLocalPreviews] = useState<string[]>([]); // blob URLs for immediate preview
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -109,18 +111,31 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    setUploadError(null);
     setUploading(true);
+
+    const fileArray = Array.from(files);
+
+    // まずローカルプレビューを即座に表示（blob URL）
+    const blobUrls = fileArray.map(f => URL.createObjectURL(f));
+    setLocalPreviews(prev => [...prev, ...blobUrls]);
+
+    // バックグラウンドでSupabaseにアップロード
     try {
       const newUrls: string[] = [];
-      for (const file of Array.from(files)) {
+      for (const file of fileArray) {
         const url = await uploadVisitImage(file);
         newUrls.push(url);
       }
       const updated = [...images, ...newUrls];
       setImages(updated);
+      // アップロード成功 → blob URLをクリーンアップ
+      setLocalPreviews(prev => prev.filter(u => !blobUrls.includes(u)));
+      blobUrls.forEach(u => URL.revokeObjectURL(u));
       debouncedSave({ images: updated }, true);
     } catch {
-      // silently fail
+      setUploadError('写真のアップロードに失敗しました');
+      // アップロード失敗してもプレビューは残す（ローカルのみ）
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -129,9 +144,21 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
 
   // 画像削除
   const handleImageRemove = (index: number) => {
-    const updated = images.filter((_, i) => i !== index);
-    setImages(updated);
-    debouncedSave({ images: updated }, true);
+    const allImages = [...images, ...localPreviews];
+    const target = allImages[index];
+    if (localPreviews.includes(target)) {
+      // ローカルプレビューの削除
+      setLocalPreviews(prev => prev.filter(u => u !== target));
+      URL.revokeObjectURL(target);
+    } else {
+      // アップロード済み画像の削除
+      const imgIndex = images.indexOf(target);
+      if (imgIndex >= 0) {
+        const updated = images.filter((_, i) => i !== imgIndex);
+        setImages(updated);
+        debouncedSave({ images: updated }, true);
+      }
+    }
   };
 
   // ページ離脱時に未保存データを保存
@@ -247,11 +274,11 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
               className="hidden"
               onChange={handleImageUpload}
             />
-            {/* アップロード済み画像 */}
-            {images.length > 0 && (
+            {/* アップロード済み画像 + ローカルプレビュー */}
+            {(images.length > 0 || localPreviews.length > 0) && (
               <div className="flex gap-2 flex-wrap mb-3">
-                {images.map((url, i) => (
-                  <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden bg-[#F0F0F0]">
+                {[...images, ...localPreviews].map((url, i) => (
+                  <div key={i} className="relative w-[60px] h-20 rounded-lg overflow-hidden bg-[#F0F0F0]">
                     <button type="button" onClick={() => setLightboxUrl(url)} className="w-full h-full">
                       <img src={url} alt="" className="w-full h-full object-cover" />
                     </button>
@@ -262,13 +289,21 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
                     >
                       <X size={12} className="text-white" />
                     </button>
+                    {localPreviews.includes(url) && uploading && (
+                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                        <Loader2 size={16} className="animate-spin text-white" />
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             )}
+            {uploadError && (
+              <p className="text-xs text-red-500 mb-2">{uploadError}</p>
+            )}
             <button
               type="button"
-              className="ios-card p-4 w-full flex items-center justify-center gap-2 text-[var(--color-subtext)] active:bg-[#F5F5F5] transition-colors"
+              className="p-4 w-full flex items-center justify-center gap-2 text-[var(--color-subtext)] rounded-xl border-2 border-dashed border-[#D0D0D0] active:bg-[#F5F5F5] transition-colors"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploading}
             >
