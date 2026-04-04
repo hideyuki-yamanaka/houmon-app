@@ -33,7 +33,7 @@ export default function MemberCard({ member }: Props) {
             </span>
           </div>
         </div>
-        <ChevronRight size={14} className="text-[var(--color-icon-gray)] shrink-0" />
+        <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0" />
       </div>
     </Link>
   );

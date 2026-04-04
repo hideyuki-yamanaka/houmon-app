@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronLeft, Check, Loader2, Camera, X } from 'lucide-react';
+import { ChevronLeft, Check, Loader2, Camera, X, User } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { Member, Visit, VisitStatus, Respondent } from '../lib/types';
@@ -28,6 +28,7 @@ export default function VisitForm({ member, existingVisit }: Props) {
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [images, setImages] = useState<string[]>(existingVisit?.images ?? []);
   const [uploading, setUploading] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const isCreatingRef = useRef(false);
@@ -156,33 +157,37 @@ export default function VisitForm({ member, existingVisit }: Props) {
       {/* ナビバー */}
       <nav className="ios-nav flex items-center px-4 py-3 gap-2">
         <button onClick={() => router.back()} className="flex items-center gap-1 text-[var(--color-primary)] shrink-0">
-          <ChevronLeft size={20} />
+          <ChevronLeft size={24} />
           <span className="text-sm">戻る</span>
         </button>
         <h1 className="text-base font-bold truncate flex-1 text-center">
           {member.name} への訪問記録
         </h1>
-        <Link
-          href={`/members/${member.id}`}
-          className="text-sm text-[var(--color-primary)] whitespace-nowrap shrink-0"
-        >
-          情報を見る
-        </Link>
+        <div className="w-[52px] shrink-0" />
       </nav>
 
       {/* フォーム本体 */}
       <div className="flex-1 overflow-y-auto pb-8">
         <div className="max-w-[920px] mx-auto px-4 pt-4 space-y-6">
 
-          {/* 日付 */}
-          <div>
-            <label className="text-sm font-semibold text-[var(--color-subtext)] block mb-2">日付</label>
-            <input
-              type="date"
-              value={date}
-              onChange={e => handleDateChange(e.target.value)}
-              className="ios-input w-auto"
-            />
+          {/* 日付 + 情報を見る */}
+          <div className="flex items-end gap-3">
+            <div className="flex-1">
+              <label className="text-sm font-semibold text-[var(--color-subtext)] block mb-2">日付</label>
+              <input
+                type="date"
+                value={date}
+                onChange={e => handleDateChange(e.target.value)}
+                className="ios-input w-auto bg-white"
+              />
+            </div>
+            <Link
+              href={`/members/${member.id}`}
+              className="flex items-center gap-1 text-sm text-[var(--color-primary)] whitespace-nowrap shrink-0 h-[44px]"
+            >
+              <User size={16} />
+              情報を見る
+            </Link>
           </div>
 
           {/* ステータス & 対応者 — PC: 2カラム / スマホ: 縦積み */}
@@ -243,10 +248,12 @@ export default function VisitForm({ member, existingVisit }: Props) {
               <div className="flex gap-2 flex-wrap mb-3">
                 {images.map((url, i) => (
                   <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden bg-[#F0F0F0]">
-                    <img src={url} alt="" className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => setLightboxUrl(url)} className="w-full h-full">
+                      <img src={url} alt="" className="w-full h-full object-cover" />
+                    </button>
                     <button
                       type="button"
-                      onClick={() => handleImageRemove(i)}
+                      onClick={(e) => { e.stopPropagation(); handleImageRemove(i); }}
                       className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/50 flex items-center justify-center"
                     >
                       <X size={12} className="text-white" />
@@ -277,6 +284,28 @@ export default function VisitForm({ member, existingVisit }: Props) {
 
         </div>
       </div>
+
+      {/* ライトボックス（画像拡大表示） */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setLightboxUrl(null)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 flex items-center justify-center"
+          >
+            <X size={24} className="text-white" />
+          </button>
+          <img
+            src={lightboxUrl}
+            alt=""
+            className="max-w-full max-h-full rounded-lg object-contain"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

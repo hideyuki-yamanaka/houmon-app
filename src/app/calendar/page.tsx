@@ -59,7 +59,7 @@ export default function CalendarPage() {
       </div>
 
       {/* カレンダーグリッド（固定） */}
-      <div className="mx-4 mb-2 bg-white rounded-xl p-2">
+      <div className="mx-4 mb-4 bg-white rounded-xl p-2">
         <CalendarGrid
           year={year}
           month={month}

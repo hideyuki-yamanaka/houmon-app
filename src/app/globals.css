@@ -51,7 +51,7 @@ body {
 /* ── カード ── */
 .ios-card {
   background: var(--color-card);
-  border-radius: 8px;
+  border-radius: 6px;
   border: none;
   transition: opacity 0.15s ease;
 }

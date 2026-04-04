@@ -59,12 +59,10 @@ export default function HomePage() {
       </Link>
 
       {/* ボトムシート */}
-      {selectedMember && (
-        <MemberBottomSheet
-          member={selectedMember}
-          onClose={() => setSelectedId(null)}
-        />
-      )}
+      <MemberBottomSheet
+        member={selectedMember}
+        onClose={() => setSelectedId(null)}
+      />
     </div>
   );
 }

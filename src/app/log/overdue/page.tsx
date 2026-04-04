@@ -32,7 +32,7 @@ export default function OverduePage() {
     <div className="h-full flex flex-col bg-[var(--color-bg)]">
       <nav className="ios-nav flex items-center px-4 py-3 gap-2">
         <button onClick={() => router.back()} className="flex items-center gap-1 text-[var(--color-primary)] shrink-0">
-          <ChevronLeft size={20} />
+          <ChevronLeft size={24} />
           <span className="text-sm">戻る</span>
         </button>
         <h1 className="text-base font-bold truncate flex-1 text-center">訪問期限超過</h1>
@@ -59,7 +59,7 @@ export default function OverduePage() {
                         : '未訪問'}
                     </span>
                   </div>
-                  <ChevronRight size={16} className="text-[var(--color-icon-gray)] shrink-0" />
+                  <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0" />
                 </div>
               </Link>
             ))}

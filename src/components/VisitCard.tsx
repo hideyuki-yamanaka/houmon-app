@@ -34,7 +34,7 @@ export default function VisitCard({ visit }: Props) {
             <p className="text-sm text-[var(--color-subtext)] mt-1.5 line-clamp-2">{visit.summary}</p>
           )}
         </div>
-        <ChevronRight size={14} className="text-[var(--color-icon-gray)] shrink-0" />
+        <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0" />
       </div>
     </Link>
   );

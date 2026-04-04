@@ -41,7 +41,7 @@ export default function MemberSelector({ members, onSelect }: Props) {
       {/* ナビバー */}
       <nav className="ios-nav flex items-center px-4 py-3 gap-2">
         <button onClick={() => router.back()} className="flex items-center gap-1 text-[var(--color-primary)] shrink-0">
-          <ChevronLeft size={20} />
+          <ChevronLeft size={24} />
           <span className="text-sm">戻る</span>
         </button>
         <h1 className="text-base font-bold truncate flex-1 text-center">メンバーを選択</h1>

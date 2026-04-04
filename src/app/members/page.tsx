@@ -43,7 +43,7 @@ export default function MembersPage() {
       </div>
 
       {/* 地区フィルター */}
-      <div className="px-4 py-2">
+      <div className="px-4 pt-2 pb-4">
         <DistrictFilter selected={district} onChange={setDistrict} />
       </div>
 

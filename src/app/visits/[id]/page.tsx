@@ -62,7 +62,7 @@ export default function VisitDetailPage() {
       {/* ナビバー */}
       <nav className="ios-nav flex items-center px-4 py-3 gap-2">
         <button onClick={() => router.back()} className="flex items-center gap-1 text-[var(--color-primary)] shrink-0">
-          <ChevronLeft size={20} />
+          <ChevronLeft size={24} />
           <span className="text-sm">戻る</span>
         </button>
         <h1 className="text-base font-bold truncate flex-1 text-center">訪問記録</h1>
@@ -130,14 +130,16 @@ export default function VisitDetailPage() {
           </div>
 
           {/* 削除ボタン */}
-          <button
-            onClick={handleDelete}
-            disabled={deleting}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[var(--color-subtext)] hover:opacity-70 active:opacity-50 transition-opacity text-sm font-medium"
-          >
-            <Trash2 size={16} />
-            {deleting ? '削除中...' : 'ゴミ箱に移動'}
-          </button>
+          <div className="flex justify-end mt-1">
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex items-center gap-1.5 py-2 px-3 text-[var(--color-subtext)] hover:opacity-70 active:opacity-50 transition-opacity text-sm font-medium"
+            >
+              <Trash2 size={14} />
+              {deleting ? '削除中...' : 'ゴミ箱に移動'}
+            </button>
+          </div>
 
         </div>
       </div>

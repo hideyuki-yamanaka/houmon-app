@@ -49,7 +49,7 @@ export default function MemberDetailPage() {
       {/* ナビバー */}
       <nav className="ios-nav flex items-center px-4 py-3 gap-2">
         <button onClick={() => { if (window.history.length > 1) router.back(); else router.push('/members'); }} className="flex items-center gap-1 text-[var(--color-primary)] shrink-0">
-          <ChevronLeft size={20} />
+          <ChevronLeft size={24} />
           <span className="text-sm">戻る</span>
         </button>
         <h1 className="text-lg font-bold truncate flex-1 text-center">{member.name}</h1>

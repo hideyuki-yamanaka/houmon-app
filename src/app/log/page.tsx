@@ -147,7 +147,7 @@ export default function LogPage() {
                   <span className="text-base font-bold">訪問期限超過</span>
                   <span className="text-base text-[var(--color-subtext)] ml-2">{stats.overdueMembers.length}人</span>
                 </div>
-                <ChevronRight size={16} className="text-[var(--color-icon-gray)] shrink-0" />
+                <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0" />
               </div>
             </Link>
           )}
