@@ -44,7 +44,7 @@ export default function MembersPage() {
 
       {/* 地区フィルター */}
       <div className="px-4 pt-2 pb-4">
-        <DistrictFilter selected={district} onChange={setDistrict} />
+        <DistrictFilter selected={district} onChange={setDistrict} members={members} />
       </div>
 
       {/* メンバーリスト */}
@@ -55,7 +55,7 @@ export default function MembersPage() {
           <p className="text-center text-[var(--color-subtext)] mt-8">メンバーが見つかりません</p>
         ) : (
           <div className="space-y-1">
-            <p className="text-xs text-[var(--color-subtext)] mb-2">{filtered.length}人</p>
+            <p className="text-2xl font-bold text-[var(--color-text)] mt-2 mb-3">{filtered.length}人</p>
             {filtered.map(m => (
               <MemberCard key={m.id} member={m} />
             ))}

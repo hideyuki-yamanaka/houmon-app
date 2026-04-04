@@ -1,8 +1,13 @@
 'use client';
 
+interface MemberLike {
+  district: string;
+}
+
 interface Props {
   selected: string | null;
   onChange: (district: string | null) => void;
+  members?: MemberLike[];
 }
 
 const DISTRICTS: { key: string; short: string }[] = [
@@ -17,24 +22,32 @@ const DISTRICTS: { key: string; short: string }[] = [
   { key: '豊岡中央支部幸福地区', short: '幸福' },
 ];
 
-export default function DistrictFilter({ selected, onChange }: Props) {
+export default function DistrictFilter({ selected, onChange, members }: Props) {
+  const countByDistrict = (key: string) => {
+    if (!members) return null;
+    return members.filter(m => m.district === key).length;
+  };
+
   return (
     <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
       <button
         onClick={() => onChange(null)}
         className={`chip whitespace-nowrap ${selected === null ? 'selected' : ''}`}
       >
-        すべて
+        すべて{members ? `(${members.length})` : ''}
       </button>
-      {DISTRICTS.map(({ key, short }) => (
-        <button
-          key={key}
-          onClick={() => onChange(key)}
-          className={`chip whitespace-nowrap ${selected === key ? 'selected' : ''}`}
-        >
-          {short}
-        </button>
-      ))}
+      {DISTRICTS.map(({ key, short }) => {
+        const count = countByDistrict(key);
+        return (
+          <button
+            key={key}
+            onClick={() => onChange(key)}
+            className={`chip whitespace-nowrap ${selected === key ? 'selected' : ''}`}
+          >
+            {short}{count !== null ? `(${count})` : ''}
+          </button>
+        );
+      })}
     </div>
   );
 }
