@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import { ChevronRight, Plus, MapPin, Clock } from 'lucide-react';
 import Link from 'next/link';
 import type { MemberWithVisitInfo, Visit } from '../lib/types';
-import { VISIT_STATUS_CONFIG } from '../lib/constants';
 import { formatDate } from '../lib/utils';
 import { getVisits } from '../lib/storage';
 
@@ -105,24 +104,16 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
             <p className="text-sm text-[var(--color-subtext)]">まだ訪問記録がありません</p>
           ) : (
             <div className="space-y-2">
-              {visits.map(v => {
-                const statusConfig = VISIT_STATUS_CONFIG[v.status];
-                return (
+              {visits.map(v => (
                   <Link key={v.id} href={`/visits/${v.id}`} className="block">
-                    <div className="p-3 rounded-lg bg-[#F5F5F5] active:bg-[#EBEBEB] transition-colors">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{formatDate(v.visitedAt, 'M/d')}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${statusConfig.bg} ${statusConfig.color}`}>
-                          {statusConfig.label}
-                        </span>
-                      </div>
+                    <div className="px-3 py-2.5 rounded-lg bg-[#F5F5F5] active:bg-[#EBEBEB] transition-colors flex items-center gap-2">
+                      <span className="text-sm font-medium shrink-0">{formatDate(v.visitedAt, 'M/d')}</span>
                       {v.summary && (
-                        <p className="text-xs text-[var(--color-subtext)] mt-1 line-clamp-2">{v.summary}</p>
+                        <span className="text-xs text-[var(--color-subtext)] truncate">{v.summary}</span>
                       )}
                     </div>
                   </Link>
-                );
-              })}
+              ))}
               {m.totalVisits > 3 && (
                 <Link
                   href={`/members/${m.id}`}
