@@ -68,7 +68,7 @@ function StatusCell({ item, member, memberId, onSaved }: {
         <div className={`text-4xl font-bold ${display.color} transition-transform duration-150`}>{display.symbol}</div>
       </button>
       {open && (
-        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-xl shadow-lg z-10 flex flex-col overflow-hidden min-w-[52px]">
+        <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-lg z-10 flex flex-col overflow-hidden min-w-[52px]">
           {options.map(opt => (
             <button
               key={opt.level}
