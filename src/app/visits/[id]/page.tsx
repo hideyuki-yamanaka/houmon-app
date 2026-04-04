@@ -98,10 +98,10 @@ export default function VisitDetailPage() {
               <div className="text-sm font-medium">{formatDate(visit.visitedAt, 'yyyy年M月d日')}</div>
             </div>
 
-            {/* ステータス & 対応者 */}
+            {/* カテゴリ & 対応者 */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <div className="text-[10px] text-[var(--color-subtext)] mb-1">ステータス</div>
+                <div className="text-[10px] text-[var(--color-subtext)] mb-1">カテゴリ</div>
                 {statusConfig ? (
                   <span className={`inline-flex text-xs px-2.5 py-1 rounded-full font-medium ${statusConfig.bg} ${statusConfig.color}`}>
                     {statusConfig.label}

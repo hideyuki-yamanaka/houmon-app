@@ -74,8 +74,8 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
               <span className="flex items-center gap-1 text-sm text-[var(--color-subtext)]">
                 <Clock size={16} strokeWidth={1.8} />
                 {m.lastVisitDate
-                  ? `${formatDate(m.lastVisitDate, 'M/d')}（${m.totalVisits}回）`
-                  : '未訪問'}
+                  ? `${formatDate(m.lastVisitDate, 'yyyy年M月d日')}（${m.totalVisits}回）`
+                  : `${m.totalVisits}回`}
               </span>
             </div>
           </Link>
@@ -101,13 +101,13 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
           {loading ? (
             <p className="text-sm text-[var(--color-subtext)]">読み込み中...</p>
           ) : visits.length === 0 ? (
-            <p className="text-sm text-[var(--color-subtext)]">まだ訪問記録がありません</p>
+            <p className="text-sm text-[var(--color-subtext)]">まだ訪問ログがありません</p>
           ) : (
             <div className="space-y-2">
               {visits.map(v => (
                   <Link key={v.id} href={`/visits/${v.id}`} className="block">
                     <div className="px-3 py-2.5 rounded-lg bg-[#F5F5F5] active:bg-[#EBEBEB] transition-colors flex items-center gap-2">
-                      <span className="text-sm font-medium shrink-0">{formatDate(v.visitedAt, 'M/d')}</span>
+                      <span className="text-sm font-medium shrink-0">{formatDate(v.visitedAt, 'yyyy年M月d日')}</span>
                       {v.summary && (
                         <span className="text-xs text-[var(--color-subtext)] truncate">{v.summary}</span>
                       )}

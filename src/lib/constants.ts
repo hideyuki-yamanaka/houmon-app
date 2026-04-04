@@ -13,7 +13,7 @@ export const DISTRICT_COLORS: Record<string, { hex: string; bg: string; text: st
   '豊岡中央支部幸福地区':   { hex: '#DB2777', bg: 'bg-pink-600',    text: 'text-pink-600' },
 };
 
-// ── 訪問ステータス ──
+// ── 訪問カテゴリ ──
 export const VISIT_STATUS_CONFIG: Record<VisitStatus, { label: string; color: string; bg: string }> = {
   met:             { label: '会えた',     color: 'text-green-700',  bg: 'bg-green-100' },
   absent:          { label: '不在',       color: 'text-gray-700',   bg: 'bg-gray-100' },

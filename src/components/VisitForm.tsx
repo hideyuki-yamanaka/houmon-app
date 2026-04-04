@@ -81,7 +81,7 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
     }
   }, [save]);
 
-  // ステータス変更 → 即保存
+  // カテゴリ変更 → 即保存
   const handleStatusChange = (newStatus: VisitStatus) => {
     setStatus(newStatus);
     debouncedSave({ status: newStatus, visited_at: date }, true);
@@ -175,7 +175,7 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
           <div className="flex items-end gap-3">
             <div>
               <label className="text-sm font-semibold text-[var(--color-subtext)] block mb-2">日付</label>
-              <div className="inline-flex items-center gap-1.5 bg-white rounded-[10px] h-[44px] px-3">
+              <div className="inline-flex items-center gap-1.5 h-[44px] px-3">
                 <input
                   type="date"
                   value={date}

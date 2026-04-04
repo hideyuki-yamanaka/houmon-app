@@ -61,13 +61,13 @@ export default function MemberDetailPage() {
         <div className="max-w-[920px] mx-auto px-4 py-4 pb-24 space-y-4">
           <MemberInfo member={member} onUpdate={(updates) => setMember(prev => prev ? { ...prev, ...updates } : prev)} />
 
-          {/* 訪問履歴 */}
+          {/* 訪問ログ */}
           <div className="mt-6">
             <h3 className="text-sm font-semibold text-[var(--color-subtext)] mb-3">
-              訪問履歴（{visits.length}件）
+              訪問ログ（{visits.length}件）
             </h3>
             {visits.length === 0 ? (
-              <p className="text-sm text-[var(--color-subtext)]">まだ訪問記録がありません</p>
+              <p className="text-sm text-[var(--color-subtext)]">まだ訪問ログがありません</p>
             ) : (
               <div className="space-y-2">
                 {visits.map(v => (

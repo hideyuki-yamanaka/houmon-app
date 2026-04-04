@@ -259,18 +259,18 @@ export async function getMembersWithVisitInfo(): Promise<MemberWithVisitInfo[]> 
     getMembers(),
     supabase
       .from('visits')
-      .select('member_id, visited_at')
+      .select('member_id, visited_at, status')
       .is('deleted_at', null)
       .order('visited_at', { ascending: false }),
   ]);
 
-  const visitMap = new Map<string, { lastDate: string; count: number }>();
-  for (const v of (visitData ?? []) as { member_id: string; visited_at: string }[]) {
+  const visitMap = new Map<string, { lastDate: string; lastStatus: string; count: number }>();
+  for (const v of (visitData ?? []) as { member_id: string; visited_at: string; status: string }[]) {
     const existing = visitMap.get(v.member_id);
     if (existing) {
       existing.count++;
     } else {
-      visitMap.set(v.member_id, { lastDate: v.visited_at, count: 1 });
+      visitMap.set(v.member_id, { lastDate: v.visited_at, lastStatus: v.status, count: 1 });
     }
   }
 
@@ -283,6 +283,7 @@ export async function getMembersWithVisitInfo(): Promise<MemberWithVisitInfo[]> 
     return {
       ...m,
       lastVisitDate: info?.lastDate,
+      lastVisitStatus: info?.lastStatus as VisitStatus | undefined,
       totalVisits: info?.count ?? 0,
       isOverdue: daysSince === undefined ? true : daysSince > m.visitCycleDays,
       daysSinceLastVisit: daysSince,

@@ -1,4 +1,4 @@
-import type { Member, Visit, MemberWithVisitInfo } from './types';
+import type { Member, Visit, MemberWithVisitInfo, VisitStatus } from './types';
 
 const now = new Date().toISOString();
 
@@ -125,15 +125,18 @@ export const MOCK_VISITS: Visit[] = [
 
 export function getMockMembersWithVisitInfo(): MemberWithVisitInfo[] {
   const now = new Date();
-  const visitsByMember = new Map<string, { lastDate: string; count: number }>();
+  const visitsByMember = new Map<string, { lastDate: string; lastStatus: string; count: number }>();
 
   for (const v of MOCK_VISITS) {
     const existing = visitsByMember.get(v.memberId);
     if (existing) {
       existing.count++;
-      if (v.visitedAt > existing.lastDate) existing.lastDate = v.visitedAt;
+      if (v.visitedAt > existing.lastDate) {
+        existing.lastDate = v.visitedAt;
+        existing.lastStatus = v.status;
+      }
     } else {
-      visitsByMember.set(v.memberId, { lastDate: v.visitedAt, count: 1 });
+      visitsByMember.set(v.memberId, { lastDate: v.visitedAt, lastStatus: v.status, count: 1 });
     }
   }
 
@@ -145,6 +148,7 @@ export function getMockMembersWithVisitInfo(): MemberWithVisitInfo[] {
     return {
       ...m,
       lastVisitDate: info?.lastDate,
+      lastVisitStatus: info?.lastStatus as VisitStatus | undefined,
       totalVisits: info?.count ?? 0,
       isOverdue: daysSince === undefined ? true : daysSince > m.visitCycleDays,
       daysSinceLastVisit: daysSince,

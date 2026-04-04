@@ -28,7 +28,7 @@ export interface Member {
   updatedAt: string;
 }
 
-// ── 訪問ステータス ──
+// ── 訪問カテゴリ ──
 export type VisitStatus = 'met' | 'absent' | 'refused' | 'unknown_address';
 
 // ── 対応者 ──
@@ -53,6 +53,7 @@ export interface Visit {
 // ── UI用の派生型 ──
 export interface MemberWithVisitInfo extends Member {
   lastVisitDate?: string;
+  lastVisitStatus?: VisitStatus;
   totalVisits: number;
   isOverdue: boolean;
   daysSinceLastVisit?: number;

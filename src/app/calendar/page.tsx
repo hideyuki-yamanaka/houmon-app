@@ -49,7 +49,7 @@ export default function CalendarPage() {
   }, [month]);
 
   // 選択日を表示用にフォーマット
-  const selectedDateDisplay = formatDate(selectedDate, 'M月d日');
+  const selectedDateDisplay = formatDate(selectedDate, 'yyyy年M月d日');
 
   return (
     <div className="h-full flex flex-col bg-[var(--color-bg)]">
@@ -75,9 +75,9 @@ export default function CalendarPage() {
       <div className="flex-1 overflow-y-auto">
         <div className="px-5 py-2 pb-24">
           {dayVisits.length === 0 ? (
-            <p className="text-sm text-[var(--color-subtext)] text-center mt-6">この日の訪問記録はありません</p>
+            <p className="text-sm text-[var(--color-subtext)] text-center mt-6">この日の訪問ログはありません</p>
           ) : (
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               {dayVisits.map(v => {
                 const statusConfig = VISIT_STATUS_CONFIG[v.status];
                 return (

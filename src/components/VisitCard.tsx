@@ -20,7 +20,7 @@ export default function VisitCard({ visit }: Props) {
       <div className="ios-card p-4 flex items-center gap-3 active:bg-[#F5F5F5] transition-colors">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-base font-bold">{formatDate(visit.visitedAt, 'yyyy/M/d')}</span>
+            <span className="text-base font-bold">{formatDate(visit.visitedAt, 'yyyy年M月d日')}</span>
             <span className={`text-sm px-2.5 py-0.5 rounded-full ${statusConfig.bg} ${statusConfig.color}`}>
               {statusConfig.label}
             </span>
