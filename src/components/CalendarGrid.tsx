@@ -64,7 +64,7 @@ export default function CalendarGrid({
       </div>
 
       {/* 日付グリッド */}
-      <div className="grid grid-cols-7 text-center px-4 pb-4 gap-0.5">
+      <div className="grid grid-cols-7 text-center px-4 pb-4 gap-x-0.5 gap-y-1.5 md:gap-0.5">
         {days.map((day, i) => {
           if (day === null) return <div key={`empty-${i}`} className="aspect-square" />;
 
