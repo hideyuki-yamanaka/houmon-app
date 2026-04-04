@@ -13,7 +13,7 @@ interface Props {
 function PinIcon({ visited }: { visited: boolean }) {
   const fill = visited ? '#EA4335' : '#BBBBC0';
   return (
-    <svg width="22" height="30" viewBox="0 0 28 40" fill="none" className="shrink-0">
+    <svg width="28" height="40" viewBox="0 0 28 40" fill="none" className="shrink-0">
       <path
         d="M14 0C6.268 0 0 6.268 0 14C0 24.5 14 40 14 40S28 24.5 28 14C28 6.268 21.732 0 14 0Z"
         fill={fill}
