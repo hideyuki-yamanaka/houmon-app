@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { AlertTriangle, MapPin, ChevronRight } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import Link from 'next/link';
 import type { MemberWithVisitInfo, Visit } from '../../lib/types';
 import { getMembersWithVisitInfo, getVisitsByMonth } from '../../lib/storage';
@@ -25,7 +25,6 @@ export default function LogPage() {
 
   // 今月の統計
   const stats = useMemo(() => {
-    const overdueMembers = members.filter(m => m.isOverdue);
     const uniqueMembersVisited = new Set(monthVisits.map(v => v.memberId)).size;
     const totalMembers = members.length;
     const coverRate = totalMembers > 0 ? Math.round((uniqueMembersVisited / totalMembers) * 100) : 0;
@@ -39,7 +38,7 @@ export default function LogPage() {
       districtStats.set(m.district, d);
     }
 
-    return { overdueMembers, uniqueMembersVisited, totalMembers, coverRate, monthVisitCount: monthVisits.length, districtStats };
+    return { uniqueMembersVisited, totalMembers, coverRate, monthVisitCount: monthVisits.length, districtStats };
   }, [members, monthVisits]);
 
   if (loading) {
@@ -137,20 +136,6 @@ export default function LogPage() {
               </div>
             </div>
           </div>
-
-          {/* 訪問期限超過 — リンクカード（一番下） */}
-          {stats.overdueMembers.length > 0 && (
-            <Link href="/log/overdue" className="block">
-              <div className="ios-card p-4 flex items-center gap-3 active:bg-[#F5F5F5] transition-colors">
-                <AlertTriangle size={18} className="text-[var(--color-danger)] shrink-0" />
-                <div className="flex-1">
-                  <span className="text-[15px] font-bold">訪問期限超過</span>
-                  <span className="text-[15px] text-[var(--color-subtext)] ml-2">{stats.overdueMembers.length}人</span>
-                </div>
-                <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0" />
-              </div>
-            </Link>
-          )}
         </div>
       </div>
     </div>
