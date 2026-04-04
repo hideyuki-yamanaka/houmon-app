@@ -1,0 +1,109 @@
+// ── メンバー ──
+export interface Member {
+  id: string;
+  name: string;
+  nameKana?: string;
+  district: string;
+  address?: string;
+  lat?: number;
+  lng?: number;
+  phone?: string;
+  mobile?: string;
+  birthday?: string;
+  enrollmentDate?: string;
+  age?: number;
+  workplace?: string;
+  role?: string;
+  educationLevel?: string;
+  family?: string;
+  altarStatus?: string;
+  dailyPractice?: string;
+  newspaper?: string;
+  financialContribution?: string;
+  activityStatus?: string;
+  youthGroup?: string;
+  notes?: string;
+  visitCycleDays: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── 訪問ステータス ──
+export type VisitStatus = 'met' | 'absent' | 'refused' | 'unknown_address';
+
+// ── 対応者 ──
+export type Respondent = 'self' | 'family' | 'other' | 'nobody';
+
+// ── 訪問記録 ──
+export interface Visit {
+  id: string;
+  memberId: string;
+  visitedAt: string; // YYYY-MM-DD
+  status: VisitStatus;
+  respondent?: Respondent;
+  notes?: Record<string, unknown>; // Tiptap JSON
+  summary?: string;
+  keywords?: string[];
+  images?: string[];
+  deletedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── UI用の派生型 ──
+export interface MemberWithVisitInfo extends Member {
+  lastVisitDate?: string;
+  totalVisits: number;
+  isOverdue: boolean;
+  daysSinceLastVisit?: number;
+}
+
+export interface VisitWithMember extends Visit {
+  memberName: string;
+  memberDistrict: string;
+}
+
+// ── DBのスネークケース型 ──
+export interface MemberRow {
+  id: string;
+  name: string;
+  name_kana: string | null;
+  district: string;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
+  phone: string | null;
+  mobile: string | null;
+  birthday: string | null;
+  enrollment_date: string | null;
+  age: number | null;
+  workplace: string | null;
+  role: string | null;
+  education_level: string | null;
+  family: string | null;
+  altar_status: string | null;
+  daily_practice: string | null;
+  newspaper: string | null;
+  financial_contribution: string | null;
+  activity_status: string | null;
+  youth_group: string | null;
+  notes: string | null;
+  visit_cycle_days: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface VisitRow {
+  id: string;
+  member_id: string;
+  visited_at: string;
+  status: string;
+  respondent: string | null;
+  notes: Record<string, unknown> | null;
+  summary: string | null;
+  keywords: string[] | null;
+  images: string[] | null;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}

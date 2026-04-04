@@ -1,0 +1,295 @@
+@import "tailwindcss";
+
+/* ========================================
+   家庭訪問アプリ — iOS / Notion風スタイル
+   ======================================== */
+
+:root {
+  --color-primary: #111111;
+  --color-bg: #F5F5F5;
+  --color-card: #FFFFFF;
+  --color-text: #111111;
+  --color-subtext: #6B6B6B;
+  --color-border: #E8E8E8;
+  --color-danger: #DC2626;
+  --color-success: #16A34A;
+  --color-icon-gray: #999999;
+  --color-accent: #111111;
+  --color-separator: #E8E8E8;
+  --color-card-bg: #FAFAFA;
+}
+
+@theme inline {
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-text);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  overscroll-behavior: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  font-size: 16px;
+}
+
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ── iOS風ナビバー（すりガラス） ── */
+.ios-nav {
+  background: transparent;
+  border-bottom: none;
+}
+
+/* ── カード ── */
+.ios-card {
+  background: var(--color-card);
+  border-radius: 8px;
+  border: none;
+  transition: transform 0.15s ease;
+}
+.ios-card:hover {
+  transform: translateY(-1px);
+}
+
+/* ── リストアイテム（タップ領域＝全体） ── */
+.ios-list-item {
+  background: var(--color-card);
+  border-bottom: 0.5px solid #F0F0F0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  transition: transform 0.15s ease;
+  cursor: pointer;
+}
+.ios-list-item:hover {
+  transform: translateY(-1px);
+}
+.ios-list-item:active {
+  transform: translateY(0);
+}
+
+/* ── ボタン ── */
+.ios-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 50px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 17px;
+  padding: 0 24px;
+  transition: transform 0.15s ease, opacity 0.15s;
+  width: 100%;
+  cursor: pointer;
+}
+.ios-button:hover {
+  transform: translateY(-1px);
+}
+.ios-button:active {
+  opacity: 0.7;
+  transform: translateY(0);
+}
+
+/* ── 入力フィールド ── */
+.ios-input {
+  width: 100%;
+  height: 44px;
+  border-radius: 10px;
+  border: none;
+  background: var(--color-bg);
+  padding: 0 12px;
+  font-size: 17px;
+  outline: none;
+  color: var(--color-text);
+}
+.ios-input:focus {
+  box-shadow: 0 0 0 1.5px #999999;
+}
+
+/* ── タブバー ── */
+.tab-bar {
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  background: rgba(255, 255, 255, 0.92);
+  border-top: none;
+}
+
+/* ── チップ（ステータス・対応者選択） ── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  background: var(--color-card);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+.chip:active {
+  transform: scale(0.96);
+}
+.chip.selected {
+  background: var(--color-primary);
+  color: white;
+  font-weight: 600;
+}
+
+/* ── 地図ピン ── */
+.custom-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  border: 2px solid white;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+.custom-pin-inner {
+  transform: rotate(45deg);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  color: white;
+}
+
+/* ── Leaflet ── */
+.leaflet-control-zoom { display: none !important; }
+.leaflet-container {
+  background: #E8EAED !important;
+  z-index: 0 !important;
+  touch-action: none !important;       /* ブラウザのデフォルトタッチ動作を無効化→Leafletに委譲 */
+  -webkit-touch-callout: none !important;
+}
+.map-pin-icon { overflow: visible !important; background: none !important; border: none !important; }
+
+/* ── スクロールバー非表示 ── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── アニメーション ── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.modal-overlay {
+  animation: fadeIn 0.2s ease-out;
+}
+.modal-sheet {
+  animation: slideUp 0.3s ease-out;
+}
+.page-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* ── ボトムシート ── */
+.bottom-sheet {
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+}
+.bottom-sheet-handle {
+  width: 36px;
+  height: 5px;
+  border-radius: 3px;
+  background: #D1D5DB;
+  margin: 8px auto 4px;
+}
+
+/* ── 自動保存ステータス ── */
+.save-status {
+  font-size: 13px;
+  color: var(--color-subtext);
+  transition: opacity 0.3s;
+}
+
+/* ── Tiptapエディタ ── */
+.tiptap-editor {
+  min-height: 120px;
+  padding: 12px;
+  font-size: 16px;
+  line-height: 1.6;
+  outline: none;
+  background: white;
+  border-radius: 0;
+  border: none;
+}
+.tiptap-editor:focus-within {
+  background: white;
+}
+.tiptap-editor h1 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 8px 0 4px;
+}
+.tiptap-editor h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+.tiptap-editor p {
+  margin: 4px 0;
+}
+.tiptap-editor ul {
+  padding-left: 20px;
+  list-style: disc;
+}
+.tiptap-editor ol {
+  padding-left: 20px;
+  list-style: decimal;
+}
+.tiptap-editor p.is-editor-empty:first-child::before {
+  color: #9CA3AF;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* ── スワイプ削除 ── */
+.swipe-container {
+  overflow: hidden;
+  position: relative;
+}
+.swipe-content {
+  transition: transform 0.2s ease-out;
+}
+.swipe-action {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── PC向け（768px以上） ── */
+@media (min-width: 768px) {
+  html, body {
+    font-size: 17px;
+  }
+}

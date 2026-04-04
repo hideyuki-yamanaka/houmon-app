@@ -1,0 +1,130 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { ChevronRight, Plus, MapPin, Clock } from 'lucide-react';
+import Link from 'next/link';
+import type { MemberWithVisitInfo, Visit } from '../lib/types';
+import { VISIT_STATUS_CONFIG } from '../lib/constants';
+import { formatDate } from '../lib/utils';
+import { getVisits } from '../lib/storage';
+
+interface Props {
+  member: MemberWithVisitInfo | null;
+  onClose: () => void;
+}
+
+export default function MemberBottomSheet({ member, onClose }: Props) {
+  const [visits, setVisits] = useState<Visit[]>([]);
+  const [loading, setLoading] = useState(false);
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!member) return;
+    setLoading(true);
+    getVisits(member.id)
+      .then(v => setVisits(v.slice(0, 3)))
+      .catch(() => setVisits([]))
+      .finally(() => setLoading(false));
+  }, [member?.id]);
+
+  if (!member) return null;
+
+  return (
+    <div className="fixed inset-0 z-40 pointer-events-none">
+      <div
+        ref={sheetRef}
+        className="absolute bottom-[calc(60px+env(safe-area-inset-bottom))] left-0 right-0 bg-white bottom-sheet modal-sheet max-w-[920px] mx-auto pointer-events-auto"
+      >
+        <div className="bottom-sheet-handle" />
+
+        {/* ヘッダー: 名前 + 地区 */}
+        <div className="px-4 pt-2 pb-3">
+          <Link
+            href={`/members/${member.id}`}
+            className="flex items-center justify-between group"
+          >
+            <div>
+              <h2 className="text-lg font-bold">{member.name}</h2>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs font-medium px-2 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)]">
+                  {member.district.replace(/豊岡部|光陽部|豊岡中央支部/g, '')}
+                </span>
+                <span className="flex items-center gap-1 text-xs text-[var(--color-subtext)]">
+                  <Clock size={12} strokeWidth={1.8} />
+                  {member.lastVisitDate
+                    ? `${formatDate(member.lastVisitDate, 'M/d')}（${member.totalVisits}回）`
+                    : '未訪問'}
+                </span>
+              </div>
+            </div>
+            <ChevronRight size={20} className="text-[var(--color-icon-gray)]" />
+          </Link>
+
+          {/* 住所（Googleマップ遷移リンク） */}
+          {member.address && (
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(member.address)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 mt-2 text-sm text-[var(--color-subtext)] active:text-[var(--color-text)] transition-colors"
+              onClick={e => e.stopPropagation()}
+            >
+              <span className="flex-1">{member.address}</span>
+              <MapPin size={14} strokeWidth={1.8} className="text-[var(--color-icon-gray)] shrink-0" />
+            </a>
+          )}
+        </div>
+
+        {/* 過去の訪問ログ */}
+        <div className="px-4 pb-2">
+          <h3 className="text-xs font-semibold text-[var(--color-subtext)] mb-2">過去の訪問ログ</h3>
+          {loading ? (
+            <p className="text-sm text-[var(--color-subtext)]">読み込み中...</p>
+          ) : visits.length === 0 ? (
+            <p className="text-sm text-[var(--color-subtext)]">まだ訪問記録がありません</p>
+          ) : (
+            <div className="space-y-2">
+              {visits.map(v => {
+                const statusConfig = VISIT_STATUS_CONFIG[v.status];
+                return (
+                  <Link key={v.id} href={`/visits/${v.id}`} className="block">
+                    <div className="ios-card p-3 active:bg-[#F5F5F5] transition-colors">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{formatDate(v.visitedAt, 'M/d')}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${statusConfig.bg} ${statusConfig.color}`}>
+                          {statusConfig.label}
+                        </span>
+                      </div>
+                      {v.summary && (
+                        <p className="text-xs text-[var(--color-subtext)] mt-1 line-clamp-2">{v.summary}</p>
+                      )}
+                    </div>
+                  </Link>
+                );
+              })}
+              {member.totalVisits > 3 && (
+                <Link
+                  href={`/members/${member.id}`}
+                  className="text-sm text-[var(--color-primary)] font-medium flex items-center gap-1"
+                >
+                  もっと見る <ChevronRight size={14} />
+                </Link>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* 訪問記録ボタン */}
+        <div className="px-4 pb-4 pt-2">
+          <Link
+            href={`/visits/new?memberId=${member.id}`}
+            className="ios-button bg-[#111] text-white"
+          >
+            <Plus size={20} className="mr-2" />
+            訪問を記録する
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
