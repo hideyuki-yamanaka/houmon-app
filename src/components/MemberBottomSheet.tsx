@@ -90,7 +90,7 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
               className="flex items-center gap-1 mt-2 text-sm text-[var(--color-subtext)] active:text-[var(--color-text)] transition-colors"
               onClick={e => e.stopPropagation()}
             >
-              <MapPin size={16} strokeWidth={1.8} className="text-[var(--color-icon-gray)] shrink-0" />
+              <MapPin size={20} strokeWidth={1.8} className="text-[var(--color-icon-gray)] shrink-0" />
               <span className="flex-1">{m.address}</span>
             </a>
           )}
