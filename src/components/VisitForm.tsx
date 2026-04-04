@@ -175,19 +175,19 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
           <div className="flex items-end gap-3">
             <div>
               <label className="text-sm font-semibold text-[var(--color-subtext)] block mb-2">日付</label>
-              <div className="inline-flex items-center gap-1.5 h-[44px] px-3">
+              <div className="inline-flex items-center gap-1.5 bg-white rounded-[10px] h-[44px] px-3">
                 <input
                   type="date"
                   value={date}
                   onChange={e => handleDateChange(e.target.value)}
-                  className="bg-transparent outline-none text-[17px] text-[var(--color-text)]"
+                  className="bg-transparent outline-none text-[17px] text-[var(--color-text)] [&::-webkit-calendar-picker-indicator]:hidden"
                 />
                 <Calendar size={18} className="text-[var(--color-icon-gray)] shrink-0" />
               </div>
             </div>
             <Link
               href={`/members/${member.id}`}
-              className="flex items-center gap-1 text-sm text-[var(--color-primary)] whitespace-nowrap shrink-0 h-[44px]"
+              className="flex items-center gap-1 text-sm text-[var(--color-primary)] whitespace-nowrap shrink-0 h-[44px] bg-white rounded-[10px] px-3"
             >
               <User size={16} />
               情報を見る
