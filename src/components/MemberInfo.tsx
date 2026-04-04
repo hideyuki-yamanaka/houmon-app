@@ -63,7 +63,7 @@ function StatusCell({ item, member, memberId, onSaved }: {
 
   return (
     <div ref={ref} className="relative">
-      <button onClick={() => setOpen(!open)} className="w-full text-center py-1 rounded-lg transition-transform duration-150 hover:translate-y-[-2px] cursor-pointer">
+      <button onClick={() => setOpen(!open)} className="w-full text-center py-1 rounded-lg transition-opacity duration-150 hover:opacity-70 cursor-pointer">
         <div className="text-[11px] text-[var(--color-subtext)] mb-1.5">{item.label}</div>
         <div className={`text-4xl font-bold ${display.color} transition-transform duration-150`}>{display.symbol}</div>
       </button>
@@ -126,7 +126,7 @@ function DateField({ label, value, fieldKey, memberId, onSaved, half }: {
 
   return (
     <div
-      className={`py-2 cursor-pointer transition-transform duration-150 hover:translate-y-[-1px] ${half ? '' : 'border-b border-[#F0F0F0]'}`}
+      className={`py-2 cursor-pointer transition-opacity duration-150 hover:opacity-70 ${half ? '' : 'border-b border-[#F0F0F0]'}`}
       onClick={() => inputRef.current?.showPicker?.()}
     >
       <div className="text-[10px] text-[var(--color-subtext)] mb-0.5">{label}</div>
@@ -192,7 +192,7 @@ function AgeField({ value, memberId, onSaved, half }: {
     <div ref={ref} className={`py-2 relative ${half ? '' : 'border-b border-[#F0F0F0]'}`}>
       <button
         onClick={() => setOpen(!open)}
-        className="w-full text-left cursor-pointer transition-transform duration-150 hover:translate-y-[-1px]"
+        className="w-full text-left cursor-pointer transition-opacity duration-150 hover:opacity-70"
       >
         <div className="text-[10px] text-[var(--color-subtext)] mb-0.5">年齢</div>
         {displayValue
@@ -271,7 +271,7 @@ function EditableField({ label, value, fieldKey, memberId, link, onSaved, half }
   }
 
   return (
-    <div className={`py-2 cursor-pointer transition-transform duration-150 hover:translate-y-[-1px] ${half ? '' : 'border-b border-[#F0F0F0]'}`}
+    <div className={`py-2 cursor-pointer transition-opacity duration-150 hover:opacity-70 ${half ? '' : 'border-b border-[#F0F0F0]'}`}
       onClick={() => { setEditValue(displayValue); setEditing(true); }}>
       <div className="text-[10px] text-[var(--color-subtext)] mb-0.5">{label}</div>
       {displayValue ? (

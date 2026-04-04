@@ -53,10 +53,10 @@ body {
   background: var(--color-card);
   border-radius: 8px;
   border: none;
-  transition: transform 0.15s ease;
+  transition: opacity 0.15s ease;
 }
 .ios-card:hover {
-  transform: translateY(-1px);
+  opacity: 0.7;
 }
 
 /* ── リストアイテム（タップ領域＝全体） ── */
@@ -67,14 +67,14 @@ body {
   display: flex;
   align-items: center;
   padding: 12px 16px;
-  transition: transform 0.15s ease;
+  transition: opacity 0.15s ease;
   cursor: pointer;
 }
 .ios-list-item:hover {
-  transform: translateY(-1px);
+  opacity: 0.7;
 }
 .ios-list-item:active {
-  transform: translateY(0);
+  opacity: 0.5;
 }
 
 /* ── ボタン ── */
@@ -87,16 +87,15 @@ body {
   font-weight: 600;
   font-size: 17px;
   padding: 0 24px;
-  transition: transform 0.15s ease, opacity 0.15s;
+  transition: opacity 0.15s ease;
   width: 100%;
   cursor: pointer;
 }
 .ios-button:hover {
-  transform: translateY(-1px);
+  opacity: 0.7;
 }
 .ios-button:active {
-  opacity: 0.7;
-  transform: translateY(0);
+  opacity: 0.5;
 }
 
 /* ── 入力フィールド ── */

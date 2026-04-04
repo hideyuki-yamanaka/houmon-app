@@ -133,7 +133,7 @@ export default function VisitDetailPage() {
           <button
             onClick={handleDelete}
             disabled={deleting}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[var(--color-subtext)] hover:translate-y-[-1px] active:translate-y-[0px] transition-transform text-sm font-medium"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[var(--color-subtext)] hover:opacity-70 active:opacity-50 transition-opacity text-sm font-medium"
           >
             <Trash2 size={16} />
             {deleting ? '削除中...' : 'ゴミ箱に移動'}
