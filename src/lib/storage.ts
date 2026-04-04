@@ -186,7 +186,6 @@ export async function createVisit(
     updated_at: now,
   };
   if (isMockMode) {
-    console.log('[mock] createVisit', row);
     return toVisit(row);
   }
   const { error } = await supabase.from('visits').insert(row);
@@ -196,7 +195,6 @@ export async function createVisit(
 
 export async function updateVisit(id: string, updates: Partial<VisitRow>): Promise<void> {
   if (isMockMode) {
-    console.log('[mock] updateVisit', id, updates);
     return;
   }
   const { error } = await supabase

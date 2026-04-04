@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
-import Link from 'next/link';
 import type { MemberWithVisitInfo } from '../../../lib/types';
 import { getMembersWithVisitInfo } from '../../../lib/storage';
 import MemberCard from '../../../components/MemberCard';
