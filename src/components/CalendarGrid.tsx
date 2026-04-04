@@ -43,7 +43,7 @@ export default function CalendarGrid({
         <button onClick={onPrevMonth} className="p-2 -ml-2 text-[var(--color-primary)]">
           <ChevronLeft size={20} />
         </button>
-        <h2 className="text-lg font-bold">{year}年{month}月</h2>
+        <h2 className="text-xl font-bold">{year}年{month}月</h2>
         <button onClick={onNextMonth} className="p-2 -mr-2 text-[var(--color-primary)]">
           <ChevronRight size={20} />
         </button>
@@ -54,7 +54,7 @@ export default function CalendarGrid({
         {WEEKDAYS.map((w, i) => (
           <div
             key={w}
-            className={`text-xs font-medium py-1 ${
+            className={`text-sm font-medium py-1 ${
               i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-[var(--color-subtext)]'
             }`}
           >
@@ -86,7 +86,7 @@ export default function CalendarGrid({
                     : ''
               }`}
             >
-              <span className={`text-base font-medium ${
+              <span className={`text-lg font-medium ${
                 isSelected
                   ? 'text-white'
                   : dow === 0

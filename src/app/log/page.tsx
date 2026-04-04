@@ -75,14 +75,14 @@ export default function LogPage() {
                   <span className="text-lg font-bold">{stats.coverRate}%</span>
                 </div>
               </div>
-              <div className="text-[11px] text-[var(--color-subtext)] mt-2 text-center">
+              <div className="text-xs text-[var(--color-subtext)] mt-2 text-center">
                 訪問カバー率
-                <div className="text-xs font-medium text-[var(--color-text)]">{stats.uniqueMembersVisited}/{stats.totalMembers}人</div>
+                <div className="text-sm font-medium text-[var(--color-text)]">{stats.uniqueMembersVisited}/{stats.totalMembers}人</div>
               </div>
             </div>
             <div className="ios-card p-4 flex flex-col items-center justify-center">
               <div className="text-3xl font-bold">{stats.monthVisitCount}</div>
-              <div className="text-[11px] text-[var(--color-subtext)] mt-1">{monthLabel}の訪問回数</div>
+              <div className="text-xs text-[var(--color-subtext)] mt-1">{monthLabel}の訪問回数</div>
             </div>
           </div>
 
@@ -99,7 +99,7 @@ export default function LogPage() {
                   const rate = data.total > 0 ? Math.round((data.visited / data.total) * 100) : 0;
                   return (
                     <div key={district} className="flex items-center gap-3">
-                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)] shrink-0 w-16 text-center">
+                      <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)] shrink-0 w-16 text-center">
                         {district.replace(/豊岡部|光陽部|豊岡中央支部/g, '')}
                       </span>
                       <div className="flex-1 h-2 bg-[#EBEBEB] rounded-full overflow-hidden">
@@ -108,7 +108,7 @@ export default function LogPage() {
                           style={{ width: `${rate}%` }}
                         />
                       </div>
-                      <span className="text-xs text-[var(--color-subtext)] w-16 text-right">
+                      <span className="text-sm text-[var(--color-subtext)] w-20 text-right">
                         {data.visited}/{data.total} ({rate}%)
                       </span>
                     </div>
@@ -128,9 +128,9 @@ export default function LogPage() {
                   .map((m, i) => {
                     return (
                       <Link key={m.id} href={`/members/${m.id}`} className="flex items-center gap-3 py-1">
-                        <span className="text-sm font-bold text-[var(--color-subtext)] w-5">{i + 1}</span>
-                        <span className="text-sm flex-1">{m.name}</span>
-                        <span className="text-sm font-bold">{m.totalVisits}回</span>
+                        <span className="text-base font-bold text-[var(--color-subtext)] w-5">{i + 1}</span>
+                        <span className="text-base flex-1">{m.name}</span>
+                        <span className="text-base font-bold">{m.totalVisits}回</span>
                       </Link>
                     );
                   })}
@@ -144,8 +144,8 @@ export default function LogPage() {
               <div className="ios-card p-4 flex items-center gap-3 active:bg-[#F5F5F5] transition-colors">
                 <AlertTriangle size={18} className="text-[var(--color-danger)] shrink-0" />
                 <div className="flex-1">
-                  <span className="text-sm font-bold">訪問期限超過</span>
-                  <span className="text-sm text-[var(--color-subtext)] ml-2">{stats.overdueMembers.length}人</span>
+                  <span className="text-base font-bold">訪問期限超過</span>
+                  <span className="text-base text-[var(--color-subtext)] ml-2">{stats.overdueMembers.length}人</span>
                 </div>
                 <ChevronRight size={16} className="text-[var(--color-icon-gray)] shrink-0" />
               </div>

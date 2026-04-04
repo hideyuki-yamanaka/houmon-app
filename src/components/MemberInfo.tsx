@@ -313,8 +313,12 @@ export default function MemberInfo({ member, onUpdate }: Props) {
           </span>
         </div>
 
-        {F('nameKana', '読み仮名', local.nameKana)}
-        {F('role', '役職', local.role)}
+        {/* 読み仮名 & 役職 — 2カラム */}
+        <div className="grid grid-cols-2 gap-x-4 border-b border-[#F0F0F0]">
+          {F('nameKana', '読み仮名', local.nameKana, { half: true })}
+          {F('role', '役職', local.role, { half: true })}
+        </div>
+
         {F('address', '住所', local.address, { link: local.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(local.address)}` : undefined })}
 
         {/* 日付 & 年齢 — カレンダーピッカー / ドラムロール */}
@@ -330,10 +334,10 @@ export default function MemberInfo({ member, onUpdate }: Props) {
           {F('mobile', '携帯', local.mobile, { link: local.mobile ? `tel:${local.mobile}` : undefined, half: true })}
           {F('educationLevel', '教学', local.educationLevel, { half: true })}
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 border-b border-[#F0F0F0]">
-          {F('workplace', '職場', local.workplace, { half: true })}
-          {F('family', '同居家族', local.family, { half: true })}
-        </div>
+
+        {/* 職場 & 同居家族 — 縦並び */}
+        {F('workplace', '職場', local.workplace)}
+        {F('family', '同居家族', local.family)}
 
         {F('notes', '備考', local.notes)}
       </div>

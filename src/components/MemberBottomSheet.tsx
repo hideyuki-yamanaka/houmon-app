@@ -66,11 +66,11 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
               href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(member.address)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 mt-2 text-sm text-[var(--color-subtext)] active:text-[var(--color-text)] transition-colors"
+              className="flex items-center gap-2 mt-2 text-sm text-[var(--color-subtext)] active:text-[var(--color-text)] transition-colors"
               onClick={e => e.stopPropagation()}
             >
+              <MapPin size={18} strokeWidth={1.8} className="text-[var(--color-icon-gray)] shrink-0" />
               <span className="flex-1">{member.address}</span>
-              <MapPin size={14} strokeWidth={1.8} className="text-[var(--color-icon-gray)] shrink-0" />
             </a>
           )}
         </div>
@@ -88,7 +88,7 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
                 const statusConfig = VISIT_STATUS_CONFIG[v.status];
                 return (
                   <Link key={v.id} href={`/visits/${v.id}`} className="block">
-                    <div className="ios-card p-3 active:bg-[#F5F5F5] transition-colors">
+                    <div className="p-3 rounded-xl bg-[#F5F5F5] active:bg-[#EBEBEB] transition-colors">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">{formatDate(v.visitedAt, 'M/d')}</span>
                         <span className={`text-xs px-2 py-0.5 rounded-full ${statusConfig.bg} ${statusConfig.color}`}>

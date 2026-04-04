@@ -48,7 +48,7 @@ export default function MemberDetailPage() {
     <div className="h-full flex flex-col bg-[var(--color-bg)]">
       {/* ナビバー */}
       <nav className="ios-nav flex items-center px-4 py-3 gap-2">
-        <button onClick={() => router.back()} className="flex items-center gap-1 text-[var(--color-primary)] shrink-0">
+        <button onClick={() => { if (window.history.length > 1) router.back(); else router.push('/members'); }} className="flex items-center gap-1 text-[var(--color-primary)] shrink-0">
           <ChevronLeft size={20} />
           <span className="text-sm">戻る</span>
         </button>
