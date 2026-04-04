@@ -66,7 +66,7 @@ export default function CalendarGrid({
       {/* 日付グリッド */}
       <div className="grid grid-cols-7 text-center px-4 pb-4 gap-0.5">
         {days.map((day, i) => {
-          if (day === null) return <div key={`empty-${i}`} className="aspect-[1/0.85]" />;
+          if (day === null) return <div key={`empty-${i}`} className="aspect-square" />;
 
           const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           const isSelected = dateStr === selectedDate;
@@ -78,7 +78,7 @@ export default function CalendarGrid({
             <button
               key={dateStr}
               onClick={() => onSelectDate(dateStr)}
-              className={`aspect-[1/0.85] relative flex flex-col items-center justify-center gap-px rounded-lg py-1.5 px-1 transition-colors ${
+              className={`aspect-square relative flex flex-col items-center justify-center gap-px rounded-lg py-1.5 px-1 transition-colors ${
                 isSelected
                   ? 'bg-[var(--color-primary)] text-white'
                   : isToday
