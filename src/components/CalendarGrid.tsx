@@ -86,7 +86,7 @@ export default function CalendarGrid({
                     : ''
               }`}
             >
-              <span className={`text-lg font-medium ${
+              <span className={`text-lg font-medium leading-tight ${
                 isSelected
                   ? 'text-white'
                   : dow === 0
