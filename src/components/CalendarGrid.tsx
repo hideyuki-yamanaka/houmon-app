@@ -78,7 +78,7 @@ export default function CalendarGrid({
             <button
               key={dateStr}
               onClick={() => onSelectDate(dateStr)}
-              className={`aspect-square md:aspect-[1/0.6] relative flex flex-col items-center justify-center gap-px rounded-lg py-1.5 px-1 transition-colors ${
+              className={`aspect-square md:aspect-[1/0.6] relative flex flex-col items-center justify-center gap-px rounded-lg py-0.5 px-1 transition-colors ${
                 isSelected
                   ? 'bg-[var(--color-primary)] text-white'
                   : isToday
@@ -97,9 +97,7 @@ export default function CalendarGrid({
               }`}>
                 {day}
               </span>
-              {hasVisit && (
-                <span className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-white' : 'bg-[var(--color-primary)]'}`} />
-              )}
+              <span className={`w-1.5 h-1.5 rounded-full ${hasVisit ? (isSelected ? 'bg-white' : 'bg-[var(--color-primary)]') : 'bg-transparent'}`} />
             </button>
           );
         })}
