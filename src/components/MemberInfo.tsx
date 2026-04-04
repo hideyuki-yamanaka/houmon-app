@@ -305,7 +305,7 @@ export default function MemberInfo({ member, onUpdate }: Props) {
   return (
     <div className="space-y-4">
       {/* 基本情報 */}
-      <div className="ios-card p-4">
+      <div className="ios-card p-4 hover:!opacity-100">
         <h3 className="text-xs font-semibold text-[var(--color-subtext)] mb-2">基本情報</h3>
         <div className="flex items-center gap-2 mb-2">
           <span className="text-xs font-medium px-2 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)]">
@@ -343,7 +343,7 @@ export default function MemberInfo({ member, onUpdate }: Props) {
       </div>
 
       {/* ○×△ ステータスグリッド（タップで編集） */}
-      <div className="ios-card px-4 pt-4 pb-6">
+      <div className="ios-card px-4 pt-4 pb-6 hover:!opacity-100">
         <h3 className="text-xs font-semibold text-[var(--color-subtext)] mb-3">ステータス</h3>
         <div className="grid grid-cols-7 gap-2 text-center">
           {STATUS_GRID_ITEMS.map(item => (

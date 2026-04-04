@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronLeft, Check, Loader2, Camera, X, User } from 'lucide-react';
+import { ChevronLeft, Check, Loader2, Camera, X, User, Calendar } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { Member, Visit, VisitStatus, Respondent } from '../lib/types';
@@ -173,14 +173,17 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
 
           {/* 日付 + 情報を見る */}
           <div className="flex items-end gap-3">
-            <div className="flex-1">
+            <div>
               <label className="text-sm font-semibold text-[var(--color-subtext)] block mb-2">日付</label>
-              <input
-                type="date"
-                value={date}
-                onChange={e => handleDateChange(e.target.value)}
-                className="ios-input w-auto bg-white"
-              />
+              <div className="inline-flex items-center gap-1.5 bg-white rounded-[10px] h-[44px] px-3">
+                <input
+                  type="date"
+                  value={date}
+                  onChange={e => handleDateChange(e.target.value)}
+                  className="bg-transparent outline-none text-[17px] text-[var(--color-text)]"
+                />
+                <Calendar size={18} className="text-[var(--color-icon-gray)] shrink-0" />
+              </div>
             </div>
             <Link
               href={`/members/${member.id}`}
@@ -191,10 +194,10 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
             </Link>
           </div>
 
-          {/* ステータス & 対応者 — PC: 2カラム / スマホ: 縦積み */}
+          {/* カテゴリ & 対応者 — PC: 2カラム / スマホ: 縦積み */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-semibold text-[var(--color-subtext)] block mb-2">ステータス</label>
+              <label className="text-sm font-semibold text-[var(--color-subtext)] block mb-2">カテゴリ</label>
               <div className="flex flex-wrap gap-2">
                 {(Object.entries(VISIT_STATUS_CONFIG) as [VisitStatus, typeof VISIT_STATUS_CONFIG[VisitStatus]][]).map(([key, config]) => (
                   <button
