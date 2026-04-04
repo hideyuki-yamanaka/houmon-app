@@ -78,7 +78,7 @@ export default function CalendarGrid({
             <button
               key={dateStr}
               onClick={() => onSelectDate(dateStr)}
-              className={`aspect-[1/0.7] relative flex flex-col items-center justify-center gap-0.5 rounded-lg transition-colors ${
+              className={`aspect-[1/0.7] relative flex flex-col items-center justify-center gap-px rounded-lg p-1 transition-colors ${
                 isSelected
                   ? 'bg-[var(--color-primary)] text-white'
                   : isToday
