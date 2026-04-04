@@ -92,14 +92,14 @@ export default function LogPage() {
             <div className="ios-card p-4 hover:!opacity-100">
               <div className="flex items-center gap-2 mb-3">
                 <MapPin size={16} className="text-[#111]" />
-                <h3 className="text-sm font-bold">地区別訪問カバー率</h3>
+                <h3 className="text-sm font-semibold">地区別訪問カバー率</h3>
               </div>
               <div className="space-y-2">
                 {Array.from(stats.districtStats.entries()).map(([district, data]) => {
                   const rate = data.total > 0 ? Math.round((data.visited / data.total) * 100) : 0;
                   return (
                     <div key={district} className="flex items-center gap-3">
-                      <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)] shrink-0 w-16 text-center">
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)] shrink-0 w-16 text-center">
                         {district.replace(/豊岡部|光陽部|豊岡中央支部/g, '')}
                       </span>
                       <div className="flex-1 h-2 bg-[#EBEBEB] rounded-full overflow-hidden">
@@ -119,7 +119,7 @@ export default function LogPage() {
 
             {/* メンバー訪問回数ランキング */}
             <div className="ios-card p-4 hover:!opacity-100">
-              <h3 className="text-sm font-bold mb-3">訪問回数ランキング</h3>
+              <h3 className="text-sm font-semibold text-[var(--color-subtext)] mb-3">訪問回数ランキング</h3>
               <div className="space-y-2">
                 {members
                   .filter(m => m.totalVisits > 0)
@@ -128,9 +128,9 @@ export default function LogPage() {
                   .map((m, i) => {
                     return (
                       <Link key={m.id} href={`/members/${m.id}`} className="flex items-center gap-3 py-1 transition-opacity hover:opacity-70">
-                        <span className="text-base font-bold text-[var(--color-subtext)] w-5">{i + 1}</span>
-                        <span className="text-base flex-1">{m.name}</span>
-                        <span className="text-base font-bold">{m.totalVisits}回</span>
+                        <span className="text-[15px] font-bold text-[var(--color-subtext)] w-5">{i + 1}</span>
+                        <span className="text-[15px] flex-1">{m.name}</span>
+                        <span className="text-[15px] font-bold">{m.totalVisits}回</span>
                       </Link>
                     );
                   })}
@@ -144,8 +144,8 @@ export default function LogPage() {
               <div className="ios-card p-4 flex items-center gap-3 active:bg-[#F5F5F5] transition-colors">
                 <AlertTriangle size={18} className="text-[var(--color-danger)] shrink-0" />
                 <div className="flex-1">
-                  <span className="text-base font-bold">訪問期限超過</span>
-                  <span className="text-base text-[var(--color-subtext)] ml-2">{stats.overdueMembers.length}人</span>
+                  <span className="text-[15px] font-bold">訪問期限超過</span>
+                  <span className="text-[15px] text-[var(--color-subtext)] ml-2">{stats.overdueMembers.length}人</span>
                 </div>
                 <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0" />
               </div>

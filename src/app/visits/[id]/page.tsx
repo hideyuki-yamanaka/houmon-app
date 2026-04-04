@@ -81,7 +81,7 @@ export default function VisitDetailPage() {
           {/* メンバー名 + 地区 */}
           <Link href={`/members/${visit.memberId}`} className="block">
             <div className="ios-card px-4 py-3 flex items-center gap-2 active:bg-[#F5F5F5] transition-colors">
-              <span className="font-bold text-base">{visit.memberName}</span>
+              <span className="font-bold text-[15px]">{visit.memberName}</span>
               <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0" />
               <span className="flex-1" />
               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)]">

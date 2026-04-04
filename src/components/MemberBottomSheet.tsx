@@ -68,7 +68,7 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
               <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0" />
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-medium px-2 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)]">
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)]">
                 {m.district.replace(/豊岡部|光陽部|豊岡中央支部/g, '')}
               </span>
               <span className="flex items-center gap-1 text-sm text-[var(--color-subtext)]">
@@ -97,7 +97,7 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
 
         {/* 訪問ログ */}
         <div className="px-4 pt-4 pb-2">
-          <h3 className="text-xs font-semibold text-[var(--color-subtext)] mb-2">訪問ログ</h3>
+          <h3 className="text-sm font-semibold text-[var(--color-subtext)] mb-2">訪問ログ</h3>
           {loading ? (
             <p className="text-sm text-[var(--color-subtext)]">読み込み中...</p>
           ) : visits.length === 0 ? (
@@ -106,7 +106,7 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
             <div className="space-y-2">
               {visits.map(v => (
                   <Link key={v.id} href={`/visits/${v.id}`} className="block">
-                    <div className="px-3 py-2.5 rounded-lg bg-[#F5F5F5] active:bg-[#EBEBEB] transition-colors flex items-center gap-2">
+                    <div className="px-3 py-2.5 rounded-lg bg-[#F5F5F5] active:bg-[#F5F5F5] transition-colors flex items-center gap-2">
                       <span className="text-sm font-medium shrink-0">{formatDate(v.visitedAt, 'yyyy年M月d日')}</span>
                       {v.summary && (
                         <span className="text-xs text-[var(--color-subtext)] truncate">{v.summary}</span>

@@ -84,7 +84,7 @@ export default function CalendarPage() {
                   <Link key={v.id} href={`/visits/${v.id}`} className="block">
                     <div className="ios-card px-3 py-3.5">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm">{v.memberName}</span>
+                        <span className="font-bold text-[15px]">{v.memberName}</span>
                         {statusConfig && (
                           <span className={`text-xs px-2 py-0.5 rounded-full ${statusConfig.bg} ${statusConfig.color}`}>
                             {statusConfig.label}

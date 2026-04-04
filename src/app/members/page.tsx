@@ -106,7 +106,7 @@ export default function MembersPage() {
           {/* 直近訪問したメンバー */}
           {!loading && recentVisited.length > 0 && (
             <div className="mb-4">
-              <h2 className="text-xs font-semibold text-[var(--color-subtext)] mb-2 mt-2">直近訪問したメンバー</h2>
+              <h2 className="text-sm font-semibold text-[var(--color-subtext)] mb-2 mt-2">直近訪問したメンバー</h2>
               <div className="space-y-2">
                 {recentVisited.map(m => (
                   <MemberCard key={m.id} member={m} />
