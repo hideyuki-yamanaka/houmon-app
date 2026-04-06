@@ -127,13 +127,16 @@ function SmoothZoomHandler() {
   useEffect(() => {
     // leaflet-rotate の setTransform がサブピクセルで丸めないので
     // L.DomUtil.setPosition をパッチして座標を整数に丸める
-    const origSetPosition = L.DomUtil.setPosition;
-    L.DomUtil.setPosition = function (el: HTMLElement, point: L.Point, ...rest: unknown[]) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const origSetPosition = (L.DomUtil as any).setPosition;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (L.DomUtil as any).setPosition = function (...args: any[]) {
+      const point = args[1] as L.Point | undefined;
       if (point && typeof point.x === 'number') {
         point.x = Math.round(point.x);
         point.y = Math.round(point.y);
       }
-      return origSetPosition.call(this, el, point, ...rest);
+      return origSetPosition.apply(this, args);
     };
 
     const container = map.getContainer();
@@ -190,7 +193,8 @@ function SmoothZoomHandler() {
       container.removeEventListener('wheel', handleWheel);
       if (rafId !== null) cancelAnimationFrame(rafId);
       // パッチ復元
-      L.DomUtil.setPosition = origSetPosition;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (L.DomUtil as any).setPosition = origSetPosition;
     };
   }, [map]);
 
