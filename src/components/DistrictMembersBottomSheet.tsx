@@ -51,7 +51,7 @@ export default function DistrictMembersBottomSheet({ districtShort, members, onS
         className={`absolute bottom-[calc(60px+env(safe-area-inset-bottom))] left-0 right-0 bg-white bottom-sheet max-w-[920px] mx-auto pointer-events-auto transition-transform duration-300 ease-out ${
           show ? 'translate-y-0' : 'translate-y-full'
         }`}
-        style={{ maxHeight: 'calc(60vh)' }}
+        style={{ maxHeight: '40vh' }}
       >
         <div className="bottom-sheet-handle" />
 
@@ -71,7 +71,7 @@ export default function DistrictMembersBottomSheet({ districtShort, members, onS
         </div>
 
         {/* メンバーリスト */}
-        <div className="overflow-y-auto px-4 py-3 space-y-2" style={{ maxHeight: 'calc(60vh - 56px)' }}>
+        <div className="overflow-y-auto px-4 py-3 space-y-2" style={{ maxHeight: 'calc(40vh - 56px)' }}>
           {sorted.length === 0 ? (
             <p className="text-sm text-[var(--color-subtext)] text-center py-4">メンバーがいません</p>
           ) : (

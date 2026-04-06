@@ -176,6 +176,18 @@ body {
   -webkit-touch-callout: none !important;
 }
 .map-pin-icon { overflow: visible !important; background: none !important; border: none !important; }
+.gps-dot-icon { background: none !important; border: none !important; }
+.leaflet-tile {
+  image-rendering: auto;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+.leaflet-tile-container {
+  will-change: transform;
+}
+.leaflet-marker-pane {
+  will-change: transform;
+}
 
 /* ── スクロールバー非表示 ── */
 .no-scrollbar::-webkit-scrollbar { display: none; }

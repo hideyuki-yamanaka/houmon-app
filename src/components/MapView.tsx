@@ -8,7 +8,6 @@ import {
   MapContainer,
   TileLayer,
   Marker,
-  CircleMarker,
   useMap,
 } from 'react-leaflet';
 import type { MemberWithVisitInfo } from '../lib/types';
@@ -23,6 +22,31 @@ interface MapViewProps {
   onMemberSelect: (memberId: string) => void;
   onMapClick?: () => void;
 }
+
+// ── GPS現在地マーカー（DivIcon — SVG CircleMarkerより位置安定） ──
+const GPS_DOT_ICON = L.divIcon({
+  className: 'gps-dot-icon',
+  html: `<div style="
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+  ">
+    <div style="
+      position: absolute;
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: rgba(66,133,244,0.1);
+    "></div>
+    <div style="
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: #4285F4;
+      border: 2.5px solid white;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    "></div>
+  </div>`,
+  iconSize: [44, 44],
+  iconAnchor: [22, 22],
+});
 
 // ── Google Maps風ピン（未訪問=白、訪問済み=赤） ──
 const PIN_COLOR_VISITED = '#EA4335';   // Google Maps red
@@ -48,6 +72,7 @@ function createMemberPin(member: MemberWithVisitInfo, isSelected: boolean): L.Di
       justify-content: center;
       overflow: visible;
       cursor: pointer;
+      will-change: transform;
     ">
       <svg width="28" height="40" viewBox="0 0 28 40" fill="none" style="
         transform: scale(${scale});
@@ -94,11 +119,23 @@ function PanToSelected({ members, selectedId }: { members: MemberWithVisitInfo[]
 // - すべての wheel イベントをピンチと同じ連続ズームとして扱う
 // - deltaMode に応じて係数を正規化
 // - アニメーションなしで即時反映 → カクつきなし
+// - ズーム値を0.01刻みに丸めてサブピクセルジッター防止
 // ========================================
 function SmoothZoomHandler() {
   const map = useMap();
 
   useEffect(() => {
+    // leaflet-rotate の setTransform がサブピクセルで丸めないので
+    // L.DomUtil.setPosition をパッチして座標を整数に丸める
+    const origSetPosition = L.DomUtil.setPosition;
+    L.DomUtil.setPosition = function (el: HTMLElement, point: L.Point, ...rest: unknown[]) {
+      if (point && typeof point.x === 'number') {
+        point.x = Math.round(point.x);
+        point.y = Math.round(point.y);
+      }
+      return origSetPosition.call(this, el, point, ...rest);
+    };
+
     const container = map.getContainer();
     let accumulatedDelta = 0;
     let lastPoint: { x: number; y: number } | null = null;
@@ -106,9 +143,14 @@ function SmoothZoomHandler() {
 
     const flush = () => {
       rafId = null;
-      if (!lastPoint || accumulatedDelta === 0) return;
+      if (!lastPoint || Math.abs(accumulatedDelta) < 0.005) {
+        accumulatedDelta = 0;
+        return;
+      }
       const currentZoom = map.getZoom();
-      const newZoom = Math.min(19, Math.max(3, currentZoom + accumulatedDelta));
+      // 0.01刻みに丸めてサブピクセルジッターを防止
+      const raw = currentZoom + accumulatedDelta;
+      const newZoom = Math.round(Math.min(19, Math.max(3, raw)) * 100) / 100;
       accumulatedDelta = 0;
       if (newZoom === currentZoom) return;
       const latlng = map.containerPointToLatLng([lastPoint.x, lastPoint.y]);
@@ -147,6 +189,8 @@ function SmoothZoomHandler() {
     return () => {
       container.removeEventListener('wheel', handleWheel);
       if (rafId !== null) cancelAnimationFrame(rafId);
+      // パッチ復元
+      L.DomUtil.setPosition = origSetPosition;
     };
   }, [map]);
 
@@ -266,7 +310,15 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
       wheelPxPerZoomLevel={120}
       {...({ rotate: true, rotateControl: false, touchRotate: true, bearing: 0 } as object)}
     >
-      <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} maxZoom={19} tileSize={256} />
+      <TileLayer
+        url={TILE_URL}
+        attribution={TILE_ATTRIBUTION}
+        maxZoom={19}
+        tileSize={256}
+        updateWhenZooming={false}
+        updateWhenIdle={true}
+        keepBuffer={4}
+      />
       <PanToSelected members={geoMembers} selectedId={selectedMemberId} />
       <FitToMembers members={geoMembers} />
       <MapClickHandler onClick={onMapClick} />
@@ -274,18 +326,12 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
       <LocationController onLocate={(lat, lng) => setCurrentLocation({ lat, lng })} />
 
       {currentLocation && (
-        <>
-          <CircleMarker
-            center={[currentLocation.lat, currentLocation.lng]}
-            radius={20}
-            pathOptions={{ color: '#4285F4', weight: 0, fillColor: '#4285F4', fillOpacity: 0.1 }}
-          />
-          <CircleMarker
-            center={[currentLocation.lat, currentLocation.lng]}
-            radius={7}
-            pathOptions={{ color: 'white', weight: 2.5, fillColor: '#4285F4', fillOpacity: 1 }}
-          />
-        </>
+        <Marker
+          position={[currentLocation.lat, currentLocation.lng]}
+          icon={GPS_DOT_ICON}
+          zIndexOffset={2000}
+          interactive={false}
+        />
       )}
 
       {geoMembers.map(member => (
