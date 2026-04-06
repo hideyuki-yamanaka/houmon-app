@@ -115,7 +115,7 @@ export default function HomePage() {
           members={filteredMembers}
           selectedMemberId={selectedId}
           onMemberSelect={(id) => setSelectedId(id)}
-          onMapClick={() => { setSelectedId(null); setShowSuggestions(false); }}
+          onMapClick={() => { setSelectedId(null); setDistrict(null); setShowSuggestions(false); }}
         />
       </div>
 

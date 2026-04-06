@@ -46,9 +46,14 @@ export default function DistrictMembersBottomSheet({ districtShort, members, onS
   });
 
   return (
-    <div className="fixed inset-0 z-30 pointer-events-none">
+    <div className="fixed inset-0 z-30">
+      {/* バックドロップ: タップでシート閉じる */}
       <div
-        className={`absolute bottom-[calc(60px+env(safe-area-inset-bottom))] left-0 right-0 bg-white bottom-sheet max-w-[1366px] mx-auto pointer-events-auto transition-transform duration-300 ease-out ${
+        className={`absolute inset-0 transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        onClick={onClose}
+      />
+      <div
+        className={`absolute bottom-[calc(60px+env(safe-area-inset-bottom))] left-0 right-0 bg-white bottom-sheet max-w-[1366px] mx-auto transition-transform duration-300 ease-out ${
           show ? 'translate-y-0' : 'translate-y-full'
         }`}
         style={{ maxHeight: '40vh' }}

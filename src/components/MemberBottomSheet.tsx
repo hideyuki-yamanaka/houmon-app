@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { ChevronRight, Plus, MapPin, Clock } from 'lucide-react';
-import Link from 'next/link';
 import type { MemberWithVisitInfo, Visit } from '../lib/types';
 import { formatDate } from '../lib/utils';
 import { getVisits } from '../lib/storage';
@@ -13,6 +13,7 @@ interface Props {
 }
 
 export default function MemberBottomSheet({ member, onClose }: Props) {
+  const router = useRouter();
   const [visits, setVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(false);
   const [show, setShow] = useState(false);
@@ -48,10 +49,15 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
   const m = displayedMember;
 
   return (
-    <div className="fixed inset-0 z-40 pointer-events-none">
+    <div className="fixed inset-0 z-40">
+      {/* バックドロップ: タップでシート閉じる */}
+      <div
+        className={`absolute inset-0 transition-opacity duration-300 ${show ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        onClick={onClose}
+      />
       <div
         ref={sheetRef}
-        className={`absolute bottom-[calc(60px+env(safe-area-inset-bottom))] left-0 right-0 bg-white bottom-sheet max-w-[1366px] mx-auto pointer-events-auto transition-transform duration-300 ease-out ${
+        className={`absolute bottom-[calc(60px+env(safe-area-inset-bottom))] left-0 right-0 bg-white bottom-sheet max-w-[1366px] mx-auto transition-transform duration-300 ease-out ${
           show ? 'translate-y-0' : 'translate-y-full'
         }`}
       >
@@ -59,9 +65,9 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
 
         {/* ヘッダー: 名前 + 地区 */}
         <div className="px-4 pt-2 pb-3">
-          <Link
-            href={`/members/${m.id}`}
-            className="flex items-center justify-between group"
+          <button
+            onClick={() => router.push(`/members/${m.id}`)}
+            className="flex items-center justify-between w-full text-left"
           >
             <div className="flex items-center gap-1.5 flex-1">
               <h2 className="text-lg font-bold">{m.name}</h2>
@@ -78,7 +84,7 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
                   : `${m.totalVisits}回`}
               </span>
             </div>
-          </Link>
+          </button>
 
           {/* 住所（Googleマップ遷移リンク） */}
           {m.address && (
@@ -107,22 +113,22 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
           ) : (
             <div className="space-y-2">
               {visits.map(v => (
-                  <Link key={v.id} href={`/visits/${v.id}`} className="block">
-                    <div className="px-3 py-2.5 rounded-lg bg-[#F5F5F5] active:bg-[#F5F5F5] transition-colors flex items-center gap-2">
+                  <button key={v.id} onClick={() => router.push(`/visits/${v.id}`)} className="block w-full text-left">
+                    <div className="px-3 py-2.5 rounded-lg bg-[#F5F5F5] active:bg-[#EBEBEB] transition-colors flex items-center gap-2">
                       <span className="text-sm font-medium shrink-0">{formatDate(v.visitedAt, 'yyyy年M月d日')}</span>
                       {v.summary && (
                         <span className="text-xs text-[var(--color-subtext)] truncate">{v.summary}</span>
                       )}
                     </div>
-                  </Link>
+                  </button>
               ))}
               {m.totalVisits > 3 && (
-                <Link
-                  href={`/members/${m.id}`}
+                <button
+                  onClick={() => router.push(`/members/${m.id}`)}
                   className="text-sm text-[var(--color-primary)] font-medium flex items-center gap-1"
                 >
                   もっと見る <ChevronRight size={16} />
-                </Link>
+                </button>
               )}
             </div>
           )}
@@ -130,13 +136,13 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
 
         {/* 訪問記録ボタン */}
         <div className="px-4 pb-4 pt-2">
-          <Link
-            href={`/visits/new?memberId=${m.id}`}
-            className="ios-button bg-[#111] text-white"
+          <button
+            onClick={() => router.push(`/visits/new?memberId=${m.id}`)}
+            className="ios-button bg-[#111] text-white w-full"
           >
             <Plus size={20} className="mr-2" />
             訪問を記録する
-          </Link>
+          </button>
         </div>
       </div>
     </div>

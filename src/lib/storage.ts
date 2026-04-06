@@ -85,6 +85,25 @@ export async function updateMember(id: string, updates: Partial<MemberRow>): Pro
   if (error) throw error;
 }
 
+export async function getAllMemberIds(): Promise<string[]> {
+  if (isMockMode) return MOCK_MEMBERS.map(m => m.id);
+  const { data, error } = await supabase
+    .from('members')
+    .select('id');
+  if (error) throw error;
+  return (data as { id: string }[]).map(r => r.id);
+}
+
+export async function getAllVisitIds(): Promise<string[]> {
+  if (isMockMode) return MOCK_VISITS.map(v => v.id);
+  const { data, error } = await supabase
+    .from('visits')
+    .select('id')
+    .is('deleted_at', null);
+  if (error) throw error;
+  return (data as { id: string }[]).map(r => r.id);
+}
+
 // ── 訪問記録 CRUD ──
 
 export async function getVisits(memberId: string): Promise<Visit[]> {
