@@ -83,7 +83,9 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
           {/* 住所（Googleマップ遷移リンク） */}
           {m.address && (
             <a
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(m.address)}`}
+              href={m.lat != null && m.lng != null
+                ? `https://www.google.com/maps/search/?api=1&query=${m.lat},${m.lng}`
+                : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(m.address.replace(/\s.*$/, ''))}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1 mt-2 text-sm text-[var(--color-subtext)] active:text-[var(--color-text)] transition-colors"

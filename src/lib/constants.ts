@@ -19,14 +19,14 @@ export const VISIT_STATUS_CONFIG: Record<VisitStatus, { label: string; color: st
   absent:          { label: '不在',       color: 'text-gray-700',   bg: 'bg-gray-100' },
   refused:         { label: '拒否',       color: 'text-red-700',    bg: 'bg-red-100' },
   unknown_address: { label: '住所不明',   color: 'text-amber-700',  bg: 'bg-amber-100' },
+  moved:           { label: '転居',       color: 'text-purple-700', bg: 'bg-purple-100' },
 };
 
 // ── 対応者 ──
 export const RESPONDENT_CONFIG: Record<Respondent, { label: string }> = {
-  self:   { label: '本人' },
-  family: { label: '家族' },
-  other:  { label: '他の人' },
-  nobody: { label: '留守' },
+  wife:    { label: '妻' },
+  son:     { label: '息子' },
+  sibling: { label: '兄弟' },
 };
 
 // ── ○×△ ステータスグリッド項目 ──
@@ -121,4 +121,4 @@ export const STATUS_LEVEL_DISPLAY: Record<StatusLevel, { symbol: string; color: 
 
 // ── マップ初期位置（旭川市豊岡エリア） ──
 export const MAP_DEFAULT_CENTER: [number, number] = [43.764, 142.404];
-export const MAP_DEFAULT_ZOOM = 14;
+export const MAP_DEFAULT_ZOOM = 15;

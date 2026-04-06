@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import type { Visit } from '../../lib/types';
-import { getVisitsByMonth, getVisitsByDate } from '../../lib/storage';
+import { getAllVisits, getVisitsByDate } from '../../lib/storage';
 import { formatDate } from '../../lib/utils';
 import { VISIT_STATUS_CONFIG } from '../../lib/constants';
 import CalendarGrid from '../../components/CalendarGrid';
@@ -16,15 +16,15 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState(
     `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   );
-  const [monthVisits, setMonthVisits] = useState<Visit[]>([]);
+  const [allVisits, setAllVisits] = useState<Visit[]>([]);
   const [dayVisits, setDayVisits] = useState<(Visit & { memberName: string; memberDistrict: string })[]>([]);
 
-  // 月の訪問データ取得
+  // 全訪問データを一度だけ取得（月切り替えのラグを排除）
   useEffect(() => {
-    getVisitsByMonth(year, month)
-      .then(setMonthVisits)
-      .catch(() => setMonthVisits([]));
-  }, [year, month]);
+    getAllVisits()
+      .then(setAllVisits)
+      .catch(() => setAllVisits([]));
+  }, []);
 
   // 選択日の訪問データ取得
   useEffect(() => {
@@ -34,8 +34,8 @@ export default function CalendarPage() {
   }, [selectedDate]);
 
   const visitDates = useMemo(
-    () => new Set(monthVisits.map(v => v.visitedAt)),
-    [monthVisits]
+    () => new Set(allVisits.map(v => v.visitedAt)),
+    [allVisits]
   );
 
   const handlePrevMonth = useCallback(() => {

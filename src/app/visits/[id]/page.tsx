@@ -18,6 +18,7 @@ export default function VisitDetailPage() {
   const [visit, setVisit] = useState<(Visit & { memberName: string; memberDistrict: string }) | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const fetchVisit = useCallback(() => {
     getVisitById(id)
@@ -155,9 +156,14 @@ export default function VisitDetailPage() {
                 <div className="text-[10px] text-[var(--color-subtext)] mb-1">写真</div>
                 <div className="flex gap-2 flex-wrap">
                   {visit.images.map((url, i) => (
-                    <div key={i} className="w-[60px] h-20 rounded-lg overflow-hidden bg-[#F0F0F0]">
+                    <button
+                      type="button"
+                      key={i}
+                      onClick={() => setLightboxUrl(url)}
+                      className="w-[60px] h-20 rounded-lg overflow-hidden bg-[#F0F0F0] active:opacity-70 transition-opacity"
+                    >
                       <img src={url} alt="" className="w-full h-full object-cover" />
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -178,6 +184,21 @@ export default function VisitDetailPage() {
 
         </div>
       </div>
+
+      {/* ライトボックス（画像拡大表示） */}
+      {lightboxUrl && (
+        <div
+          onClick={() => setLightboxUrl(null)}
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 cursor-pointer"
+        >
+          <img
+            src={lightboxUrl}
+            alt=""
+            className="max-w-full max-h-full object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

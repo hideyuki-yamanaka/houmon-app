@@ -7,6 +7,7 @@ import { formatDate } from '../lib/utils';
 
 interface Props {
   member: MemberWithVisitInfo;
+  onSelect?: (id: string) => void;
 }
 
 // マップと同じスタイルのピンアイコン（ベタ塗り + 白丸）
@@ -23,12 +24,11 @@ function PinIcon({ visited }: { visited: boolean }) {
   );
 }
 
-export default function MemberCard({ member }: Props) {
+export default function MemberCard({ member, onSelect }: Props) {
   const hasVisits = member.totalVisits > 0;
 
-  return (
-    <Link href={`/members/${member.id}`} className="block">
-      <div className="ios-card px-3 py-3.5 flex items-center gap-3">
+  const inner = (
+    <div className="ios-card px-3 py-3.5 flex items-center gap-3">
         <PinIcon visited={hasVisits} />
         <div className="flex-1 min-w-0">
           {member.nameKana && (
@@ -51,6 +51,19 @@ export default function MemberCard({ member }: Props) {
           </div>
         </div>
       </div>
+  );
+
+  if (onSelect) {
+    return (
+      <button type="button" onClick={() => onSelect(member.id)} className="block w-full text-left">
+        {inner}
+      </button>
+    );
+  }
+
+  return (
+    <Link href={`/members/${member.id}`} className="block">
+      {inner}
     </Link>
   );
 }

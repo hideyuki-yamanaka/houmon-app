@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useCallback, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet-rotate';
 import {
   MapContainer,
   TileLayer,
@@ -70,27 +71,6 @@ function createMemberPin(member: MemberWithVisitInfo, isSelected: boolean): L.Di
   });
 }
 
-// ── 初回表示範囲の自動調整 ──
-function FitBounds({ members }: { members: MemberWithVisitInfo[] }) {
-  const map = useMap();
-  const fittedRef = useRef(false);
-
-  useEffect(() => {
-    const valid = members.filter(m => m.lat != null && m.lng != null);
-    if (valid.length === 0 || fittedRef.current) return;
-
-    if (valid.length === 1) {
-      map.setView([valid[0].lat!, valid[0].lng!], 15, { animate: true, duration: 0.5 });
-    } else {
-      const bounds = L.latLngBounds(valid.map(m => [m.lat!, m.lng!] as L.LatLngTuple));
-      map.fitBounds(bounds, { padding: [40, 40], animate: true, duration: 0.5 });
-    }
-    fittedRef.current = true;
-  }, [members, map]);
-
-  return null;
-}
-
 // ── 選択メンバーにパン ──
 function PanToSelected({ members, selectedId }: { members: MemberWithVisitInfo[]; selectedId: string | null }) {
   const map = useMap();
@@ -110,52 +90,64 @@ function PanToSelected({ members, selectedId }: { members: MemberWithVisitInfo[]
 }
 
 // ========================================
-// PCトラックパッド/マウスホイール操作の振り分け
-// - トラックパッド2本指スクロール → パン（移動）
-// - トラックパッドピンチ（Ctrl+wheel）→ ズーム
-// - マウスホイール → ズーム
+// スムーズズーム（wheel / pinch 統一）
+// - すべての wheel イベントをピンチと同じ連続ズームとして扱う
+// - deltaMode に応じて係数を正規化
+// - アニメーションなしで即時反映 → カクつきなし
 // ========================================
-function TrackpadPanHandler() {
+function SmoothZoomHandler() {
   const map = useMap();
 
   useEffect(() => {
     const container = map.getContainer();
+    let accumulatedDelta = 0;
+    let lastPoint: { x: number; y: number } | null = null;
+    let rafId: number | null = null;
+
+    const flush = () => {
+      rafId = null;
+      if (!lastPoint || accumulatedDelta === 0) return;
+      const currentZoom = map.getZoom();
+      const newZoom = Math.min(19, Math.max(3, currentZoom + accumulatedDelta));
+      accumulatedDelta = 0;
+      if (newZoom === currentZoom) return;
+      const latlng = map.containerPointToLatLng([lastPoint.x, lastPoint.y]);
+      map.setZoomAround(latlng, newZoom, { animate: false });
+    };
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       e.stopPropagation();
 
-      // ピンチズーム（トラックパッド2本指ピンチ = ctrlKey + wheel）
-      if (e.ctrlKey || e.metaKey) {
-        const zoomDelta = -e.deltaY * 0.01;
-        const currentZoom = map.getZoom();
-        const newZoom = Math.min(19, Math.max(3, currentZoom + zoomDelta));
-        const mousePoint = map.mouseEventToContainerPoint(e);
-        const mouseLatLng = map.containerPointToLatLng(mousePoint);
-        map.setZoomAround(mouseLatLng, newZoom, { animate: false });
+      // deltaMode 正規化: 0=pixel, 1=line(~16px), 2=page(~800px)
+      let dx = e.deltaX;
+      let dy = e.deltaY;
+      if (e.deltaMode === 1) { dx *= 16; dy *= 16; }
+      else if (e.deltaMode === 2) { dx *= 800; dy *= 800; }
+
+      // ピンチ(ctrl+wheel / メタ) → ズーム（感度高め）
+      const isPinch = e.ctrlKey || e.metaKey;
+      // マウスホイール判定: deltaX=0 かつ deltaYが大きい離散値（トラックパッド小刻みスクロールと区別）
+      const isMouseWheel = !isPinch && e.deltaX === 0 && Math.abs(e.deltaY) >= 50 && e.deltaMode === 0;
+
+      if (isPinch || isMouseWheel) {
+        const sensitivity = isPinch ? 0.01 : 0.005;
+        accumulatedDelta += -dy * sensitivity;
+        const rect = container.getBoundingClientRect();
+        lastPoint = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        if (rafId === null) rafId = requestAnimationFrame(flush);
         return;
       }
 
-      // マウスホイール判定: deltaXが0でdeltaYが大きい離散値 = マウスホイール → ズーム
-      const isMouseWheel = e.deltaX === 0 && Math.abs(e.deltaY) >= 50 && e.deltaMode === 0;
-      const isLineMode = e.deltaMode === 1; // line-based scroll = マウスホイール
-
-      if (isMouseWheel || isLineMode) {
-        const zoomDelta = e.deltaY > 0 ? -0.5 : 0.5;
-        const currentZoom = map.getZoom();
-        const newZoom = Math.min(19, Math.max(3, currentZoom + zoomDelta));
-        const mousePoint = map.mouseEventToContainerPoint(e);
-        const mouseLatLng = map.containerPointToLatLng(mousePoint);
-        map.setZoomAround(mouseLatLng, newZoom, { animate: true });
-        return;
-      }
-
-      // トラックパッド2本指スクロール → パン（移動）
-      map.panBy([e.deltaX, e.deltaY], { animate: false });
+      // トラックパッド2本指スワイプ → パン
+      map.panBy([dx, dy], { animate: false });
     };
 
     container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => container.removeEventListener('wheel', handleWheel);
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
   }, [map]);
 
   return null;
@@ -165,26 +157,65 @@ function TrackpadPanHandler() {
 function LocationController({ onLocate }: { onLocate: (lat: number, lng: number) => void }) {
   const map = useMap();
 
-  const locate = useCallback(() => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        onLocate(latitude, longitude);
-        map.setView([latitude, longitude], 16, { animate: true, duration: 0.5 });
-      },
-      () => {},
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
-  }, [map, onLocate]);
-
   useEffect(() => {
     const container = map.getContainer();
-    container.dataset.locate = '';
-    const handler = () => locate();
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ lat: number; lng: number } | undefined>).detail;
+      if (detail) {
+        onLocate(detail.lat, detail.lng);
+        map.setView([detail.lat, detail.lng], 16, { animate: true, duration: 0.5 });
+        return;
+      }
+      // フォールバック: 詳細なしで呼ばれた場合は自前で取得
+      if (!navigator.geolocation) return;
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          onLocate(latitude, longitude);
+          map.setView([latitude, longitude], 16, { animate: true, duration: 0.5 });
+        },
+        () => {},
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    };
     container.addEventListener('locate-me', handler);
     return () => container.removeEventListener('locate-me', handler);
-  }, [map, locate]);
+  }, [map, onLocate]);
+
+  return null;
+}
+
+// ── フィルター変更時に表示範囲を自動調整 ──
+function FitToMembers({ members }: { members: MemberWithVisitInfo[] }) {
+  const map = useMap();
+  const firstRef = useRef(true);
+  const prevKeyRef = useRef<string>('');
+
+  useEffect(() => {
+    // 初回マウントはデフォルトの中心/ズームを優先（スキップ）
+    if (firstRef.current) {
+      firstRef.current = false;
+      prevKeyRef.current = members.map(m => m.id).join(',');
+      return;
+    }
+    const key = members.map(m => m.id).join(',');
+    if (key === prevKeyRef.current) return;
+    prevKeyRef.current = key;
+
+    if (members.length === 0) return;
+    const coords = members
+      .filter(m => m.lat != null && m.lng != null)
+      .map(m => [m.lat!, m.lng!] as [number, number]);
+    if (coords.length === 0) return;
+
+    if (coords.length === 1) {
+      map.setView(coords[0], 17, { animate: true, duration: 0.5 });
+      return;
+    }
+
+    const bounds = L.latLngBounds(coords);
+    map.flyToBounds(bounds, { padding: [60, 60], maxZoom: 17, duration: 0.6 });
+  }, [members, map]);
 
   return null;
 }
@@ -227,14 +258,19 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
       dragging={true}
       inertia
       inertiaDeceleration={3000}
-      zoomAnimation
-      markerZoomAnimation
+      zoomAnimation={false}
+      markerZoomAnimation={false}
+      fadeAnimation={false}
+      zoomSnap={0}
+      zoomDelta={0.25}
+      wheelPxPerZoomLevel={120}
+      {...({ rotate: true, rotateControl: false, touchRotate: true, bearing: 0 } as object)}
     >
       <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} maxZoom={19} tileSize={256} />
-      <FitBounds members={geoMembers} />
       <PanToSelected members={geoMembers} selectedId={selectedMemberId} />
+      <FitToMembers members={geoMembers} />
       <MapClickHandler onClick={onMapClick} />
-      <TrackpadPanHandler />
+      <SmoothZoomHandler />
       <LocationController onLocate={(lat, lng) => setCurrentLocation({ lat, lng })} />
 
       {currentLocation && (
