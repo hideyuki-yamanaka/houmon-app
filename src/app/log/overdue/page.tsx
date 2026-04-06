@@ -39,7 +39,7 @@ export default function OverduePage() {
       </nav>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-[920px] mx-auto px-4 py-4">
+        <div className="max-w-[1366px] mx-auto px-4 py-4">
           <p className="text-sm text-[var(--color-subtext)] mb-4">{members.length}人のメンバーが訪問期限を超過しています</p>
           <div className="space-y-2">
             {members.map(m => (

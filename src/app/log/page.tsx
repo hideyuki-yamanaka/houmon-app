@@ -58,7 +58,7 @@ export default function LogPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-[920px] mx-auto px-4 py-3 space-y-3">
+        <div className="max-w-[1366px] mx-auto px-4 py-3 space-y-3">
 
           {/* サマリー — リングチャート + 訪問回数 */}
           <div className="grid grid-cols-2 gap-3">

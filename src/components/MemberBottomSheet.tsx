@@ -51,7 +51,7 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
     <div className="fixed inset-0 z-40 pointer-events-none">
       <div
         ref={sheetRef}
-        className={`absolute bottom-[calc(60px+env(safe-area-inset-bottom))] left-0 right-0 bg-white bottom-sheet max-w-[920px] mx-auto pointer-events-auto transition-transform duration-300 ease-out ${
+        className={`absolute bottom-[calc(60px+env(safe-area-inset-bottom))] left-0 right-0 bg-white bottom-sheet max-w-[1366px] mx-auto pointer-events-auto transition-transform duration-300 ease-out ${
           show ? 'translate-y-0' : 'translate-y-full'
         }`}
       >

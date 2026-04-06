@@ -87,7 +87,7 @@ export default function VisitDetailClient() {
       </nav>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-[920px] mx-auto px-4 py-4 space-y-4">
+        <div className="max-w-[1366px] mx-auto px-4 py-4 space-y-4">
           <Link href={`/members/${visit.memberId}`} className="block">
             <div className="ios-card px-4 py-3 flex items-center gap-2 active:bg-[#F5F5F5] transition-colors">
               <span className="font-bold text-[15px]">{visit.memberName}</span>

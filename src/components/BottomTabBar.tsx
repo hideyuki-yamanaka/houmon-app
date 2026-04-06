@@ -15,7 +15,7 @@ export default function BottomTabBar() {
 
   return (
     <nav className="tab-bar fixed bottom-0 left-0 right-0 z-50 pb-[env(safe-area-inset-bottom)]">
-      <div className="max-w-[920px] mx-auto flex">
+      <div className="max-w-[1366px] mx-auto flex">
         {TABS.map(({ href, label, icon: Icon }) => {
           const isActive = href === '/' ? pathname === '/' : pathname.startsWith(href);
           return (

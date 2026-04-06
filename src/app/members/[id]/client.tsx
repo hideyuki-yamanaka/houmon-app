@@ -73,7 +73,7 @@ export default function MemberDetailClient() {
       </nav>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-[920px] mx-auto px-4 py-4 pb-24 space-y-4">
+        <div className="max-w-[1366px] mx-auto px-4 py-4 pb-24 space-y-4">
           <MemberInfo member={member} onUpdate={(updates) => setMember(prev => prev ? { ...prev, ...updates } : prev)} />
 
           <div className="mt-6">

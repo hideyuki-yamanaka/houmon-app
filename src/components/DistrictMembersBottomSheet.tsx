@@ -48,7 +48,7 @@ export default function DistrictMembersBottomSheet({ districtShort, members, onS
   return (
     <div className="fixed inset-0 z-30 pointer-events-none">
       <div
-        className={`absolute bottom-[calc(60px+env(safe-area-inset-bottom))] left-0 right-0 bg-white bottom-sheet max-w-[920px] mx-auto pointer-events-auto transition-transform duration-300 ease-out ${
+        className={`absolute bottom-[calc(60px+env(safe-area-inset-bottom))] left-0 right-0 bg-white bottom-sheet max-w-[1366px] mx-auto pointer-events-auto transition-transform duration-300 ease-out ${
           show ? 'translate-y-0' : 'translate-y-full'
         }`}
         style={{ maxHeight: '40vh' }}

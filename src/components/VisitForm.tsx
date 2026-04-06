@@ -196,7 +196,7 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
 
       {/* フォーム本体 */}
       <div className="flex-1 overflow-y-auto pb-8">
-        <div className="max-w-[920px] mx-auto px-4 pt-4 space-y-6">
+        <div className="max-w-[1366px] mx-auto px-4 pt-4 space-y-6">
 
           {/* 日付 + 情報を見る */}
           <div className="flex items-end gap-3">
