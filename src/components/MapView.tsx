@@ -320,6 +320,7 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
         maxZoom={20}
         tileSize={512}
         zoomOffset={-1}
+        detectRetina={true}
         updateWhenZooming={false}
         updateWhenIdle={true}
         keepBuffer={4}
