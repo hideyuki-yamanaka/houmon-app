@@ -317,8 +317,9 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
       <TileLayer
         url={TILE_URL}
         attribution={TILE_ATTRIBUTION}
-        maxZoom={19}
-        tileSize={256}
+        maxZoom={20}
+        tileSize={512}
+        zoomOffset={-1}
         updateWhenZooming={false}
         updateWhenIdle={true}
         keepBuffer={4}
