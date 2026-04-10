@@ -106,12 +106,12 @@ export default function CalendarPage() {
       {/* md 未満: 縦積み / md 以上: 左カレンダー + 右訪問ログカード */}
       <div className="flex-1 overflow-y-auto">
         <div
-          className="md:grid md:grid-cols-[minmax(360px,420px)_1fr] md:gap-6 md:px-6 md:pt-4 md:max-w-5xl md:mx-auto md:w-full"
+          className="md:grid md:grid-cols-[minmax(460px,560px)_1fr] md:gap-12 md:px-8 md:pt-6 md:max-w-6xl md:mx-auto md:w-full"
           style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom) + 16px)' }}
         >
           {/* 左カラム: カレンダー */}
           <div className="px-4 pt-3 md:px-0 md:pt-0">
-            <div className="bg-white rounded-xl p-2 md:sticky md:top-4">
+            <div className="bg-white rounded-xl p-2 md:p-4 md:sticky md:top-4">
               <CalendarGrid
                 year={year}
                 month={month}

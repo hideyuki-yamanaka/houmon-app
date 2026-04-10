@@ -46,33 +46,39 @@ const GENERAL_CHUO_LEAVES: OrgLeaf[] = [
   { key: '豊岡中央支部幸福地区', short: '幸福', hex: '#DB2777' },
 ];
 
+// ──────────────────────────────────────────────────────────────
+// 色設計メモ（ピン/フィルターで被らないように全部ユニーク）
+// leaves(9): #059669 #2563EB #D97706 / #7C3AED #DC2626 #CA8A04 / #0891B2 #4F46E5 #DB2777
+// general parents(3): #1E3A8A #4C1D95 #134E4A  ← leaves と被らない深色
+// young parents(4):   #0D9488 #C2410C #65A30D #9F1239  ← ぜんぶ別系統
+// ──────────────────────────────────────────────────────────────
 export const ORG_HIERARCHY: OrgCategory[] = [
   {
     category: 'young',
     label: 'ヤング',
     parents: [
       // 東栄/旭創価/東旭川 本部はヤング名簿のみで地区情報なし → leaf 空
-      { key: '東栄本部',   short: '東栄',   hex: '#1D4ED8', children: [] },
+      { key: '東栄本部',   short: '東栄',   hex: '#0D9488', children: [] },
       // 豊岡本部のヤングは男子部の9地区を共有する
       {
-        key: '豊岡本部', short: '豊岡', hex: '#4338CA',
+        key: '豊岡本部', short: '豊岡', hex: '#C2410C',
         children: [
           ...GENERAL_TOYOOKA_LEAVES,
           ...GENERAL_KOYO_LEAVES,
           ...GENERAL_CHUO_LEAVES,
         ],
       },
-      { key: '旭創価本部', short: '旭創価', hex: '#0E7490', children: [] },
-      { key: '東旭川本部', short: '東旭川', hex: '#0F766E', children: [] },
+      { key: '旭創価本部', short: '旭創価', hex: '#65A30D', children: [] },
+      { key: '東旭川本部', short: '東旭川', hex: '#9F1239', children: [] },
     ],
   },
   {
     category: 'general',
     label: '男子部',
     parents: [
-      { key: '豊岡部',       short: '豊岡部', hex: '#2563EB', children: GENERAL_TOYOOKA_LEAVES },
-      { key: '光陽部',       short: '光陽部', hex: '#7C3AED', children: GENERAL_KOYO_LEAVES },
-      { key: '豊岡中央支部', short: '中央',   hex: '#0891B2', children: GENERAL_CHUO_LEAVES },
+      { key: '豊岡部',       short: '豊岡部', hex: '#1E3A8A', children: GENERAL_TOYOOKA_LEAVES },
+      { key: '光陽部',       short: '光陽部', hex: '#4C1D95', children: GENERAL_KOYO_LEAVES },
+      { key: '豊岡中央支部', short: '中央',   hex: '#134E4A', children: GENERAL_CHUO_LEAVES },
     ],
   },
 ];

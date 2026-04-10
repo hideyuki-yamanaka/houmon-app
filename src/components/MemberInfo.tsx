@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ExternalLink } from 'lucide-react';
+import { ChevronDown, ExternalLink } from 'lucide-react';
 import type { Member, MemberRow } from '../lib/types';
 import { STATUS_GRID_ITEMS, STATUS_LEVEL_DISPLAY, type StatusLevel } from '../lib/constants';
 import { updateMember } from '../lib/storage';
+import { guessKana } from '../lib/kanaGuess';
 
 interface Props {
   member: Member;
@@ -290,12 +291,29 @@ function EditableField({ label, value, fieldKey, memberId, link, onSaved, half }
 
 export default function MemberInfo({ member, onUpdate }: Props) {
   const [local, setLocal] = useState(member);
+  // 基本情報アコーディオン: デフォルト閉じ（ステータス＋訪問ログをファーストビューに出す）
+  const [infoOpen, setInfoOpen] = useState(false);
   useEffect(() => { setLocal(member); }, [member]);
 
   const handleSaved = useCallback((key: string, value: string) => {
     setLocal(prev => ({ ...prev, [key]: value || undefined }));
     onUpdate?.({ [key]: value || undefined });
   }, [onUpdate]);
+
+  // 読み仮名が空なら、初回ロード時にざっくり推測して自動入力（末尾に「（仮）」付き）
+  // 一度 DB に保存されるので、ユーザーは気になったら編集して「仮」を外せる
+  const autofilledRef = useRef(false);
+  useEffect(() => {
+    if (autofilledRef.current) return;
+    if (!member?.id) return;
+    if (member.nameKana && member.nameKana.trim() !== '') return;
+    const guess = guessKana(member.name);
+    if (!guess) return;
+    autofilledRef.current = true;
+    updateMember(member.id, { name_kana: guess })
+      .then(() => handleSaved('nameKana', guess))
+      .catch(() => { /* サイレントに失敗 */ });
+  }, [member?.id, member?.name, member?.nameKana, handleSaved]);
 
   const F = (key: string, label: string, value: string | number | undefined, opts?: { link?: string; half?: boolean }) => (
     <EditableField key={key} fieldKey={key} label={label} value={value}
@@ -304,47 +322,56 @@ export default function MemberInfo({ member, onUpdate }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* 基本情報 */}
-      <div className="ios-card p-4 hover:!opacity-100">
-        <h3 className="text-sm font-semibold text-[var(--color-subtext)] mb-2">基本情報</h3>
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)]">
-            {local.district}
-          </span>
-        </div>
+      {/* 基本情報（アコーディオン） */}
+      <div className="ios-card hover:!opacity-100 overflow-hidden">
+        {/* アコーディオンヘッダー（タップで開閉） */}
+        <button
+          type="button"
+          onClick={() => setInfoOpen(o => !o)}
+          className="w-full flex items-center justify-between px-4 py-3 text-left active:bg-[#F5F5F5] transition-colors"
+          aria-expanded={infoOpen}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <h3 className="text-sm font-semibold text-[var(--color-subtext)]">基本情報</h3>
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)] truncate">
+              {local.district}
+            </span>
+          </div>
+          <ChevronDown
+            size={18}
+            className={`text-[var(--color-icon-gray)] shrink-0 transition-transform duration-200 ${infoOpen ? 'rotate-180' : ''}`}
+          />
+        </button>
 
-        {/* 読み仮名 & 役職 — 2カラム */}
-        <div className="grid grid-cols-2 gap-x-4 border-b border-[#F0F0F0]">
-          {F('nameKana', '読み仮名', local.nameKana, { half: true })}
-          {F('role', '役職', local.role, { half: true })}
-        </div>
+        {infoOpen && (
+          <div className="px-4 pb-3 pt-0">
+            {/* ぜんぶ縦並び。例外は 生年月日/年齢/入会月日 の3列だけ */}
+            {F('nameKana', '読み仮名', local.nameKana)}
+            {F('role', '役職', local.role)}
+            {F('address', '住所', local.address, { link: local.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(local.address)}` : undefined })}
 
-        {F('address', '住所', local.address, { link: local.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(local.address)}` : undefined })}
+            {/* 生年月日 / 年齢 / 入会月日 — ここだけ3列横並び */}
+            <div className="grid grid-cols-3 gap-x-4 border-b border-[#F0F0F0]">
+              <DateField label="生年月日" value={local.birthday} fieldKey="birthday"
+                memberId={local.id} onSaved={handleSaved} half />
+              <AgeField value={local.age} memberId={local.id} onSaved={handleSaved} half />
+              <DateField label="入会月日" value={local.enrollmentDate} fieldKey="enrollmentDate"
+                memberId={local.id} onSaved={handleSaved} half />
+            </div>
 
-        {/* 日付 & 年齢 — カレンダーピッカー / ドラムロール */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 border-b border-[#F0F0F0]">
-          <DateField label="生年月日" value={local.birthday} fieldKey="birthday"
-            memberId={local.id} onSaved={handleSaved} half />
-          <AgeField value={local.age} memberId={local.id} onSaved={handleSaved} half />
-          <DateField label="入会月日" value={local.enrollmentDate} fieldKey="enrollmentDate"
-            memberId={local.id} onSaved={handleSaved} half />
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 border-b border-[#F0F0F0]">
-          {F('phone', '自宅TEL', local.phone, { link: local.phone ? `tel:${local.phone}` : undefined, half: true })}
-          {F('mobile', '携帯', local.mobile, { link: local.mobile ? `tel:${local.mobile}` : undefined, half: true })}
-          {F('educationLevel', '教学', local.educationLevel, { half: true })}
-        </div>
-
-        {/* 職場 & 同居家族 — 縦並び */}
-        {F('workplace', '職場', local.workplace)}
-        {F('family', '同居家族', local.family)}
-
-        {F('notes', '備考', local.notes)}
+            {F('phone', '自宅TEL', local.phone, { link: local.phone ? `tel:${local.phone}` : undefined })}
+            {F('mobile', '携帯', local.mobile, { link: local.mobile ? `tel:${local.mobile}` : undefined })}
+            {F('educationLevel', '教学', local.educationLevel)}
+            {F('workplace', '職場', local.workplace)}
+            {F('family', '同居家族', local.family)}
+            {F('notes', '備考', local.notes)}
+          </div>
+        )}
       </div>
 
       {/* ○×△ ステータスグリッド（タップで編集） */}
-      <div className="ios-card px-4 pt-4 pb-6 hover:!opacity-100">
-        <h3 className="text-sm font-semibold text-[var(--color-subtext)] mb-3">ステータス</h3>
+      <div className="ios-card px-4 pt-3 pb-4 hover:!opacity-100">
+        <h3 className="text-sm font-semibold text-[var(--color-subtext)] mb-2">ステータス</h3>
         <div className="grid grid-cols-7 gap-2 text-center">
           {STATUS_GRID_ITEMS.map(item => (
             <StatusCell key={item.key} item={item} memberId={local.id}
