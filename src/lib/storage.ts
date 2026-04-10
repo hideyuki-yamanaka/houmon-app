@@ -272,9 +272,51 @@ export async function uploadVisitImage(file: File): Promise<string> {
 
 // ── 集計クエリ ──
 
+// ──────────────────────────────────────────────────────────────
+// 読み仮名が未入力のメンバーに、ざっくり推測した読み仮名を一括で入れる。
+// - nameKana が空欄のメンバーだけ対象
+// - 推測は guessKana() に任せる（末尾に「（仮）」付き）
+// - ネットワーク負荷を抑えるため 5 件ずつパラレルで updateMember
+// - 成功分はローカル配列にも反映して返す
+// - サイレントにエラーは握りつぶす（オフラインでも致命傷にしない）
+// ──────────────────────────────────────────────────────────────
+async function backfillGuessedKana<T extends Member>(members: T[]): Promise<T[]> {
+  // 動的 import にして、storage を使う側が kanaGuess を持ってなくても壊れないようにする
+  const { guessKana } = await import('./kanaGuess');
+  const targets = members.filter(m => !m.nameKana || m.nameKana.trim() === '');
+  if (targets.length === 0) return members;
+
+  const BATCH = 5;
+  const applied = new Map<string, string>();
+  for (let i = 0; i < targets.length; i += BATCH) {
+    const slice = targets.slice(i, i + BATCH);
+    await Promise.all(
+      slice.map(async (m) => {
+        const guess = guessKana(m.name);
+        if (!guess) return;
+        try {
+          await updateMember(m.id, { name_kana: guess });
+          applied.set(m.id, guess);
+        } catch {
+          /* サイレントに失敗 */
+        }
+      }),
+    );
+  }
+
+  if (applied.size === 0) return members;
+  return members.map(m =>
+    applied.has(m.id) ? { ...m, nameKana: applied.get(m.id) } : m,
+  );
+}
+
+// セッション中 1 回だけバックフィルを走らせるためのフラグ
+// (Fast Refresh しても module scope は維持されるので実質「初回ロード時だけ」動く)
+let kanaBackfillDone = false;
+
 export async function getMembersWithVisitInfo(): Promise<MemberWithVisitInfo[]> {
   if (isMockMode) return getMockMembersWithVisitInfo();
-  const [members, { data: visitData }] = await Promise.all([
+  const [rawMembers, { data: visitData }] = await Promise.all([
     getMembers(),
     supabase
       .from('visits')
@@ -282,6 +324,17 @@ export async function getMembersWithVisitInfo(): Promise<MemberWithVisitInfo[]> 
       .is('deleted_at', null)
       .order('visited_at', { ascending: false }),
   ]);
+
+  // 読み仮名の一括バックフィル（初回だけ）。失敗しても元の配列で続行。
+  let members = rawMembers;
+  if (!kanaBackfillDone) {
+    kanaBackfillDone = true;
+    try {
+      members = await backfillGuessedKana(rawMembers);
+    } catch {
+      members = rawMembers;
+    }
+  }
 
   const visitMap = new Map<string, { lastDate: string; lastStatus: string; count: number }>();
   for (const v of (visitData ?? []) as { member_id: string; visited_at: string; status: string }[]) {
