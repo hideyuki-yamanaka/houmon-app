@@ -2,11 +2,11 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { MapPin, Users, LayoutDashboard } from 'lucide-react';
+import { MapPin, CalendarDays, LayoutDashboard } from 'lucide-react';
 
 const TABS = [
   { href: '/', label: 'ホーム', icon: MapPin },
-  { href: '/members', label: 'メンバー', icon: Users },
+  { href: '/members', label: 'カレンダー', icon: CalendarDays },
   { href: '/log', label: 'ダッシュボード', icon: LayoutDashboard },
 ] as const;
 

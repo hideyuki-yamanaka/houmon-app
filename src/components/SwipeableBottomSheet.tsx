@@ -16,10 +16,23 @@ interface Props {
    * full スナップ時は透明化して非表示。
    */
   renderAbove?: (snap: SheetSnap) => ReactNode;
+  /**
+   * ジェスチャーで閉じれるか。false の場合、下にスワイプしても closed には行かず
+   * peek に戻る（ホームの常時表示シート向け）。onClose は呼ばれない。
+   * デフォルト true.
+   */
+  closable?: boolean;
+  /**
+   * 全画面(full)時のトップマージン。px 数値 or CSS calc 文字列。
+   * 例: 100  /  'env(safe-area-inset-top)'
+   * 小さくするとシートが画面上部ギリギリまで上がる（検索バーを覆う等）。
+   * 省略時は 100。
+   */
+  topGap?: number | string;
 }
 
 const TAB_H = 60;
-const TOP_GAP = 100; // 全画面時のトップマージン（検索バー分）
+const DEFAULT_TOP_GAP: number = 100; // 全画面時のトップマージン（検索バー分）
 const V_THRESHOLD = 0.4; // px/ms — スワイプ速度しきい値
 const DRAG_THRESHOLD = 8; // px — ドラッグ開始しきい値（タップと区別）
 const HANDLE_H = 44; // ハンドル領域の高さ
@@ -51,7 +64,7 @@ const SHEET_TRANSITION = `transform ${SHEET_DURATION_MS}ms ${SHEET_EASE}`;
 //      React state や ref キャッシュに頼らない。DOM が唯一の source of truth。
 // ──────────────────────────────────────────────────────────────
 
-export default function SwipeableBottomSheet({ open, onClose, peekHeight, zIndex = 40, children, renderAbove }: Props) {
+export default function SwipeableBottomSheet({ open, onClose, peekHeight, zIndex = 40, children, renderAbove, closable = true, topGap = DEFAULT_TOP_GAP }: Props) {
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const handleRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -70,12 +83,13 @@ export default function SwipeableBottomSheet({ open, onClose, peekHeight, zIndex
   const getSheetHeight = useCallback(() => {
     const el = sheetRef.current;
     if (el) return el.offsetHeight;
-    // フォールバック: マウント前
+    // フォールバック: マウント前（string topGap は計算できないので 100 で近似）
+    const topGapPx = typeof topGap === 'number' ? topGap : 100;
     if (typeof window !== 'undefined') {
-      return Math.max(200, window.innerHeight - TOP_GAP - TAB_H);
+      return Math.max(200, window.innerHeight - topGapPx - TAB_H);
     }
     return 600;
-  }, []);
+  }, [topGap]);
 
   const getSnapY = useCallback(
     (s: SheetSnap) => {
@@ -245,14 +259,22 @@ export default function SwipeableBottomSheet({ open, onClose, peekHeight, zIndex
       } else if (vel < -V_THRESHOLD) {
         target = 'full';
       } else {
-        const pts: [SheetSnap, number][] = [
-          ['full', fullY],
-          ['peek', peekY],
-          ['closed', closedY],
-        ];
+        const pts: [SheetSnap, number][] = closable
+          ? [
+              ['full', fullY],
+              ['peek', peekY],
+              ['closed', closedY],
+            ]
+          : [
+              ['full', fullY],
+              ['peek', peekY],
+            ];
         pts.sort((a, b) => Math.abs(currentTY - a[1]) - Math.abs(currentTY - b[1]));
         target = pts[0][0];
       }
+
+      // closable=false のシートは closed に落とさず peek にとどめる
+      if (!closable && target === 'closed') target = 'peek';
 
       setSnap(target);
       currentTY = getSnapY(target);
@@ -269,7 +291,7 @@ export default function SwipeableBottomSheet({ open, onClose, peekHeight, zIndex
       sheet.removeEventListener('touchmove', onMove);
       sheet.removeEventListener('touchend', onEnd);
     };
-  }, [visible, getSnapY, applyY, setSnap]);
+  }, [visible, getSnapY, applyY, setSnap, closable]);
 
   if (!visible) return null;
 
@@ -280,7 +302,7 @@ export default function SwipeableBottomSheet({ open, onClose, peekHeight, zIndex
       style={{
         // CSS だけで border box を決める。JS は一切 height を触らない。
         // ブラウザが visualViewport に合わせて自動でサイズ調整する。
-        top: `${TOP_GAP}px`,
+        top: typeof topGap === 'number' ? `${topGap}px` : topGap,
         bottom: `calc(${TAB_H}px + env(safe-area-inset-bottom))`,
         zIndex,
         // transform は JSX style に書かない（reconciler が触らないように）

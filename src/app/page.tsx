@@ -1,15 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState, useMemo } from 'react';
-import { Plus, LocateFixed, Search, X, Layers } from 'lucide-react';
+import { Plus, LocateFixed, Search, X, Layers, List } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import type { MemberWithVisitInfo } from '../lib/types';
 import { getMembersWithVisitInfo } from '../lib/storage';
-import { ORG_HIERARCHY, findParentOrg } from '../lib/constants';
 import MemberBottomSheet from '../components/MemberBottomSheet';
-import DistrictMembersBottomSheet from '../components/DistrictMembersBottomSheet';
-import DistrictFilter, { type FilterSelection, matchFilter, EMPTY_FILTER } from '../components/DistrictFilter';
+import MembersListSheet from '../components/MembersListSheet';
+import { type FilterSelection, matchFilter, EMPTY_FILTER } from '../components/DistrictFilter';
 import type { MapLayerMode } from '../components/MapView';
 
 const MapView = dynamic(() => import('../components/MapView'), { ssr: false });
@@ -24,6 +23,8 @@ export default function HomePage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   // マップのレイヤーモード（通常 ⇄ 航空写真）。セッション中のみ保持（永続化なし）
   const [layerMode, setLayerMode] = useState<MapLayerMode>('standard');
+  // ボトムシートの表示状態。デフォルトは出ている。マップタップで下げる（Google Maps風）。
+  const [sheetOpen, setSheetOpen] = useState(true);
   const mapWrapRef = useRef<HTMLDivElement>(null);
 
   const handleLocate = () => {
@@ -86,32 +87,6 @@ export default function HomePage() {
       .slice(0, 8);
   }, [filteredMembers, searchQuery]);
 
-  // ボトムシートのタイトル（カテゴリー or 親 選択中の時）
-  const bottomSheetTitle = useMemo(() => {
-    // 親（部・本部）が選択されてる場合
-    if (filter.parent) {
-      const parent = findParentOrg(filter.parent);
-      if (!parent) return null;
-      if (filter.leaf) {
-        const leaf = parent.children.find(c => c.key === filter.leaf);
-        return leaf ? `${parent.short}・${leaf.short}` : parent.short;
-      }
-      return parent.short;
-    }
-    // カテゴリー全体（男子部すべて／ヤングすべて）
-    if (filter.category) {
-      const cat = ORG_HIERARCHY.find(c => c.category === filter.category);
-      return cat ? cat.label : null;
-    }
-    return null;
-  }, [filter]);
-
-  // ボトムシート表示条件
-  // 親（部・本部）が選択されてる時だけ開く。
-  // カテゴリーだけ（ヤング/男子部）は地図のピンが切り替わるだけにして
-  // ピンを視認できる状態を保つ。
-  const showDistrictSheet = filter.parent !== null && !selectedId;
-
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -132,12 +107,23 @@ export default function HomePage() {
           members={filteredMembers}
           selectedMemberId={selectedId}
           onMemberSelect={(id) => setSelectedId(id)}
-          onMapClick={() => { setSelectedId(null); setFilter(EMPTY_FILTER); setShowSuggestions(false); }}
+          onMapClick={() => {
+            // Google Maps 風: マップをタップしたらシートを下げる（消す）
+            // 地区フィルタや検索候補もクリア。メンバー選択中なら選択解除。
+            setSelectedId(null);
+            setFilter(EMPTY_FILTER);
+            setShowSuggestions(false);
+            setSheetOpen(false);
+          }}
           layerMode={layerMode}
         />
       </div>
 
-      {/* Google Maps風 上部オーバーレイ: 検索バー + 地区フィルター */}
+      {/* Google Maps風 上部オーバーレイ: 検索バー + レイヤー切替
+          z-index メモ:
+            ここ z=20 / MembersListSheet z=30 / MemberBottomSheet z=40
+          → シートが full で上がってきた時は Google Maps と同じで
+            検索バーに被さる（下のレイヤーに回り込む）挙動。 */}
       <div className="absolute top-0 left-0 right-0 z-20 pt-[calc(env(safe-area-inset-top)+8px)] pointer-events-none">
         {/* 検索バー */}
         <div className="px-3 pointer-events-auto">
@@ -185,16 +171,8 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* 階層化地区フィルター + レイヤー切替ボタン（横並び） */}
-        <div className="mt-2 px-3 pointer-events-auto flex items-center gap-2">
-          <div className="flex-1 bg-white/95 backdrop-blur-sm rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.12)] px-2 py-1.5 min-w-0">
-            <DistrictFilter
-              selection={filter}
-              onChange={setFilter}
-              members={members}
-            />
-          </div>
-          {/* レイヤー切替ボタン（通常 ⇄ 航空写真） */}
+        {/* レイヤー切替ボタンだけ右端に（フィルターはシート内に移動済み） */}
+        <div className="mt-2 px-3 pointer-events-auto flex items-center justify-end">
           <button
             type="button"
             onClick={() => setLayerMode(m => (m === 'standard' ? 'satellite' : 'standard'))}
@@ -210,34 +188,51 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 現在地ボタン */}
+      {/* 現在地ボタン（シート peek の上に配置） */}
       <button
         onClick={handleLocate}
         disabled={locating}
         aria-label="現在地"
-        className="fixed right-5 bottom-[calc(152px+env(safe-area-inset-bottom))] z-30 w-14 h-14 rounded-full bg-white text-[#111] flex items-center justify-center shadow-lg active:scale-95 transition-transform disabled:opacity-70"
+        className="fixed right-5 bottom-[calc(316px+env(safe-area-inset-bottom))] z-30 w-12 h-12 rounded-full bg-white text-[#111] flex items-center justify-center shadow-lg active:scale-95 transition-transform disabled:opacity-70"
       >
-        <LocateFixed size={24} className={locating ? 'animate-spin' : ''} />
+        <LocateFixed size={22} className={locating ? 'animate-spin' : ''} />
       </button>
 
-      {/* FAB: 訪問を記録 */}
+      {/* FAB: 訪問を記録（現在地ボタンの上） */}
       <Link
         href="/visits/new"
-        className="fixed right-5 bottom-[calc(80px+env(safe-area-inset-bottom))] z-30 w-14 h-14 rounded-full bg-[#111] text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+        className="fixed right-5 bottom-[calc(380px+env(safe-area-inset-bottom))] z-30 w-12 h-12 rounded-full bg-[#111] text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform"
       >
-        <Plus size={24} />
+        <Plus size={22} />
       </Link>
 
-      {/* 地区メンバー一覧ボトムシート（フィルター選択中 & メンバー未選択時のみ） */}
-      <DistrictMembersBottomSheet
-        districtShort={showDistrictSheet ? (bottomSheetTitle ?? '') : null}
-        title={bottomSheetTitle ?? undefined}
-        members={filteredMembers}
+      {/* メンバー一覧シート。
+          - sheetOpen && !selectedId のときだけ表示
+          - マップタップで sheetOpen=false になり隠れる
+          - 隠れてる間は下の「一覧」チップで再表示 */}
+      <MembersListSheet
+        members={members}
+        open={sheetOpen && !selectedId}
+        onClose={() => setSheetOpen(false)}
         onSelectMember={(id) => setSelectedId(id)}
-        onClose={() => setFilter(EMPTY_FILTER)}
+        filter={filter}
+        onFilterChange={setFilter}
       />
 
-      {/* メンバー詳細ボトムシート */}
+      {/* シートが閉じてる時だけ出る「一覧」再表示チップ */}
+      {!sheetOpen && !selectedId && (
+        <button
+          type="button"
+          onClick={() => setSheetOpen(true)}
+          className="fixed left-1/2 -translate-x-1/2 bottom-[calc(72px+env(safe-area-inset-bottom))] z-30 h-10 px-4 rounded-full bg-white shadow-[0_3px_10px_rgba(0,0,0,0.18)] flex items-center gap-2 text-[13px] font-medium text-[#111] active:scale-95 transition-transform"
+          aria-label="メンバー一覧を表示"
+        >
+          <List size={16} className="text-[#5F6368]" />
+          メンバー一覧
+        </button>
+      )}
+
+      {/* メンバー詳細ボトムシート（ピン/カードタップで上に重なる） */}
       <MemberBottomSheet
         member={selectedMember}
         onClose={() => setSelectedId(null)}
