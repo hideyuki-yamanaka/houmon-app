@@ -1,19 +1,25 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type Ref } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, MapPin, Clock, Footprints, PencilLine } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit } from '../lib/types';
 import { formatDate } from '../lib/utils';
 import { getVisits } from '../lib/storage';
-import SwipeableBottomSheet from './SwipeableBottomSheet';
+import SwipeableBottomSheet, { type SheetHandle } from './SwipeableBottomSheet';
 
 interface Props {
   member: MemberWithVisitInfo | null;
   onClose: () => void;
+  /** 親から imperative にスナップ位置を制御したい時の ref
+   *  （マップドラッグで mini に下げる用） */
+  sheetHandleRef?: Ref<SheetHandle>;
 }
 
-export default function MemberBottomSheet({ member, onClose }: Props) {
+// mini スナップ時の可視高さ（ドラッグハンドル＋名前1行がギリ見える）
+const MINI_HEIGHT = 72;
+
+export default function MemberBottomSheet({ member, onClose, sheetHandleRef }: Props) {
   const router = useRouter();
   const [visits, setVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -56,6 +62,8 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
       open={!!member}
       onClose={onClose}
       peekHeight={peekHeight}
+      miniHeight={MINI_HEIGHT}
+      handleRef={sheetHandleRef}
       zIndex={40}
       renderAbove={
         streetViewUrl
@@ -81,7 +89,7 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
         return (
           <div className="flex flex-col">
             {/* ヘッダー: 名前/地区/住所 + 右上『記録する』ボタン */}
-            <div className="px-4 pt-1 pb-3">
+            <div className="px-4 pt-0 pb-3">
               <div className="flex items-start justify-between gap-3">
                 <button
                   onClick={() => router.push(`/members/${m.id}`)}

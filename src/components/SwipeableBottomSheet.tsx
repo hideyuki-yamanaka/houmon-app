@@ -48,7 +48,7 @@ const TAB_H = 60;
 const DEFAULT_TOP_GAP: number = 100; // 全画面時のトップマージン（検索バー分）
 const V_THRESHOLD = 0.4; // px/ms — スワイプ速度しきい値
 const DRAG_THRESHOLD = 8; // px — ドラッグ開始しきい値（タップと区別）
-const HANDLE_H = 44; // ハンドル領域の高さ
+const HANDLE_H = 28; // ハンドル領域の高さ（pill 本体 + 上下 padding のギリギリ）
 
 // iOS / Google Maps風の上品なバネ感（emphasized decelerate）
 const SHEET_EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
@@ -368,12 +368,16 @@ export default function SwipeableBottomSheet({ open, onClose, peekHeight, miniHe
           overflow: 'hidden',
           // GPU レイヤー昇格と独立した paint コンテキスト（内側だけに適用）
           contain: 'layout paint',
+          // full スナップ時は角丸 0（画面上端まで伸びてる時に角丸があると不自然）。
+          // それ以外は .bottom-sheet の 16px を維持。
+          borderRadius: snap === 'full' ? '0' : undefined,
+          transition: 'border-radius 220ms cubic-bezier(0.32, 0.72, 0, 1)',
         }}
       >
         {/* ハンドルバー（ドラッグ領域） */}
         <div
           ref={dragHandleRef}
-          className="flex justify-center pt-2.5 pb-1.5 cursor-grab active:cursor-grabbing"
+          className="flex justify-center pt-2 pb-1 cursor-grab active:cursor-grabbing"
           style={{ touchAction: 'none', minHeight: HANDLE_H }}
         >
           <div className="w-9 h-[5px] rounded-full bg-gray-300" />

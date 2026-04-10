@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import type { MemberWithVisitInfo } from '../lib/types';
 import { VISIT_STATUS_CONFIG } from '../lib/constants';
@@ -55,6 +55,8 @@ interface Props {
   }) => number;
 }
 
+const SLIDE_DURATION_MS = 320;
+
 export default function FilterModal({
   open,
   onClose,
@@ -69,6 +71,28 @@ export default function FilterModal({
   const [draftFilter, setDraftFilter] = useState<FilterSelection>(filter);
   const [draftPeriod, setDraftPeriod] = useState<string | null>(periodFilter);
   const [draftCategory, setDraftCategory] = useState<string | null>(categoryFilter);
+
+  // mounted: DOM に存在するか（閉じアニメ中も true）
+  // closing: 閉じアニメ再生中（下にスライドアウト）
+  const [mounted, setMounted] = useState(open);
+  const [closing, setClosing] = useState(false);
+  const sheetElRef = useRef<HTMLDivElement>(null);
+
+  // open が true に変わったらマウント、false に変わったら閉じアニメ再生後にアンマウント
+  useEffect(() => {
+    if (open) {
+      setMounted(true);
+      setClosing(false);
+    } else if (mounted) {
+      setClosing(true);
+      const t = window.setTimeout(() => {
+        setMounted(false);
+        setClosing(false);
+      }, SLIDE_DURATION_MS);
+      return () => window.clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   // 開いた瞬間に親の現在値でドラフトを初期化
   useEffect(() => {
@@ -91,15 +115,15 @@ export default function FilterModal({
 
   // 背景スクロール抑制
   useEffect(() => {
-    if (!open) return;
+    if (!mounted) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = prev;
     };
-  }, [open]);
+  }, [mounted]);
 
-  if (!open) return null;
+  if (!mounted) return null;
 
   const count = countMatches({
     filter: draftFilter,
@@ -124,17 +148,27 @@ export default function FilterModal({
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/40"
+      className={`fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/40 animate-modal-backdrop-fade ${
+        closing ? 'opacity-0 transition-opacity duration-300' : ''
+      }`}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="フィルター"
     >
       <div
-        className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl flex flex-col max-h-[85vh] animate-slide-up overflow-hidden"
+        ref={sheetElRef}
+        className={`bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl flex flex-col max-h-[85vh] overflow-hidden ${
+          closing ? '' : 'animate-modal-slide-up'
+        }`}
         onClick={(e) => e.stopPropagation()}
         style={{
           paddingBottom: 'env(safe-area-inset-bottom)',
+          // closing 中は下にスライドアウト
+          transform: closing ? 'translateY(100%)' : undefined,
+          transition: closing
+            ? `transform ${SLIDE_DURATION_MS}ms cubic-bezier(0.32, 0.72, 0, 1)`
+            : undefined,
         }}
       >
         {/* ヘッダー */}
@@ -223,17 +257,17 @@ export default function FilterModal({
           </section>
         </div>
 
-        {/* フッター: クリア + 適用 */}
-        <div className="flex items-center gap-3 px-4 py-3 border-t border-[#F0F0F0] shrink-0">
+        {/* フッター: クリア(左) + 適用(右) */}
+        <div className="flex items-center justify-between px-4 py-3 border-t border-[#F0F0F0] shrink-0">
           <button
             onClick={handleClear}
-            className="text-sm text-[var(--color-subtext)] underline px-2 py-2"
+            className="text-xs text-[var(--color-subtext)] underline px-2 py-2"
           >
             クリア
           </button>
           <button
             onClick={handleApply}
-            className="flex-1 ios-button bg-[#111] text-white"
+            className="text-sm font-bold text-white bg-[#111] rounded-full px-5 py-2 active:scale-95 transition-transform"
           >
             適用（{count}件）
           </button>

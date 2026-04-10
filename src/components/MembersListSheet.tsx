@@ -163,7 +163,7 @@ export default function MembersListSheet({
         {() => (
           <div className="flex flex-col h-full">
             {/* ヘッダー: メンバー + 人数 + フィルターアイコン（右端） */}
-            <div className="px-4 pt-1 pb-2 border-b border-[#F0F0F0] shrink-0">
+            <div className="px-4 pt-0 pb-2 border-b border-[#F0F0F0] shrink-0">
               <div className="flex items-center justify-between">
                 <div className="flex items-baseline gap-2">
                   <h2 className="text-lg font-bold">メンバー</h2>

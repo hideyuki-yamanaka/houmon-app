@@ -24,15 +24,19 @@ export default function HomePage() {
   // マップのレイヤーモード（通常 ⇄ 航空写真）。セッション中のみ保持（永続化なし）
   const [layerMode, setLayerMode] = useState<MapLayerMode>('standard');
   const mapWrapRef = useRef<HTMLDivElement>(null);
-  // メンバー一覧シートの imperative handle。マップドラッグ時に snapTo('mini') する。
+  // ボトムシート類の imperative handle。マップドラッグ時にまとめて snapTo('mini') する。
   const listSheetRef = useRef<SheetHandle>(null);
+  const memberSheetRef = useRef<SheetHandle>(null);
 
-  // マップをユーザーがドラッグし始めたら、シートを mini に下げて地図を広く見せる
+  // マップをユーザーがドラッグし始めたら、出てるシートを mini に下げて地図を広く見せる
   const handleMapDrag = useCallback(() => {
-    // すでに mini か closed ならそのまま。それ以外(peek/full)だけ mini へ。
-    const cur = listSheetRef.current?.getSnap();
+    // 現在どちらか出てるシートを対象にする（メンバー選択中ならメンバーシート、そうでなければ一覧シート）
+    const target = memberSheetRef.current?.getSnap() && memberSheetRef.current?.getSnap() !== 'closed'
+      ? memberSheetRef.current
+      : listSheetRef.current;
+    const cur = target?.getSnap();
     if (cur === 'mini' || cur === 'closed') return;
-    listSheetRef.current?.snapTo('mini');
+    target?.snapTo('mini');
   }, []);
 
   const handleLocate = () => {
@@ -222,6 +226,7 @@ export default function HomePage() {
       <MemberBottomSheet
         member={selectedMember}
         onClose={() => setSelectedId(null)}
+        sheetHandleRef={memberSheetRef}
       />
     </div>
   );
