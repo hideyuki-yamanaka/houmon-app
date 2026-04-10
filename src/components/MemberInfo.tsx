@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronDown, ExternalLink } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import type { Member, MemberRow } from '../lib/types';
 import { STATUS_GRID_ITEMS, STATUS_LEVEL_DISPLAY, type StatusLevel } from '../lib/constants';
 import { updateMember } from '../lib/storage';
@@ -322,34 +322,27 @@ export default function MemberInfo({ member, onUpdate }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* 基本情報（アコーディオン） */}
+      {/* 基本情報（同居家族までは常に表示。残りはアコーディオンで開閉） */}
       <div className="ios-card hover:!opacity-100 overflow-hidden">
-        {/* アコーディオンヘッダー（タップで開閉） */}
-        <button
-          type="button"
-          onClick={() => setInfoOpen(o => !o)}
-          className="w-full flex items-center justify-between px-4 py-3 text-left active:bg-[#F5F5F5] transition-colors"
-          aria-expanded={infoOpen}
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <h3 className="text-sm font-semibold text-[var(--color-subtext)]">基本情報</h3>
-            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)] truncate">
-              {local.district}
-            </span>
-          </div>
-          <ChevronDown
-            size={18}
-            className={`text-[var(--color-icon-gray)] shrink-0 transition-transform duration-200 ${infoOpen ? 'rotate-180' : ''}`}
-          />
-        </button>
+        {/* タイトル行 */}
+        <div className="flex items-center gap-2 px-4 pt-3 pb-1 min-w-0">
+          <h3 className="text-sm font-semibold text-[var(--color-subtext)]">基本情報</h3>
+          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)] truncate">
+            {local.district}
+          </span>
+        </div>
 
+        {/* 常に見える部分（同居家族まで） */}
+        <div className="px-4">
+          {F('nameKana', '読み仮名', local.nameKana)}
+          {F('role', '役職', local.role)}
+          {F('address', '住所', local.address, { link: local.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(local.address)}` : undefined })}
+          {F('family', '同居家族', local.family)}
+        </div>
+
+        {/* 開いた時だけ見える残り */}
         {infoOpen && (
-          <div className="px-4 pb-3 pt-0">
-            {/* ぜんぶ縦並び。例外は 生年月日/年齢/入会月日 の3列だけ */}
-            {F('nameKana', '読み仮名', local.nameKana)}
-            {F('role', '役職', local.role)}
-            {F('address', '住所', local.address, { link: local.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(local.address)}` : undefined })}
-
+          <div className="px-4">
             {/* 生年月日 / 年齢 / 入会月日 — ここだけ3列横並び */}
             <div className="grid grid-cols-3 gap-x-4 border-b border-[#F0F0F0]">
               <DateField label="生年月日" value={local.birthday} fieldKey="birthday"
@@ -363,10 +356,23 @@ export default function MemberInfo({ member, onUpdate }: Props) {
             {F('mobile', '携帯', local.mobile, { link: local.mobile ? `tel:${local.mobile}` : undefined })}
             {F('educationLevel', '教学', local.educationLevel)}
             {F('workplace', '職場', local.workplace)}
-            {F('family', '同居家族', local.family)}
             {F('notes', '備考', local.notes)}
           </div>
         )}
+
+        {/* 開閉トグル：閉じてる時は上向きに白へフェードするグラデで「下に隠れとるで」感を出す */}
+        <button
+          type="button"
+          onClick={() => setInfoOpen(o => !o)}
+          aria-expanded={infoOpen}
+          className={`relative w-full flex items-center justify-center text-[12px] font-medium text-[var(--color-primary)] active:opacity-60 transition-opacity ${
+            infoOpen
+              ? 'pt-2 pb-3'
+              : '-mt-10 pt-10 pb-3 bg-gradient-to-b from-white/0 via-white/70 to-white'
+          }`}
+        >
+          <span>{infoOpen ? '閉じる' : '続きを見る'}</span>
+        </button>
       </div>
 
       {/* ○×△ ステータスグリッド（タップで編集） */}
