@@ -231,6 +231,82 @@ function AgeField({ value, memberId, onSaved, half }: {
   );
 }
 
+// ── 選択肢プルダウンフィールド ──
+function SelectField({ label, value, fieldKey, memberId, options, onSaved, half }: {
+  label: string;
+  value: string | undefined;
+  fieldKey: string;
+  memberId: string;
+  options: string[];
+  onSaved: (key: string, value: string) => void;
+  half?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const handleSelect = async (val: string) => {
+    setOpen(false);
+    const column = FIELD_TO_COLUMN[fieldKey];
+    if (!column) return;
+    try {
+      await updateMember(memberId, { [column]: val || null } as Partial<MemberRow>);
+      onSaved(fieldKey, val);
+    } catch { /* ignore */ }
+  };
+
+  const displayValue = value != null && value !== '' ? String(value) : '';
+
+  return (
+    <div ref={ref} className={`py-2 relative ${half ? '' : 'border-b border-[#F0F0F0]'}`}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full text-left cursor-pointer transition-opacity duration-150 hover:opacity-70"
+      >
+        <div className="text-[10px] text-[var(--color-subtext)] mb-0.5">{label}</div>
+        {displayValue
+          ? <span className="text-sm">{displayValue}</span>
+          : <span className="text-sm text-[#CCC] italic">未入力</span>
+        }
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-lg z-20 min-w-[140px] overflow-hidden">
+          {options.map(opt => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => handleSelect(opt)}
+              className={`w-full px-4 py-2.5 text-sm text-left ${
+                value === opt ? 'bg-[#F0F0F0] font-medium' : ''
+              } active:bg-[#E8E8E8] border-b border-[#F5F5F5] last:border-b-0`}
+            >
+              {opt}
+            </button>
+          ))}
+          {displayValue && (
+            <button
+              type="button"
+              onClick={() => handleSelect('')}
+              className="w-full px-4 py-2 text-xs text-left text-[var(--color-subtext)] active:bg-[#E8E8E8] border-t border-[#F0F0F0]"
+            >
+              クリア
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── インライン編集フィールド ──
 function EditableField({ label, value, fieldKey, memberId, link, onSaved, half }: {
   label: string; value: string | number | undefined; fieldKey: string;
@@ -336,12 +412,33 @@ export default function MemberInfo({ member, onUpdate }: Props) {
           </span>
         </div>
 
-        {/* 常に見える部分（同居家族まで） */}
+        {/* 常に見える部分（住所まで） */}
         <div className="px-4">
           {F('nameKana', '読み仮名', local.nameKana)}
-          {F('role', '役職', local.role)}
+
+          {/* 役職 / 同居 — 横並び（行下のアンダーラインなし） */}
+          <div className="grid grid-cols-2 gap-x-4 border-b border-[#F0F0F0]">
+            <SelectField
+              label="役職"
+              value={local.role}
+              fieldKey="role"
+              memberId={local.id}
+              options={['ニューリーダー', '地区リーダー']}
+              onSaved={handleSaved}
+              half
+            />
+            <SelectField
+              label="同居"
+              value={local.family}
+              fieldKey="family"
+              memberId={local.id}
+              options={['親']}
+              onSaved={handleSaved}
+              half
+            />
+          </div>
+
           {F('address', '住所', local.address, { link: local.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(local.address)}` : undefined })}
-          {F('family', '同居家族', local.family)}
         </div>
 
         {/* 開いた時だけ見える残り */}
@@ -358,9 +455,17 @@ export default function MemberInfo({ member, onUpdate }: Props) {
 
             {F('phone', '自宅TEL', local.phone, { link: local.phone ? `tel:${local.phone}` : undefined })}
             {F('mobile', '携帯', local.mobile, { link: local.mobile ? `tel:${local.mobile}` : undefined })}
-            {F('educationLevel', '教学', local.educationLevel)}
+            <SelectField
+              label="教学"
+              value={local.educationLevel}
+              fieldKey="educationLevel"
+              memberId={local.id}
+              options={['1級', '2級', '3級', '任用試験']}
+              onSaved={handleSaved}
+            />
             {F('workplace', '職場', local.workplace)}
-            {F('notes', '備考', local.notes)}
+            {/* 備考は最後尾なので half=true でアンダーラインを消す */}
+            {F('notes', '備考', local.notes, { half: true })}
           </div>
         )}
 

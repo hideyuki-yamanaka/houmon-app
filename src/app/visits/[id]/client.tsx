@@ -160,7 +160,7 @@ export default function VisitDetailClient() {
             )}
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end !mt-1">
             <button
               onClick={handleDelete}
               disabled={deleting}
