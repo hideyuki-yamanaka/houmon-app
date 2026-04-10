@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useMemo } from 'react';
-import { Plus, LocateFixed, Search, X } from 'lucide-react';
+import { Plus, LocateFixed, Search, X, Layers } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import type { MemberWithVisitInfo } from '../lib/types';
@@ -10,6 +10,7 @@ import { ORG_HIERARCHY, findParentOrg } from '../lib/constants';
 import MemberBottomSheet from '../components/MemberBottomSheet';
 import DistrictMembersBottomSheet from '../components/DistrictMembersBottomSheet';
 import DistrictFilter, { type FilterSelection, matchFilter, EMPTY_FILTER } from '../components/DistrictFilter';
+import type { MapLayerMode } from '../components/MapView';
 
 const MapView = dynamic(() => import('../components/MapView'), { ssr: false });
 
@@ -21,6 +22,8 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<FilterSelection>(EMPTY_FILTER);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  // マップのレイヤーモード（通常 ⇄ 航空写真）。セッション中のみ保持（永続化なし）
+  const [layerMode, setLayerMode] = useState<MapLayerMode>('standard');
   const mapWrapRef = useRef<HTMLDivElement>(null);
 
   const handleLocate = () => {
@@ -104,7 +107,10 @@ export default function HomePage() {
   }, [filter]);
 
   // ボトムシート表示条件
-  const showDistrictSheet = (filter.parent !== null || filter.category !== null) && !selectedId;
+  // 親（部・本部）が選択されてる時だけ開く。
+  // カテゴリーだけ（ヤング/男子部）は地図のピンが切り替わるだけにして
+  // ピンを視認できる状態を保つ。
+  const showDistrictSheet = filter.parent !== null && !selectedId;
 
   if (loading) {
     return (
@@ -127,6 +133,7 @@ export default function HomePage() {
           selectedMemberId={selectedId}
           onMemberSelect={(id) => setSelectedId(id)}
           onMapClick={() => { setSelectedId(null); setFilter(EMPTY_FILTER); setShowSuggestions(false); }}
+          layerMode={layerMode}
         />
       </div>
 
@@ -178,15 +185,28 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* 階層化地区フィルター（白背景カードで包んでマップ上で見やすく） */}
-        <div className="mt-2 px-3 pointer-events-auto">
-          <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.12)] px-2 py-1.5">
+        {/* 階層化地区フィルター + レイヤー切替ボタン（横並び） */}
+        <div className="mt-2 px-3 pointer-events-auto flex items-center gap-2">
+          <div className="flex-1 bg-white/95 backdrop-blur-sm rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.12)] px-2 py-1.5 min-w-0">
             <DistrictFilter
               selection={filter}
               onChange={setFilter}
               members={members}
             />
           </div>
+          {/* レイヤー切替ボタン（通常 ⇄ 航空写真） */}
+          <button
+            type="button"
+            onClick={() => setLayerMode(m => (m === 'standard' ? 'satellite' : 'standard'))}
+            aria-label={layerMode === 'standard' ? '航空写真に切り替え' : '通常マップに切り替え'}
+            className="shrink-0 w-11 h-11 rounded-full bg-white shadow-[0_2px_6px_rgba(0,0,0,0.15)] flex items-center justify-center active:scale-95 transition-transform"
+          >
+            <Layers
+              size={20}
+              className={layerMode === 'satellite' ? 'text-[var(--color-primary)]' : 'text-[#5F6368]'}
+              strokeWidth={2}
+            />
+          </button>
         </div>
       </div>
 

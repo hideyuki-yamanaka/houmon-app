@@ -52,13 +52,19 @@ export default function LogPage() {
   const monthLabel = `${now.getFullYear()}年${now.getMonth() + 1}月`;
 
   return (
-    <div className="h-full flex flex-col bg-[var(--color-bg)]">
+    // absolute inset-0 で親の padding box 全体をカバー → tab bar の裏まで伸びる
+    <div className="absolute inset-0 flex flex-col bg-[var(--color-bg)]">
       <div className="ios-nav px-4 py-3">
         <h1 className="text-xl font-bold text-center">ダッシュボード</h1>
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-[1366px] mx-auto px-4 py-3 space-y-3">
+        <div
+          className="max-w-[1366px] mx-auto px-4 pt-3 space-y-3"
+          // tab bar(60px) + safe area + 余白(16px) 分 padding-bottom を入れて
+          // 最後のブロックが tab bar の裏に隠れた後もスクロールで全部見えるように。
+          style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom) + 16px)' }}
+        >
 
           {/* サマリー — リングチャート + 訪問回数 */}
           <div className="grid grid-cols-2 gap-3">

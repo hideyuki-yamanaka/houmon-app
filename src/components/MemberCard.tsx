@@ -42,6 +42,11 @@ export default function MemberCard({ member, onSelect }: Props) {
             <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)]">
               {member.district.replace(/豊岡部|光陽部|豊岡中央支部/g, '')}
             </span>
+            {member.category === 'young' && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#0EA5E9] text-white leading-none">
+                ヤング
+              </span>
+            )}
             <span className="flex items-center gap-1 text-[11px] text-[var(--color-subtext)]">
               <Clock size={12} strokeWidth={1.8} />
               {member.lastVisitDate

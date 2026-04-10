@@ -217,7 +217,9 @@ export default function MembersPage() {
   const hasAnyFilter = filter.parent !== null || filter.category !== null || periodActive || categoryFilter !== null;
 
   return (
-    <div className="h-full flex flex-col bg-[var(--color-bg)]">
+    // absolute inset-0 で親の padding box 全体をカバー → tab bar の裏まで伸びる
+    // (親の layout.tsx 側は `pb-[calc(60px+safe)] relative`)
+    <div className="absolute inset-0 flex flex-col bg-[var(--color-bg)]">
       {/* ヘッダー */}
       <div className="ios-nav px-4 py-3">
         <h1 className="text-xl font-bold text-center">メンバー</h1>
@@ -263,7 +265,10 @@ export default function MembersPage() {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
-            <div className="px-4 py-4">
+            <div
+              className="px-4 pt-4"
+              style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom) + 16px)' }}
+            >
               {dayVisits.length === 0 ? (
                 <p className="text-sm text-[var(--color-subtext)] text-center mt-6">この日の訪問ログはありません</p>
               ) : (
@@ -473,7 +478,13 @@ export default function MembersPage() {
 
           {/* スクロール領域: メンバー名簿 */}
           <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
-            <div className="px-4 pb-4">
+            <div
+              className="px-4"
+              // tab bar(60px) + safe area + 余白(16px) 分 padding-bottom を入れて
+              // 最後のカードが tab bar の裏に隠れたあとも、スクロールすれば tab bar
+              // の上まで上がってきて全部見える。
+              style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom) + 16px)' }}
+            >
               {filtered.length === 0 ? (
                 <p className="text-center text-[var(--color-subtext)] mt-8">メンバーが見つかりません</p>
               ) : (

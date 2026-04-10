@@ -53,11 +53,20 @@ export default function DistrictFilter({ selection, onChange, members }: Props) 
     return map;
   }, [members]);
 
-  const leafCounts = useMemo(() => {
-    const map = new Map<string, number>();
-    if (!members) return map;
-    for (const m of members) map.set(m.district, (map.get(m.district) ?? 0) + 1);
-    return map;
+  // 親キーごとに leaf 数をネストして数える
+  // （例：'豊岡部英雄地区' は男子部「豊岡部」とヤング「豊岡本部」で共有されてるので、
+  //   親キーでスコープしないと両方の数を二重にカウントしてしまう）
+  const leafCountsByParent = useMemo(() => {
+    const outer = new Map<string, Map<string, number>>();
+    if (!members) return outer;
+    for (const m of members) {
+      const p = getParentOrgKey(m);
+      if (!p) continue;
+      const inner = outer.get(p) ?? new Map<string, number>();
+      inner.set(m.district, (inner.get(m.district) ?? 0) + 1);
+      outer.set(p, inner);
+    }
+    return outer;
   }, [members]);
 
   // カテゴリーごとの人数（男子部すべて／ヤングすべて 用）
@@ -196,7 +205,7 @@ export default function DistrictFilter({ selection, onChange, members }: Props) 
             {selectedParent.short}すべて
           </button>
           {selectedParent.children.map(leaf => {
-            const count = leafCounts.get(leaf.key) ?? 0;
+            const count = leafCountsByParent.get(selectedParent.key)?.get(leaf.key) ?? 0;
             const isSelected = selection.leaf === leaf.key;
             return (
               <button

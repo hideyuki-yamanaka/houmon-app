@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronRight, Plus, MapPin, Clock } from 'lucide-react';
+import { ChevronRight, Plus, MapPin, Clock, PersonStanding } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit } from '../lib/types';
 import { formatDate } from '../lib/utils';
 import { getVisits } from '../lib/storage';
@@ -27,105 +27,144 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
     if (!member) return;
     setVisits([]);
     setLoading(true);
-    getVisits(member.id)
-      .then(v => setVisits(v.slice(0, 5)))
-      .catch(() => setVisits([]))
-      .finally(() => setLoading(false));
+    // 開きアニメ(380ms)の最中にネットワーク fetch + setState が走ると
+    // メイン thread が詰まってアニメがガタつく。アニメ完了後に取得開始。
+    const t = setTimeout(() => {
+      getVisits(member.id)
+        .then(v => setVisits(v.slice(0, 5)))
+        .catch(() => setVisits([]))
+        .finally(() => setLoading(false));
+    }, 420);
+    return () => clearTimeout(t);
   }, [member?.id]);
+
+  // 訪問ログあり → 270px（訪問ログ見出し＋リスト分の余白あり）
+  // 訪問ログなし → 200px（訪問ログセクション丸ごと非表示でコンパクト）
+  const hasVisits = (displayMember?.totalVisits ?? 0) > 0;
+  const peekHeight = hasVisits ? 270 : 200;
 
   return (
     <SwipeableBottomSheet
       open={!!member}
       onClose={onClose}
-      peekHeight={270}
+      peekHeight={peekHeight}
       zIndex={40}
     >
       {(snap) => {
         if (!displayMember) return null;
         const m = displayMember;
 
+        // ストリートビュー URL（Google Maps web/アプリの Street View モード）
+        const streetViewUrl =
+          m.lat != null && m.lng != null
+            ? `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${m.lat},${m.lng}`
+            : null;
+
         return (
           <div className="flex flex-col">
-            {/* ヘッダー: 名前 + 地区 */}
-            <div className="px-4 pt-1 pb-3">
-              <button
-                onClick={() => router.push(`/members/${m.id}`)}
-                className="flex items-center justify-between w-full text-left"
-              >
-                <div className="flex items-center gap-1.5 flex-1">
-                  <h2 className="text-lg font-bold">{m.name}</h2>
-                  <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0" />
-                </div>
-                <div className="flex items-center gap-2">
+            {/* ヘッダー: 左上にストリートビュー + 右に名前/地区/住所 */}
+            <div className="flex gap-3 px-4 pt-1 pb-3">
+              {/* ストリートビューボタン（左上） */}
+              {streetViewUrl && (
+                <a
+                  href={streetViewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="ストリートビューで見る"
+                  onClick={e => e.stopPropagation()}
+                  className="shrink-0 w-16 h-16 rounded-xl bg-gradient-to-br from-[#E8EAED] to-[#DADCE0] flex flex-col items-center justify-center active:scale-95 transition-transform shadow-sm"
+                >
+                  <PersonStanding size={28} className="text-[#5F6368]" strokeWidth={2} />
+                  <span className="text-[9px] mt-0.5 text-[#5F6368] font-medium leading-none">ストリート</span>
+                </a>
+              )}
+
+              <div className="flex-1 min-w-0">
+                <button
+                  onClick={() => router.push(`/members/${m.id}`)}
+                  className="flex items-center justify-between w-full text-left"
+                >
+                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    <h2 className="text-lg font-bold truncate">{m.name}</h2>
+                    <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0" />
+                  </div>
+                </button>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)]">
                     {m.district.replace(/豊岡部|光陽部|豊岡中央支部/g, '')}
                   </span>
-                  <span className="flex items-center gap-1 text-sm text-[var(--color-subtext)]">
-                    <Clock size={16} strokeWidth={1.8} />
+                  {m.category === 'young' && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#0EA5E9] text-white leading-none">
+                      ヤング
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1 text-xs text-[var(--color-subtext)]">
+                    <Clock size={14} strokeWidth={1.8} />
                     {m.lastVisitDate
                       ? `${formatDate(m.lastVisitDate, 'yyyy年M月d日')}（${m.totalVisits}回）`
-                      : `${m.totalVisits}回`}
+                      : '----年--月--日'}
                   </span>
                 </div>
-              </button>
 
-              {/* 住所（Googleマップ遷移リンク） */}
-              {m.address && (
-                <a
-                  href={
-                    m.lat != null && m.lng != null
-                      ? `https://www.google.com/maps/search/?api=1&query=${m.lat},${m.lng}`
-                      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(m.address.replace(/\s.*$/, ''))}`
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 mt-2 text-sm text-[var(--color-subtext)] active:text-[var(--color-text)] transition-colors"
-                  onClick={e => e.stopPropagation()}
-                >
-                  <MapPin size={20} strokeWidth={1.8} className="text-[var(--color-icon-gray)] shrink-0" />
-                  <span className="flex-1">{m.address}</span>
-                </a>
-              )}
+                {/* 住所（Googleマップ遷移リンク） */}
+                {m.address && (
+                  <a
+                    href={
+                      m.lat != null && m.lng != null
+                        ? `https://www.google.com/maps/search/?api=1&query=${m.lat},${m.lng}`
+                        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(m.address.replace(/\s.*$/, ''))}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 mt-1.5 text-xs text-[var(--color-subtext)] active:text-[var(--color-text)] transition-colors"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <MapPin size={16} strokeWidth={1.8} className="text-[var(--color-icon-gray)] shrink-0" />
+                    <span className="flex-1 truncate">{m.address}</span>
+                  </a>
+                )}
+              </div>
             </div>
 
-            {/* 訪問ログ */}
-            <div className="px-4 pt-4 pb-2">
-              <h3 className="text-sm font-semibold text-[var(--color-subtext)] mb-2">訪問ログ</h3>
-              {loading ? (
-                <p className="text-sm text-[var(--color-subtext)]">読み込み中...</p>
-              ) : visits.length === 0 ? (
-                <p className="text-sm text-[var(--color-subtext)]">まだ訪問ログがありません</p>
-              ) : (
-                <div className="space-y-2">
-                  {visits.map(v => (
-                    <button
-                      key={v.id}
-                      onClick={() => router.push(`/visits/${v.id}`)}
-                      className="block w-full text-left"
-                    >
-                      <div className="px-3 py-2.5 rounded-lg bg-[#F5F5F5] active:bg-[#EBEBEB] transition-colors flex items-center gap-2">
-                        <span className="text-sm font-medium shrink-0">
-                          {formatDate(v.visitedAt, 'yyyy年M月d日')}
-                        </span>
-                        {v.summary && (
-                          <span className="text-xs text-[var(--color-subtext)] truncate">
-                            {v.summary}
+            {/* 訪問ログ: 訪問実績がある場合のみセクション丸ごと表示
+                blank state (totalVisits === 0) のときは見出しも非表示にして余白を詰める */}
+            {m.totalVisits > 0 && (
+              <div className="px-4 pt-4 pb-2">
+                <h3 className="text-sm font-semibold text-[var(--color-subtext)] mb-2">訪問ログ</h3>
+                {loading ? (
+                  <p className="text-sm text-[var(--color-subtext)]">読み込み中...</p>
+                ) : (
+                  <div className="space-y-2">
+                    {visits.map(v => (
+                      <button
+                        key={v.id}
+                        onClick={() => router.push(`/visits/${v.id}`)}
+                        className="block w-full text-left"
+                      >
+                        <div className="px-3 py-2.5 rounded-lg bg-[#F5F5F5] active:bg-[#EBEBEB] transition-colors flex items-center gap-2">
+                          <span className="text-sm font-medium shrink-0">
+                            {formatDate(v.visitedAt, 'yyyy年M月d日')}
                           </span>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                  {m.totalVisits > 5 && (
-                    <button
-                      onClick={() => router.push(`/members/${m.id}`)}
-                      className="text-sm text-[var(--color-primary)] font-medium flex items-center gap-1"
-                    >
-                      もっと見る <ChevronRight size={16} />
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
+                          {v.summary && (
+                            <span className="text-xs text-[var(--color-subtext)] truncate">
+                              {v.summary}
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                    {m.totalVisits > 5 && (
+                      <button
+                        onClick={() => router.push(`/members/${m.id}`)}
+                        className="text-sm text-[var(--color-primary)] font-medium flex items-center gap-1"
+                      >
+                        もっと見る <ChevronRight size={16} />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* 訪問記録ボタン */}
             <div className="px-4 pb-4 pt-2">

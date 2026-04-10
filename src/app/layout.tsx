@@ -38,7 +38,7 @@ export default function RootLayout({
   return (
     <html lang="ja" className="h-full">
       <body className="h-full bg-[var(--color-bg)]">
-        <div className="h-full max-w-[1366px] mx-auto pb-[calc(60px+env(safe-area-inset-bottom))]">
+        <div className="h-full max-w-[1366px] mx-auto pb-[calc(60px+env(safe-area-inset-bottom))] relative">
           {children}
         </div>
         <BottomTabBar />

@@ -19,7 +19,16 @@ import {
   getParentOrgKey,
 } from '../lib/constants';
 
-const TILE_URL = 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=ja&scale=2';
+// ── タイルレイヤー設定 ──
+// Google Maps と同じタイルサーバーを使う
+// - standard: 通常の道路地図 (lyrs=m)
+// - satellite: 純粋な航空写真 (lyrs=s)
+export type MapLayerMode = 'standard' | 'satellite';
+
+const TILE_URLS: Record<MapLayerMode, string> = {
+  standard: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=ja&scale=2',
+  satellite: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl=ja&scale=2',
+};
 const TILE_ATTRIBUTION = '&copy; Google';
 
 interface MapViewProps {
@@ -27,6 +36,7 @@ interface MapViewProps {
   selectedMemberId: string | null;
   onMemberSelect: (memberId: string) => void;
   onMapClick?: () => void;
+  layerMode?: MapLayerMode;
 }
 
 // ── GPS現在地マーカー（DivIcon — SVG CircleMarkerより位置安定） ──
@@ -119,18 +129,35 @@ function createMemberPin(member: MemberWithVisitInfo, isSelected: boolean): L.Di
 }
 
 // ── 選択メンバーにパン ──
+// ボトムシートのアニメ(380ms)と同時にマップを動かすと iPhone ではコンポジター
+// が詰まってガタガタになる。シートアニメが終わってから静かにパンする。
+// また、ピンがシート(peek)の下に隠れないよう、少し上に寄せた位置にパンする。
+const SHEET_PEEK_HEIGHT_PX = 270;
+const SHEET_ANIM_SETTLE_MS = 420;
 function PanToSelected({ members, selectedId }: { members: MemberWithVisitInfo[]; selectedId: string | null }) {
   const map = useMap();
   const prevRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (selectedId && selectedId !== prevRef.current) {
-      const m = members.find(m => m.id === selectedId);
-      if (m?.lat != null && m?.lng != null) {
-        map.panTo([m.lat, m.lng], { animate: true, duration: 0.4, easeLinearity: 0.5 });
-      }
+    if (!selectedId || selectedId === prevRef.current) {
+      prevRef.current = selectedId;
+      return;
     }
     prevRef.current = selectedId;
+    const m = members.find(x => x.id === selectedId);
+    if (m?.lat == null || m?.lng == null) return;
+
+    const latLng = L.latLng(m.lat, m.lng);
+    const t = window.setTimeout(() => {
+      // ピンをシートの上側に見せるため、画面中央より上にオフセット
+      const zoom = map.getZoom();
+      const targetPoint = map.project(latLng, zoom);
+      targetPoint.y += SHEET_PEEK_HEIGHT_PX / 2;
+      const adjusted = map.unproject(targetPoint, zoom);
+      map.panTo(adjusted, { animate: true, duration: 0.3, easeLinearity: 0.5 });
+    }, SHEET_ANIM_SETTLE_MS);
+
+    return () => window.clearTimeout(t);
   }, [selectedId, members, map]);
 
   return null;
@@ -303,13 +330,42 @@ function MapClickHandler({ onClick }: { onClick?: () => void }) {
 }
 
 // ── メインコンポーネント ──
-export default function MapView({ members, selectedMemberId, onMemberSelect, onMapClick }: MapViewProps) {
+export default function MapView({ members, selectedMemberId, onMemberSelect, onMapClick, layerMode = 'standard' }: MapViewProps) {
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   const geoMembers = useMemo(
     () => members.filter(m => m.lat != null && m.lng != null),
     [members]
   );
+
+  // ── アイコンキャッシュ ──
+  // createMemberPin は毎回新しい L.DivIcon を返す。icon prop reference が
+  // 変わると react-leaflet は marker DOM を再生成するため、全 118 マーカーが
+  // selectedMemberId 変化のたびに DOM 置換される → シートアニメ中にメインスレッド
+  // が詰まり、iPhone で明確にガタつく。
+  //
+  // 対策: 非選択アイコンを member 単位で memoize し、同じ reference を保つ。
+  // 選択中アイコンだけ別途計算 → selectedMemberId 変化時は「旧選択」「新選択」の
+  // 2 個だけ DOM 更新される。
+  const baseIcons = useMemo(() => {
+    const cache = new Map<string, L.DivIcon>();
+    for (const m of geoMembers) {
+      cache.set(m.id, createMemberPin(m, false));
+    }
+    return cache;
+    // member.id / totalVisits / district 変化でのみ再生成
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    geoMembers.length,
+    geoMembers.map(m => `${m.id}:${m.totalVisits}:${m.district}`).join('|'),
+  ]);
+
+  const selectedIcon = useMemo(() => {
+    if (!selectedMemberId) return null;
+    const m = geoMembers.find(x => x.id === selectedMemberId);
+    if (!m) return null;
+    return createMemberPin(m, true);
+  }, [selectedMemberId, geoMembers]);
 
   if (typeof window === 'undefined') {
     return <div style={{ width: '100%', height: '100%', background: '#E8EAED' }} />;
@@ -337,7 +393,10 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
       {...({ rotate: true, rotateControl: false, touchRotate: true, bearing: 0 } as object)}
     >
       <TileLayer
-        url={TILE_URL}
+        // key を付けて layerMode 変更時に TileLayer を作り直す（url 変更だけだと
+        // 古いタイルが残ることがある）
+        key={layerMode}
+        url={TILE_URLS[layerMode]}
         attribution={TILE_ATTRIBUTION}
         maxZoom={20}
         tileSize={512}
@@ -362,15 +421,24 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
         />
       )}
 
-      {geoMembers.map(member => (
-        <Marker
-          key={member.id}
-          position={[member.lat!, member.lng!]}
-          icon={createMemberPin(member, member.id === selectedMemberId)}
-          zIndexOffset={member.id === selectedMemberId ? 1000 : 0}
-          eventHandlers={{ click: () => onMemberSelect(member.id) }}
-        />
-      ))}
+      {geoMembers.map(member => {
+        const isSelected = member.id === selectedMemberId;
+        // 選択中はメモ化された selectedIcon、それ以外はキャッシュ済みの
+        // 非選択アイコンを使う。これにより selectedMemberId 変化時も、
+        // 非選択 marker の icon reference は同一のまま → DOM 置換が起きない。
+        const icon = isSelected && selectedIcon
+          ? selectedIcon
+          : (baseIcons.get(member.id) ?? createMemberPin(member, false));
+        return (
+          <Marker
+            key={member.id}
+            position={[member.lat!, member.lng!]}
+            icon={icon}
+            zIndexOffset={isSelected ? 1000 : 0}
+            eventHandlers={{ click: () => onMemberSelect(member.id) }}
+          />
+        );
+      })}
     </MapContainer>
   );
 }

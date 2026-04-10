@@ -3,7 +3,11 @@ import type { VisitStatus, Respondent, MemberCategory } from './types';
 // ========================================
 // 組織階層（2層構造）
 // - 男子部: 部 → 地区（district は "豊岡部英雄地区" のように結合文字列）
-// - ヤング: 本部 → 地区（district は "下山地区" など地区名のみ、honbu フィールドで本部を保持）
+// - ヤング: 本部 → 地区
+//     豊岡本部のヤングは男子部の地区を共有（同じ district キーを使う）
+//     東栄/旭創価/東旭川 本部はヤング名簿しかなく地区情報が無いため、
+//     leaf 無しの本部のみ（chip では本部全員にしぼれるだけ）
+//     地区が不明なヤングは district = 本部名 で格納し、備考(notes)に「仮」を入れる
 // ========================================
 
 export interface OrgLeaf {
@@ -25,69 +29,50 @@ export interface OrgCategory {
   parents: OrgParent[];
 }
 
+// 男子部の地区を定数化（ヤング豊岡本部からも同じ地区を共有するため）
+const GENERAL_TOYOOKA_LEAVES: OrgLeaf[] = [
+  { key: '豊岡部香城地区', short: '香城', hex: '#059669' },
+  { key: '豊岡部英雄地区', short: '英雄', hex: '#2563EB' },
+  { key: '豊岡部正義地区', short: '正義', hex: '#D97706' },
+];
+const GENERAL_KOYO_LEAVES: OrgLeaf[] = [
+  { key: '光陽部光陽地区', short: '光陽', hex: '#7C3AED' },
+  { key: '光陽部光輝地区', short: '光輝', hex: '#DC2626' },
+  { key: '光陽部黄金地区', short: '黄金', hex: '#CA8A04' },
+];
+const GENERAL_CHUO_LEAVES: OrgLeaf[] = [
+  { key: '豊岡中央支部歓喜地区', short: '歓喜', hex: '#0891B2' },
+  { key: '豊岡中央支部ナポレオン地区', short: 'ナポレオン', hex: '#4F46E5' },
+  { key: '豊岡中央支部幸福地区', short: '幸福', hex: '#DB2777' },
+];
+
 export const ORG_HIERARCHY: OrgCategory[] = [
   {
     category: 'young',
     label: 'ヤング',
     parents: [
-      {
-        key: '東栄本部', short: '東栄', hex: '#1D4ED8',
-        children: [
-          { key: '下山地区', short: '下山', hex: '#1D4ED8' },
-          { key: '沼畑地区', short: '沼畑', hex: '#2563EB' },
-          { key: '山本地区', short: '山本', hex: '#3B82F6' },
-        ],
-      },
+      // 東栄/旭創価/東旭川 本部はヤング名簿のみで地区情報なし → leaf 空
+      { key: '東栄本部',   short: '東栄',   hex: '#1D4ED8', children: [] },
+      // 豊岡本部のヤングは男子部の9地区を共有する
       {
         key: '豊岡本部', short: '豊岡', hex: '#4338CA',
         children: [
-          { key: '豊岡北地区', short: '豊岡北', hex: '#4338CA' },
-          { key: '豊岡中央地区', short: '豊岡中', hex: '#6366F1' },
-          { key: '豊岡南地区', short: '豊岡南', hex: '#818CF8' },
+          ...GENERAL_TOYOOKA_LEAVES,
+          ...GENERAL_KOYO_LEAVES,
+          ...GENERAL_CHUO_LEAVES,
         ],
       },
-      {
-        key: '旭創価本部', short: '旭創価', hex: '#0E7490',
-        children: [
-          { key: '東川地区', short: '東川', hex: '#0E7490' },
-        ],
-      },
-      {
-        key: '東旭川本部', short: '東旭川', hex: '#0F766E',
-        children: [
-          { key: '東旭川地区', short: '東旭川', hex: '#0F766E' },
-        ],
-      },
+      { key: '旭創価本部', short: '旭創価', hex: '#0E7490', children: [] },
+      { key: '東旭川本部', short: '東旭川', hex: '#0F766E', children: [] },
     ],
   },
   {
     category: 'general',
     label: '男子部',
     parents: [
-      {
-        key: '豊岡部', short: '豊岡部', hex: '#2563EB',
-        children: [
-          { key: '豊岡部香城地区', short: '香城', hex: '#059669' },
-          { key: '豊岡部英雄地区', short: '英雄', hex: '#2563EB' },
-          { key: '豊岡部正義地区', short: '正義', hex: '#D97706' },
-        ],
-      },
-      {
-        key: '光陽部', short: '光陽部', hex: '#7C3AED',
-        children: [
-          { key: '光陽部光陽地区', short: '光陽', hex: '#7C3AED' },
-          { key: '光陽部光輝地区', short: '光輝', hex: '#DC2626' },
-          { key: '光陽部黄金地区', short: '黄金', hex: '#CA8A04' },
-        ],
-      },
-      {
-        key: '豊岡中央支部', short: '中央', hex: '#0891B2',
-        children: [
-          { key: '豊岡中央支部歓喜地区', short: '歓喜', hex: '#0891B2' },
-          { key: '豊岡中央支部ナポレオン地区', short: 'ナポレオン', hex: '#4F46E5' },
-          { key: '豊岡中央支部幸福地区', short: '幸福', hex: '#DB2777' },
-        ],
-      },
+      { key: '豊岡部',       short: '豊岡部', hex: '#2563EB', children: GENERAL_TOYOOKA_LEAVES },
+      { key: '光陽部',       short: '光陽部', hex: '#7C3AED', children: GENERAL_KOYO_LEAVES },
+      { key: '豊岡中央支部', short: '中央',   hex: '#0891B2', children: GENERAL_CHUO_LEAVES },
     ],
   },
 ];
