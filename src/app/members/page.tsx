@@ -4,13 +4,11 @@ import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Table, Calendar, ChevronDown, X } from 'lucide-react';
 import Link from 'next/link';
 import type { MemberWithVisitInfo, Visit } from '../../lib/types';
-import { VISIT_STATUS_CONFIG, findParentOrg } from '../../lib/constants';
+import { VISIT_STATUS_CONFIG, findParentOrg, ORG_HIERARCHY } from '../../lib/constants';
 import { getMembersWithVisitInfo, getAllVisits, getVisitsByDate } from '../../lib/storage';
 import MemberCard from '../../components/MemberCard';
 import CalendarGrid from '../../components/CalendarGrid';
-import DistrictFilter, { type FilterSelection, matchFilter } from '../../components/DistrictFilter';
-
-const EMPTY_FILTER: FilterSelection = { parent: null, leaf: null };
+import DistrictFilter, { type FilterSelection, matchFilter, EMPTY_FILTER } from '../../components/DistrictFilter';
 
 // ひらがな/カタカナの先頭文字から行を判定
 function getKanaGroup(kana: string | undefined): string {
@@ -187,14 +185,20 @@ export default function MembersPage() {
 
   // 各ピルの現在値ラベル
   const districtLabel = useMemo(() => {
-    if (!filter.parent) return 'すべて';
-    const parent = findParentOrg(filter.parent);
-    if (!parent) return 'すべて';
-    if (filter.leaf) {
-      const leaf = parent.children.find(c => c.key === filter.leaf);
-      return leaf ? `${parent.short}・${leaf.short}` : parent.short;
+    if (filter.parent) {
+      const parent = findParentOrg(filter.parent);
+      if (!parent) return 'すべて';
+      if (filter.leaf) {
+        const leaf = parent.children.find(c => c.key === filter.leaf);
+        return leaf ? `${parent.short}・${leaf.short}` : parent.short;
+      }
+      return parent.short;
     }
-    return parent.short;
+    if (filter.category) {
+      const cat = ORG_HIERARCHY.find(c => c.category === filter.category);
+      return cat ? `${cat.label}すべて` : 'すべて';
+    }
+    return 'すべて';
   }, [filter]);
   const fmtShort = (d: string) => {
     const [, m, day] = d.split('-');
@@ -210,7 +214,7 @@ export default function MembersPage() {
   const periodActive = periodFilter !== null || periodStart !== null;
   const categoryLabel = categoryFilter ? CATEGORY_FILTERS.find(c => c.key === categoryFilter)?.label ?? 'すべて' : 'すべて';
 
-  const hasAnyFilter = filter.parent !== null || periodActive || categoryFilter !== null;
+  const hasAnyFilter = filter.parent !== null || filter.category !== null || periodActive || categoryFilter !== null;
 
   return (
     <div className="h-full flex flex-col bg-[var(--color-bg)]">
@@ -321,7 +325,7 @@ export default function MembersPage() {
                   <div className="flex items-center justify-between h-full gap-1">
                     <div className="flex items-baseline gap-1.5 min-w-0">
                       <span className="text-[10px] font-bold text-[var(--color-text)] shrink-0">地区</span>
-                      <span className={`text-[12px] truncate ${filter.parent ? 'text-[var(--color-text)] font-medium' : 'text-[var(--color-subtext)]'}`}>{districtLabel}</span>
+                      <span className={`text-[12px] truncate ${(filter.parent || filter.category) ? 'text-[var(--color-text)] font-medium' : 'text-[var(--color-subtext)]'}`}>{districtLabel}</span>
                     </div>
                     <ChevronDown size={12} className="text-[var(--color-subtext)] shrink-0" />
                   </div>

@@ -9,11 +9,9 @@ import { getMembersWithVisitInfo } from '../lib/storage';
 import { ORG_HIERARCHY, findParentOrg } from '../lib/constants';
 import MemberBottomSheet from '../components/MemberBottomSheet';
 import DistrictMembersBottomSheet from '../components/DistrictMembersBottomSheet';
-import DistrictFilter, { type FilterSelection, matchFilter } from '../components/DistrictFilter';
+import DistrictFilter, { type FilterSelection, matchFilter, EMPTY_FILTER } from '../components/DistrictFilter';
 
 const MapView = dynamic(() => import('../components/MapView'), { ssr: false });
-
-const EMPTY_FILTER: FilterSelection = { parent: null, leaf: null };
 
 export default function HomePage() {
   const [members, setMembers] = useState<MemberWithVisitInfo[]>([]);
@@ -85,20 +83,28 @@ export default function HomePage() {
       .slice(0, 8);
   }, [filteredMembers, searchQuery]);
 
-  // ボトムシートのタイトル（地区選択中の時）
+  // ボトムシートのタイトル（カテゴリー or 親 選択中の時）
   const bottomSheetTitle = useMemo(() => {
-    if (!filter.parent) return null;
-    const parent = findParentOrg(filter.parent);
-    if (!parent) return null;
-    if (filter.leaf) {
-      const leaf = parent.children.find(c => c.key === filter.leaf);
-      return leaf ? `${parent.short}・${leaf.short}` : parent.short;
+    // 親（部・本部）が選択されてる場合
+    if (filter.parent) {
+      const parent = findParentOrg(filter.parent);
+      if (!parent) return null;
+      if (filter.leaf) {
+        const leaf = parent.children.find(c => c.key === filter.leaf);
+        return leaf ? `${parent.short}・${leaf.short}` : parent.short;
+      }
+      return parent.short;
     }
-    // 親のみ
-    const cat = ORG_HIERARCHY.find(c => c.parents.some(p => p.key === filter.parent));
-    const suffix = cat?.category === 'young' ? '' : '';
-    return `${parent.short}${suffix}`;
+    // カテゴリー全体（男子部すべて／ヤングすべて）
+    if (filter.category) {
+      const cat = ORG_HIERARCHY.find(c => c.category === filter.category);
+      return cat ? cat.label : null;
+    }
+    return null;
   }, [filter]);
+
+  // ボトムシート表示条件
+  const showDistrictSheet = (filter.parent !== null || filter.category !== null) && !selectedId;
 
   if (loading) {
     return (
@@ -204,7 +210,7 @@ export default function HomePage() {
 
       {/* 地区メンバー一覧ボトムシート（フィルター選択中 & メンバー未選択時のみ） */}
       <DistrictMembersBottomSheet
-        districtShort={filter.parent && !selectedId ? (bottomSheetTitle ?? '') : null}
+        districtShort={showDistrictSheet ? (bottomSheetTitle ?? '') : null}
         title={bottomSheetTitle ?? undefined}
         members={filteredMembers}
         onSelectMember={(id) => setSelectedId(id)}

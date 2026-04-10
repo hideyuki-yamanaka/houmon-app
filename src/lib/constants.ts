@@ -27,36 +27,6 @@ export interface OrgCategory {
 
 export const ORG_HIERARCHY: OrgCategory[] = [
   {
-    category: 'general',
-    label: '男子部',
-    parents: [
-      {
-        key: '豊岡部', short: '豊岡部', hex: '#2563EB',
-        children: [
-          { key: '豊岡部香城地区', short: '香城', hex: '#059669' },
-          { key: '豊岡部英雄地区', short: '英雄', hex: '#2563EB' },
-          { key: '豊岡部正義地区', short: '正義', hex: '#D97706' },
-        ],
-      },
-      {
-        key: '光陽部', short: '光陽部', hex: '#7C3AED',
-        children: [
-          { key: '光陽部光陽地区', short: '光陽', hex: '#7C3AED' },
-          { key: '光陽部光輝地区', short: '光輝', hex: '#DC2626' },
-          { key: '光陽部黄金地区', short: '黄金', hex: '#CA8A04' },
-        ],
-      },
-      {
-        key: '豊岡中央支部', short: '中央', hex: '#0891B2',
-        children: [
-          { key: '豊岡中央支部歓喜地区', short: '歓喜', hex: '#0891B2' },
-          { key: '豊岡中央支部ナポレオン地区', short: 'ナポレオン', hex: '#4F46E5' },
-          { key: '豊岡中央支部幸福地区', short: '幸福', hex: '#DB2777' },
-        ],
-      },
-    ],
-  },
-  {
     category: 'young',
     label: 'ヤング',
     parents: [
@@ -86,6 +56,36 @@ export const ORG_HIERARCHY: OrgCategory[] = [
         key: '東旭川本部', short: '東旭川', hex: '#0F766E',
         children: [
           { key: '東旭川地区', short: '東旭川', hex: '#0F766E' },
+        ],
+      },
+    ],
+  },
+  {
+    category: 'general',
+    label: '男子部',
+    parents: [
+      {
+        key: '豊岡部', short: '豊岡部', hex: '#2563EB',
+        children: [
+          { key: '豊岡部香城地区', short: '香城', hex: '#059669' },
+          { key: '豊岡部英雄地区', short: '英雄', hex: '#2563EB' },
+          { key: '豊岡部正義地区', short: '正義', hex: '#D97706' },
+        ],
+      },
+      {
+        key: '光陽部', short: '光陽部', hex: '#7C3AED',
+        children: [
+          { key: '光陽部光陽地区', short: '光陽', hex: '#7C3AED' },
+          { key: '光陽部光輝地区', short: '光輝', hex: '#DC2626' },
+          { key: '光陽部黄金地区', short: '黄金', hex: '#CA8A04' },
+        ],
+      },
+      {
+        key: '豊岡中央支部', short: '中央', hex: '#0891B2',
+        children: [
+          { key: '豊岡中央支部歓喜地区', short: '歓喜', hex: '#0891B2' },
+          { key: '豊岡中央支部ナポレオン地区', short: 'ナポレオン', hex: '#4F46E5' },
+          { key: '豊岡中央支部幸福地区', short: '幸福', hex: '#DB2777' },
         ],
       },
     ],
