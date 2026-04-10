@@ -27,8 +27,8 @@ function getKanaGroup(kana: string | undefined): string {
 }
 
 const DISTRICTS: { key: string; short: string }[] = [
-  { key: '豊岡部英雄地区', short: '英雄' },
   { key: '豊岡部香城地区', short: '香城' },
+  { key: '豊岡部英雄地区', short: '英雄' },
   { key: '豊岡部正義地区', short: '正義' },
   { key: '光陽部光陽地区', short: '光陽' },
   { key: '光陽部光輝地区', short: '光輝' },
