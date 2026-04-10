@@ -2,9 +2,14 @@
 // ヤング名簿シードスクリプト
 // 使い方: cd houmon-app && node scripts/seed-young.mjs
 //
-// - 住所を Nominatim (OSM) でジオコーディングして lat/lng を取得
-// - Supabase に upsert 挿入（id は member-young-XXX 形式で固定）
+// - 住所を 国土地理院(GSI) Address Search API で番地レベルにジオコーディング
+//   失敗時は Nominatim (OSM) → 条丁目グリッド推定の順でフォールバック
+// - Supabase に upsert 挿入（id は ym-XXX 形式で固定）
 // - 既存レコードがあれば更新される
+//
+// 注: 過去に Nominatim+グリッドで投入された42件の座標は、最大5km
+// ズレていたため GSI で再ジオコーディングして DB を直接更新済み
+// (2026-04 対応)。以後はこのスクリプトを再実行すれば GSI が使われる。
 // ========================================
 
 import { readFileSync } from 'node:fs';
@@ -324,14 +329,23 @@ async function sleep(ms) {
 }
 
 /**
- * Nominatim (OpenStreetMap) で住所を緯度経度に変換。
- * - 北海道限定 + 日本語クエリ
- * - 失敗時は条丁目から簡易的にグリッド推定
+ * 住所を緯度経度に変換。
+ *  1) 国土地理院 Address Search API（番地レベルまで対応）
+ *     - 元住所でヒットしなければ末尾を段階的に削ってリトライ
+ *  2) Nominatim (OpenStreetMap)
+ *  3) 条丁目グリッド推定（最終フォールバック）
  */
 async function geocode(address, hint) {
-  // 1) Nominatim を試す
-  const query = address;
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&accept-language=ja&q=${encodeURIComponent(query)}`;
+  // 1) GSI を順に試す（クエリのバリアント）
+  const variants = buildGsiQueries(address);
+  for (const q of variants) {
+    const hit = await gsiGeocode(q);
+    if (hit) return { ...hit, source: `gsi:${q === address ? 'full' : 'trim'}` };
+    await sleep(120); // GSI に優しく
+  }
+
+  // 2) Nominatim フォールバック
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=jp&accept-language=ja&q=${encodeURIComponent(address)}`;
   try {
     const res = await fetch(url, {
       headers: { 'User-Agent': 'houmon-app-seed/1.0 (dev)' },
@@ -343,10 +357,66 @@ async function geocode(address, hint) {
       }
     }
   } catch (e) {
-    console.error(`  geocode error for ${address}:`, e.message);
+    console.error(`  nominatim error for ${address}:`, e.message);
   }
-  // 2) フォールバック：条丁目グリッド推定
+
+  // 3) 最終フォールバック：条丁目グリッド推定
   return estimateByGrid(address, hint);
+}
+
+/**
+ * 国土地理院 Address Search API 呼び出し。
+ * 返り値: { lat, lng } または null
+ * doc: https://msearch.gsi.go.jp/address-search/AddressSearch?q=...
+ */
+async function gsiGeocode(q) {
+  const url = `https://msearch.gsi.go.jp/address-search/AddressSearch?q=${encodeURIComponent(q)}`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const arr = await res.json();
+    if (!Array.isArray(arr) || arr.length === 0) return null;
+    const c = arr[0]?.geometry?.coordinates;
+    if (!Array.isArray(c) || c.length < 2) return null;
+    // GSI は [lng, lat] の順で返す
+    return { lat: c[1], lng: c[0] };
+  } catch (e) {
+    console.error(`  gsi error for ${q}:`, e.message);
+    return null;
+  }
+}
+
+/**
+ * GSI 用クエリのバリエーションを段階的に作る。
+ * 番地や号まで含めても当たらないことがあるので、徐々に粗くしていく。
+ */
+function buildGsiQueries(address) {
+  const set = new Set();
+  set.add(address);
+
+  // 「X号」以降を落とす
+  if (address.includes('号')) {
+    set.add(address.split('号')[0]);
+  }
+
+  // 末尾の「-数字」を1段階ずつ落とす
+  let cur = address;
+  for (let i = 0; i < 3; i++) {
+    const m = cur.match(/^(.*)[-－]\d+$/);
+    if (!m) break;
+    cur = m[1];
+    set.add(cur);
+  }
+
+  // 「N条M丁目」までで切る
+  const m1 = address.match(/^(.*?\d+条\d+丁目)/);
+  if (m1) set.add(m1[1]);
+
+  // 「○○町…N丁目」までで切る
+  const m2 = address.match(/^(.*?町[^\d]*\d+丁目)/);
+  if (m2) set.add(m2[1]);
+
+  return Array.from(set);
 }
 
 // 旭川市の条丁目グリッド推定（ざっくり）
@@ -393,7 +463,7 @@ async function main() {
     const coord = await geocode(m.address, m.honbu);
     console.log(`${coord.lat.toFixed(5)}, ${coord.lng.toFixed(5)} (${coord.source})`);
     results.push({ ...m, lat: coord.lat, lng: coord.lng });
-    // Nominatim のレート制限を守る
+    // Nominatim まで落ちた場合のみ 1秒以上空ける（規約）
     if (coord.source === 'nominatim') await sleep(1100);
   }
 
