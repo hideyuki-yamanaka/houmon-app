@@ -18,10 +18,13 @@
       stroke-linejoin="round"
       stroke-linecap="round"
       d="M256 100 L416 252 L382 252 L382 412 L130 412 L130 252 L96 252 Z"/>
-    <!-- ドア（ペールオレンジ）— 上端を丸めてアーチドア風に -->
-    <path fill="#FED7AA" d="M232 340 Q232 316 256 316 Q280 316 280 340 L280 412 L232 412 Z"/>
-    <!-- 窓（ペールオレンジ）— rx 大きめで柔らかく -->
-    <rect x="158" y="280" width="48" height="48" rx="12" fill="#FED7AA"/>
-    <rect x="306" y="280" width="48" height="48" rx="12" fill="#FED7AA"/>
+    <!-- 家の中の要素（ドア＋窓）を中心 (256,346) で 95% に縮小 -->
+    <g transform="translate(256 346) scale(0.95) translate(-256 -346)">
+      <!-- ドア（ペールオレンジ）— 上端を丸めてアーチドア風に -->
+      <path fill="#FED7AA" d="M232 340 Q232 316 256 316 Q280 316 280 340 L280 412 L232 412 Z"/>
+      <!-- 窓（ペールオレンジ）— rx 大きめで柔らかく -->
+      <rect x="158" y="280" width="48" height="48" rx="12" fill="#FED7AA"/>
+      <rect x="306" y="280" width="48" height="48" rx="12" fill="#FED7AA"/>
+    </g>
   </g>
 </svg>

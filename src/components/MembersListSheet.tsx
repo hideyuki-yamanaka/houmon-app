@@ -85,7 +85,7 @@ export function applyAllFilters(members: MemberWithVisitInfo[], a: AppliedFilter
 
 // peek: 初期表示で「メンバーの2人目ぐらいまで見える」高さ
 // （ヘッダー + あ行ラベル + カード2枚分 + 少し下に余白）
-const PEEK_HEIGHT = 250;
+const PEEK_HEIGHT = 260;
 // mini: 見出し行＋ドラッグハンドルだけ（限界まで下げる）
 const MINI_HEIGHT = 72;
 
