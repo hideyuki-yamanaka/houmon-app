@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { ORG_HIERARCHY, getParentOrgKey, findParentOrg } from '../lib/constants';
 import type { MemberCategory } from '../lib/types';
 
@@ -95,7 +96,15 @@ export default function DistrictFilter({ selection, onChange, members }: Props) 
     { key: 'general', label: '男子部',  count: generalCount },
   ];
 
+  // アコーディオン開閉:
+  //   seg !== 'all' なら自動で開く（ヤング/男子部 選択中は親チップを見せる）
+  //   chevron で手動オーバーライド可能。セグメント切り替え時は manual をリセット
+  const [manualOpen, setManualOpen] = useState<boolean | null>(null);
+  const autoOpen = seg !== 'all';
+  const open = manualOpen ?? autoOpen;
+
   const handleSegment = (key: SegKey) => {
+    setManualOpen(null); // 自動展開ロジックに戻す
     if (key === 'all') {
       onChange(EMPTY_FILTER);
     } else {
@@ -105,28 +114,42 @@ export default function DistrictFilter({ selection, onChange, members }: Props) 
 
   return (
     <div className="flex flex-col gap-1.5">
-      {/* iOS風セグメンテッドコントロール: すべて/ヤング/男子部 */}
-      <div className="bg-[#EEEEEF] rounded-xl p-1 flex gap-1">
-        {segments.map(s => {
-          const active = seg === s.key;
-          return (
-            <button
-              key={s.key}
-              onClick={() => handleSegment(s.key)}
-              className={`flex-1 py-1.5 text-[12px] font-medium rounded-lg transition-all ${
-                active
-                  ? 'bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12)] text-[#111]'
-                  : 'text-[#666] active:bg-[#E5E5E7]'
-              }`}
-            >
-              {s.label}({s.count})
-            </button>
-          );
-        })}
+      {/* iOS風セグメンテッドコントロール: すべて/ヤング/男子部 + chevron */}
+      <div className="flex items-center gap-1.5">
+        <div className="bg-[#EEEEEF] rounded-xl p-1 flex gap-1 flex-1 min-w-0">
+          {segments.map(s => {
+            const active = seg === s.key;
+            return (
+              <button
+                key={s.key}
+                onClick={() => handleSegment(s.key)}
+                className={`flex-1 py-1.5 text-[12px] font-medium rounded-lg transition-all ${
+                  active
+                    ? 'bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12)] text-[#111]'
+                    : 'text-[#666] active:bg-[#E5E5E7]'
+                }`}
+              >
+                {s.label}({s.count})
+              </button>
+            );
+          })}
+        </div>
+        <button
+          onClick={() => setManualOpen(!open)}
+          aria-label={open ? '詳細フィルターを閉じる' : '詳細フィルターを開く'}
+          aria-expanded={open}
+          className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-[#EEEEEF] active:bg-[#E5E5E7]"
+        >
+          <ChevronDown
+            size={18}
+            className={`text-[#666] transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          />
+        </button>
       </div>
 
-      {/* ── 親行: 選択中カテゴリーの親のみ表示 ── */}
-      <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 items-center px-1">
+      {/* ── 親行: 選択中カテゴリーの親のみ表示（アコーディオン） ── */}
+      {open && (
+      <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 items-center px-1 animate-slide-down">
         {visibleCategories.map(cat =>
           cat.parents.map(parent => {
             const count = parentCounts.get(parent.key) ?? 0;
@@ -157,6 +180,7 @@ export default function DistrictFilter({ selection, onChange, members }: Props) 
           })
         )}
       </div>
+      )}
 
       {/* ── 子行：親が選択されてる時だけ出る ── */}
       {selectedParent && (
