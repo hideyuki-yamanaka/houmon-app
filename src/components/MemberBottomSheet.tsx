@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronRight, Plus, MapPin, Clock, Footprints } from 'lucide-react';
+import { ChevronRight, MapPin, Clock, Footprints, PencilLine } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit } from '../lib/types';
 import { formatDate } from '../lib/utils';
 import { getVisits } from '../lib/storage';
@@ -39,10 +39,10 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
   }, [member?.id]);
 
   // 訪問ログあり → 260px（訪問ログ見出し＋リスト分の余白あり）
-  // 訪問ログなし → 190px（訪問ログセクション丸ごと非表示でコンパクト）
-  // ※ストリートビューボタンをシート外に出した分、ちょっと詰めた
+  // 訪問ログなし → 150px（訪問ログセクション丸ごと非表示でコンパクト）
+  // ※記録するボタンをヘッダー右上に移したので底の余白が不要 → 更に詰めた
   const hasVisits = (displayMember?.totalVisits ?? 0) > 0;
-  const peekHeight = hasVisits ? 260 : 190;
+  const peekHeight = hasVisits ? 240 : 150;
 
   // ストリートビュー URL（Google Maps web/アプリの Street View モード）
   // シート外の「上端貼り付き」ボタンで使うので、外側で計算しておく
@@ -80,17 +80,25 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
 
         return (
           <div className="flex flex-col">
-            {/* ヘッダー: 名前/地区/住所 */}
+            {/* ヘッダー: 名前/地区/住所 + 右上『記録する』ボタン */}
             <div className="px-4 pt-1 pb-3">
-              <button
-                onClick={() => router.push(`/members/${m.id}`)}
-                className="flex items-center justify-between w-full text-left"
-              >
-                <div className="flex items-center gap-1.5 flex-1 min-w-0">
+              <div className="flex items-start justify-between gap-3">
+                <button
+                  onClick={() => router.push(`/members/${m.id}`)}
+                  className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
+                >
                   <h2 className="text-lg font-bold truncate">{m.name}</h2>
                   <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0" />
-                </div>
-              </button>
+                </button>
+                <button
+                  onClick={() => router.push(`/visits/new?memberId=${m.id}`)}
+                  className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#111] text-white text-[13px] font-bold px-3.5 py-2 active:scale-95 transition-transform"
+                  aria-label="訪問を記録する"
+                >
+                  <PencilLine size={16} strokeWidth={2.2} />
+                  記録する
+                </button>
+              </div>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)]">
                   {m.district.replace(/豊岡部|光陽部|豊岡中央支部/g, '')}
@@ -167,16 +175,6 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
               </div>
             )}
 
-            {/* 訪問記録ボタン */}
-            <div className="px-4 pb-4 pt-2">
-              <button
-                onClick={() => router.push(`/visits/new?memberId=${m.id}`)}
-                className="ios-button bg-[#111] text-white w-full"
-              >
-                <Plus size={20} className="mr-2" />
-                訪問を記録する
-              </button>
-            </div>
           </div>
         );
       }}

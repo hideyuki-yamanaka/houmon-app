@@ -36,6 +36,11 @@ interface MapViewProps {
   selectedMemberId: string | null;
   onMemberSelect: (memberId: string) => void;
   onMapClick?: () => void;
+  /** ユーザーがマップをドラッグで動かし始めた時に呼ばれる。
+   *  HomePage 側でボトムシートを mini スナップに下げるのに使う。
+   *  ピンタップで PanToSelected が動いた程度では呼ばれないよう、
+   *  純粋な『ユーザードラッグ』イベントだけ拾う。 */
+  onUserMapDrag?: () => void;
   layerMode?: MapLayerMode;
 }
 
@@ -329,8 +334,22 @@ function MapClickHandler({ onClick }: { onClick?: () => void }) {
   return null;
 }
 
+// ── ユーザードラッグ検知 ──
+// Leaflet の 'dragstart' は map.panTo() 等の programmatic な移動では発火しない。
+// ユーザーがマップを掴んで動かした時だけ呼ばれる純粋なジェスチャーイベント。
+function MapDragHandler({ onDrag }: { onDrag?: () => void }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!onDrag) return;
+    const handler = () => onDrag();
+    map.on('dragstart', handler);
+    return () => { map.off('dragstart', handler); };
+  }, [map, onDrag]);
+  return null;
+}
+
 // ── メインコンポーネント ──
-export default function MapView({ members, selectedMemberId, onMemberSelect, onMapClick, layerMode = 'standard' }: MapViewProps) {
+export default function MapView({ members, selectedMemberId, onMemberSelect, onMapClick, onUserMapDrag, layerMode = 'standard' }: MapViewProps) {
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   const geoMembers = useMemo(
@@ -409,6 +428,7 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
       <PanToSelected members={geoMembers} selectedId={selectedMemberId} />
       <FitToMembers members={geoMembers} />
       <MapClickHandler onClick={onMapClick} />
+      <MapDragHandler onDrag={onUserMapDrag} />
       <SmoothZoomHandler />
       <LocationController onLocate={(lat, lng) => setCurrentLocation({ lat, lng })} />
 

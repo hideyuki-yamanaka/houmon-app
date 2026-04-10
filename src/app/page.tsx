@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo } from 'react';
-import { Plus, LocateFixed, Search, X, Layers, List } from 'lucide-react';
-import Link from 'next/link';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
+import { LocateFixed, Search, X, Layers } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import type { MemberWithVisitInfo } from '../lib/types';
 import { getMembersWithVisitInfo } from '../lib/storage';
@@ -10,6 +9,7 @@ import MemberBottomSheet from '../components/MemberBottomSheet';
 import MembersListSheet from '../components/MembersListSheet';
 import { type FilterSelection, matchFilter, EMPTY_FILTER } from '../components/DistrictFilter';
 import type { MapLayerMode } from '../components/MapView';
+import type { SheetHandle } from '../components/SwipeableBottomSheet';
 
 const MapView = dynamic(() => import('../components/MapView'), { ssr: false });
 
@@ -23,9 +23,17 @@ export default function HomePage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   // マップのレイヤーモード（通常 ⇄ 航空写真）。セッション中のみ保持（永続化なし）
   const [layerMode, setLayerMode] = useState<MapLayerMode>('standard');
-  // ボトムシートの表示状態。デフォルトは出ている。マップタップで下げる（Google Maps風）。
-  const [sheetOpen, setSheetOpen] = useState(true);
   const mapWrapRef = useRef<HTMLDivElement>(null);
+  // メンバー一覧シートの imperative handle。マップドラッグ時に snapTo('mini') する。
+  const listSheetRef = useRef<SheetHandle>(null);
+
+  // マップをユーザーがドラッグし始めたら、シートを mini に下げて地図を広く見せる
+  const handleMapDrag = useCallback(() => {
+    // すでに mini か closed ならそのまま。それ以外(peek/full)だけ mini へ。
+    const cur = listSheetRef.current?.getSnap();
+    if (cur === 'mini' || cur === 'closed') return;
+    listSheetRef.current?.snapTo('mini');
+  }, []);
 
   const handleLocate = () => {
     if (locating) return;
@@ -108,13 +116,12 @@ export default function HomePage() {
           selectedMemberId={selectedId}
           onMemberSelect={(id) => setSelectedId(id)}
           onMapClick={() => {
-            // Google Maps 風: マップをタップしたらシートを下げる（消す）
-            // 地区フィルタや検索候補もクリア。メンバー選択中なら選択解除。
+            // マップタップは「選択解除・検索閉じる」のみ。
+            // シート自体はタップでは下げない（ユーザー要望: ドラッグで下がる仕様）。
             setSelectedId(null);
-            setFilter(EMPTY_FILTER);
             setShowSuggestions(false);
-            setSheetOpen(false);
           }}
+          onUserMapDrag={handleMapDrag}
           layerMode={layerMode}
         />
       </div>
@@ -193,44 +200,23 @@ export default function HomePage() {
         onClick={handleLocate}
         disabled={locating}
         aria-label="現在地"
-        className="fixed right-5 bottom-[calc(316px+env(safe-area-inset-bottom))] z-30 w-12 h-12 rounded-full bg-white text-[#111] flex items-center justify-center shadow-lg active:scale-95 transition-transform disabled:opacity-70"
+        className="fixed right-5 bottom-[calc(220px+env(safe-area-inset-bottom))] z-30 w-12 h-12 rounded-full bg-white text-[#111] flex items-center justify-center shadow-lg active:scale-95 transition-transform disabled:opacity-70"
       >
         <LocateFixed size={22} className={locating ? 'animate-spin' : ''} />
       </button>
 
-      {/* FAB: 訪問を記録（現在地ボタンの上） */}
-      <Link
-        href="/visits/new"
-        className="fixed right-5 bottom-[calc(380px+env(safe-area-inset-bottom))] z-30 w-12 h-12 rounded-full bg-[#111] text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform"
-      >
-        <Plus size={22} />
-      </Link>
-
       {/* メンバー一覧シート。
-          - sheetOpen && !selectedId のときだけ表示
-          - マップタップで sheetOpen=false になり隠れる
-          - 隠れてる間は下の「一覧」チップで再表示 */}
+          - メンバー選択中は隠す（MemberBottomSheet が前面に来る）
+          - ユーザーがマップをドラッグしたら mini スナップへ自動で下がる */}
       <MembersListSheet
         members={members}
-        open={sheetOpen && !selectedId}
-        onClose={() => setSheetOpen(false)}
+        open={!selectedId}
+        onClose={() => { /* closable=false なので呼ばれない */ }}
         onSelectMember={(id) => setSelectedId(id)}
         filter={filter}
         onFilterChange={setFilter}
+        sheetHandleRef={listSheetRef}
       />
-
-      {/* シートが閉じてる時だけ出る「一覧」再表示チップ */}
-      {!sheetOpen && !selectedId && (
-        <button
-          type="button"
-          onClick={() => setSheetOpen(true)}
-          className="fixed left-1/2 -translate-x-1/2 bottom-[calc(72px+env(safe-area-inset-bottom))] z-30 h-10 px-4 rounded-full bg-white shadow-[0_3px_10px_rgba(0,0,0,0.18)] flex items-center gap-2 text-[13px] font-medium text-[#111] active:scale-95 transition-transform"
-          aria-label="メンバー一覧を表示"
-        >
-          <List size={16} className="text-[#5F6368]" />
-          メンバー一覧
-        </button>
-      )}
 
       {/* メンバー詳細ボトムシート（ピン/カードタップで上に重なる） */}
       <MemberBottomSheet

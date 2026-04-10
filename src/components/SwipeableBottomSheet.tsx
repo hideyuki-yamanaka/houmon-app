@@ -1,15 +1,28 @@
 'use client';
 
-import { useRef, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useRef, useState, useEffect, useCallback, useImperativeHandle, type ReactNode, type Ref } from 'react';
 
-export type SheetSnap = 'closed' | 'peek' | 'full';
+export type SheetSnap = 'closed' | 'mini' | 'peek' | 'full';
+
+/** 親から imperative にスナップ位置を制御するハンドル */
+export interface SheetHandle {
+  snapTo: (snap: SheetSnap) => void;
+  getSnap: () => SheetSnap;
+}
 
 interface Props {
   open: boolean;
   onClose: () => void;
   peekHeight: number; // px
+  /**
+   * mini スナップ時の可視高さ(px)。省略時は 'mini' スナップ無効。
+   * 指定すると snapTo('mini') で peek よりさらに下がった小さい状態にできる。
+   */
+  miniHeight?: number;
   zIndex?: number;
   children: (snap: SheetSnap) => ReactNode;
+  /** 親から snap を制御したい時の ref */
+  handleRef?: Ref<SheetHandle>;
   /**
    * シートの上端の外側に浮かぶ要素（例: ストリートビューボタン）。
    * シートと同じ transform コンテナ内に配置されるため、シートの動きに追従する。
@@ -64,9 +77,9 @@ const SHEET_TRANSITION = `transform ${SHEET_DURATION_MS}ms ${SHEET_EASE}`;
 //      React state や ref キャッシュに頼らない。DOM が唯一の source of truth。
 // ──────────────────────────────────────────────────────────────
 
-export default function SwipeableBottomSheet({ open, onClose, peekHeight, zIndex = 40, children, renderAbove, closable = true, topGap = DEFAULT_TOP_GAP }: Props) {
+export default function SwipeableBottomSheet({ open, onClose, peekHeight, miniHeight, zIndex = 40, children, renderAbove, closable = true, topGap = DEFAULT_TOP_GAP, handleRef }: Props) {
   const sheetRef = useRef<HTMLDivElement | null>(null);
-  const handleRef = useRef<HTMLDivElement>(null);
+  const dragHandleRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [snap, _setSnap] = useState<SheetSnap>('closed');
   const snapRef = useRef<SheetSnap>('closed');
@@ -96,9 +109,14 @@ export default function SwipeableBottomSheet({ open, onClose, peekHeight, zIndex
       const fh = getSheetHeight();
       if (s === 'full') return 0;
       if (s === 'peek') return Math.max(0, fh - peekHeight);
+      if (s === 'mini') {
+        // miniHeight 未指定なら peek と同じ高さに fallback
+        const h = miniHeight ?? peekHeight;
+        return Math.max(0, fh - h);
+      }
       return fh + 40; // closed: 画面外（余裕を持たせる）
     },
-    [peekHeight, getSheetHeight],
+    [peekHeight, miniHeight, getSheetHeight],
   );
 
   const applyY = useCallback((y: number, animate: boolean) => {
@@ -107,6 +125,21 @@ export default function SwipeableBottomSheet({ open, onClose, peekHeight, zIndex
     el.style.transition = animate ? SHEET_TRANSITION : 'none';
     el.style.transform = `translate3d(0, ${y}px, 0)`;
   }, []);
+
+  // 親から imperative にスナップ制御したい時の handle
+  useImperativeHandle(
+    handleRef,
+    () => ({
+      snapTo: (s: SheetSnap) => {
+        if (s === snapRef.current) return;
+        setSnap(s);
+        applyY(getSnapY(s), true);
+        if (s === 'closed') onCloseRef.current();
+      },
+      getSnap: () => snapRef.current,
+    }),
+    [setSnap, applyY, getSnapY],
+  );
 
   // ref callback: DOM マウント直後に同期で初期 transform をセット
   const refCallback = useCallback(
@@ -188,7 +221,7 @@ export default function SwipeableBottomSheet({ open, onClose, peekHeight, zIndex
   // タッチジェスチャー
   useEffect(() => {
     const sheet = sheetRef.current;
-    const handle = handleRef.current;
+    const handle = dragHandleRef.current;
     const content = contentRef.current;
     if (!sheet || !handle || !visible) return;
 
@@ -252,29 +285,29 @@ export default function SwipeableBottomSheet({ open, onClose, peekHeight, zIndex
       const peekY = getSnapY('peek');
       const fullY = getSnapY('full');
       const closedY = getSnapY('closed');
+      const miniY = miniHeight != null ? getSnapY('mini') : null;
+      const hasMini = miniY != null;
 
       let target: SheetSnap;
       if (vel > V_THRESHOLD) {
-        target = snapRef.current === 'full' ? 'peek' : 'closed';
+        // 高速下スワイプ: full→peek、peek→(mini or closed)、mini→closed
+        if (snapRef.current === 'full') target = 'peek';
+        else if (snapRef.current === 'peek') target = hasMini ? 'mini' : 'closed';
+        else target = 'closed';
       } else if (vel < -V_THRESHOLD) {
+        // 高速上スワイプ: 常に full（mini/peek/closed のどこからでも）
         target = 'full';
       } else {
-        const pts: [SheetSnap, number][] = closable
-          ? [
-              ['full', fullY],
-              ['peek', peekY],
-              ['closed', closedY],
-            ]
-          : [
-              ['full', fullY],
-              ['peek', peekY],
-            ];
+        // 速度遅い → 最寄りのスナップ位置へ
+        const pts: [SheetSnap, number][] = [['full', fullY], ['peek', peekY]];
+        if (hasMini) pts.push(['mini', miniY!]);
+        if (closable) pts.push(['closed', closedY]);
         pts.sort((a, b) => Math.abs(currentTY - a[1]) - Math.abs(currentTY - b[1]));
         target = pts[0][0];
       }
 
-      // closable=false のシートは closed に落とさず peek にとどめる
-      if (!closable && target === 'closed') target = 'peek';
+      // closable=false のシートは closed に落とさず mini or peek にとどめる
+      if (!closable && target === 'closed') target = hasMini ? 'mini' : 'peek';
 
       setSnap(target);
       currentTY = getSnapY(target);
@@ -339,7 +372,7 @@ export default function SwipeableBottomSheet({ open, onClose, peekHeight, zIndex
       >
         {/* ハンドルバー（ドラッグ領域） */}
         <div
-          ref={handleRef}
+          ref={dragHandleRef}
           className="flex justify-center pt-2.5 pb-1.5 cursor-grab active:cursor-grabbing"
           style={{ touchAction: 'none', minHeight: HANDLE_H }}
         >

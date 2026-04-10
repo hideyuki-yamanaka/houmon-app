@@ -27,6 +27,11 @@ interface Props {
   selection: FilterSelection;
   onChange: (sel: FilterSelection) => void;
   members?: MemberLike[];
+  /**
+   * true にすると chevron を非表示にし、親行(部/本部チップ)を
+   * 常に展開表示する（モーダルの中に入れる時用）。
+   */
+  alwaysOpen?: boolean;
 }
 
 // メンバーが指定 selection に該当するか
@@ -41,7 +46,7 @@ export function matchFilter(m: MemberLike, sel: FilterSelection): boolean {
 
 type SegKey = 'all' | 'young' | 'general';
 
-export default function DistrictFilter({ selection, onChange, members }: Props) {
+export default function DistrictFilter({ selection, onChange, members, alwaysOpen = false }: Props) {
   // 親ごとの人数を数える
   const parentCounts = useMemo(() => {
     const map = new Map<string, number>();
@@ -106,11 +111,11 @@ export default function DistrictFilter({ selection, onChange, members }: Props) 
   ];
 
   // アコーディオン開閉:
-  //   seg !== 'all' なら自動で開く（ヤング/男子部 選択中は親チップを見せる）
-  //   chevron で手動オーバーライド可能。セグメント切り替え時は manual をリセット
+  //   alwaysOpen=true なら常に展開（モーダル内で使用）
+  //   それ以外は seg !== 'all' なら自動で開く。chevron で手動オーバーライド可
   const [manualOpen, setManualOpen] = useState<boolean | null>(null);
   const autoOpen = seg !== 'all';
-  const open = manualOpen ?? autoOpen;
+  const open = alwaysOpen ? true : (manualOpen ?? autoOpen);
 
   const handleSegment = (key: SegKey) => {
     setManualOpen(null); // 自動展開ロジックに戻す
@@ -143,17 +148,19 @@ export default function DistrictFilter({ selection, onChange, members }: Props) 
             );
           })}
         </div>
-        <button
-          onClick={() => setManualOpen(!open)}
-          aria-label={open ? '詳細フィルターを閉じる' : '詳細フィルターを開く'}
-          aria-expanded={open}
-          className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-[#EEEEEF] active:bg-[#E5E5E7]"
-        >
-          <ChevronDown
-            size={18}
-            className={`text-[#666] transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-          />
-        </button>
+        {!alwaysOpen && (
+          <button
+            onClick={() => setManualOpen(!open)}
+            aria-label={open ? '詳細フィルターを閉じる' : '詳細フィルターを開く'}
+            aria-expanded={open}
+            className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-[#EEEEEF] active:bg-[#E5E5E7]"
+          >
+            <ChevronDown
+              size={18}
+              className={`text-[#666] transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+            />
+          </button>
+        )}
       </div>
 
       {/* ── 親行: 選択中カテゴリーの親のみ表示（アコーディオン） ── */}
