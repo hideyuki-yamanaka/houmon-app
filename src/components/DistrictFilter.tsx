@@ -38,6 +38,8 @@ export function matchFilter(m: MemberLike, sel: FilterSelection): boolean {
   return m.district === sel.leaf;
 }
 
+type SegKey = 'all' | 'young' | 'general';
+
 export default function DistrictFilter({ selection, onChange, members }: Props) {
   // 親ごとの人数を数える
   const parentCounts = useMemo(() => {
@@ -68,95 +70,100 @@ export default function DistrictFilter({ selection, onChange, members }: Props) 
     return map;
   }, [members]);
 
-  const totalCount = members?.length ?? null;
+  const totalCount = members?.length ?? 0;
+  const youngCount = categoryCounts.get('young') ?? 0;
+  const generalCount = categoryCounts.get('general') ?? 0;
 
   const selectedParent = selection.parent ? findParentOrg(selection.parent) : null;
-  const selectedCategory: MemberCategory | null = selectedParent
+  // 親選択中なら親の所属カテゴリ。それ以外は selection.category。
+  const selectedParentCategory: MemberCategory | null = selectedParent
     ? (ORG_HIERARCHY.find(c => c.parents.some(p => p.key === selection.parent))?.category ?? null)
     : null;
+  const effectiveCategory: MemberCategory | null = selection.category ?? selectedParentCategory;
+
+  const seg: SegKey = effectiveCategory === 'young' ? 'young' : effectiveCategory === 'general' ? 'general' : 'all';
+
+  // 表示する親リスト（segに応じて絞る）
+  const visibleCategories = useMemo(() => {
+    if (seg === 'all') return ORG_HIERARCHY;
+    return ORG_HIERARCHY.filter(c => c.category === seg);
+  }, [seg]);
+
+  const segments: { key: SegKey; label: string; count: number }[] = [
+    { key: 'all',     label: 'すべて',  count: totalCount },
+    { key: 'young',   label: 'ヤング',  count: youngCount },
+    { key: 'general', label: '男子部',  count: generalCount },
+  ];
+
+  const handleSegment = (key: SegKey) => {
+    if (key === 'all') {
+      onChange(EMPTY_FILTER);
+    } else {
+      onChange({ category: key, parent: null, leaf: null });
+    }
+  };
 
   return (
-    <div className="flex flex-col gap-1">
-      {/* ── 親行：カテゴリーごとに区切って表示 ── */}
-      <div className="flex gap-1.5 md:gap-2 overflow-x-auto no-scrollbar pb-0.5 items-center px-1">
-        <button
-          onClick={() => onChange(EMPTY_FILTER)}
-          className={`chip whitespace-nowrap shrink-0 ${selection.category === null && selection.parent === null ? 'selected' : ''}`}
-        >
-          すべて{totalCount !== null ? `(${totalCount})` : ''}
-        </button>
-
-        {ORG_HIERARCHY.map((cat, idx) => {
-          const isYoung = cat.category === 'young';
-          const catAllSelected = selection.category === cat.category && selection.parent === null;
-          const catCount = categoryCounts.get(cat.category) ?? 0;
+    <div className="flex flex-col gap-1.5">
+      {/* iOS風セグメンテッドコントロール: すべて/ヤング/男子部 */}
+      <div className="bg-[#EEEEEF] rounded-xl p-1 flex gap-1">
+        {segments.map(s => {
+          const active = seg === s.key;
           return (
-            <div key={cat.category} className="flex items-center gap-1.5 md:gap-2 shrink-0 pl-3 md:pl-5">
-              {/* カテゴリー境界：薄い縦線＋ラベル */}
-              <div className="flex items-center gap-1.5 shrink-0">
-                <div className="w-px h-5 bg-[#E0E0E0] shrink-0" aria-hidden />
-                <span className="text-[10px] font-semibold text-[var(--color-subtext)] shrink-0 whitespace-nowrap">
-                  {cat.label}
-                </span>
-              </div>
-              {/* カテゴリー全体「すべて」チップ */}
+            <button
+              key={s.key}
+              onClick={() => handleSegment(s.key)}
+              className={`flex-1 py-1.5 text-[12px] font-medium rounded-lg transition-all ${
+                active
+                  ? 'bg-white shadow-[0_1px_3px_rgba(0,0,0,0.12)] text-[#111]'
+                  : 'text-[#666] active:bg-[#E5E5E7]'
+              }`}
+            >
+              {s.label}({s.count})
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── 親行: 選択中カテゴリーの親のみ表示 ── */}
+      <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5 items-center px-1">
+        {visibleCategories.map(cat =>
+          cat.parents.map(parent => {
+            const count = parentCounts.get(parent.key) ?? 0;
+            const isSelected = selection.parent === parent.key;
+            const isYoung = cat.category === 'young';
+            return (
               <button
+                key={parent.key}
                 onClick={() => {
-                  if (catAllSelected) {
-                    onChange(EMPTY_FILTER);
-                  } else {
+                  if (isSelected && !selection.leaf) {
+                    // 同じ親をもう一度押したら親選択を解除（カテゴリは保持）
                     onChange({ category: cat.category, parent: null, leaf: null });
+                  } else {
+                    onChange({ category: cat.category, parent: parent.key, leaf: null });
                   }
                 }}
-                className={`chip whitespace-nowrap shrink-0 ${catAllSelected ? 'selected' : ''}`}
-                style={catAllSelected
-                  ? { backgroundColor: '#222', borderColor: '#222', color: '#fff' }
+                className={`chip whitespace-nowrap shrink-0 ${isSelected ? 'selected' : ''}`}
+                style={isSelected
+                  ? { backgroundColor: parent.hex, borderColor: parent.hex, color: '#fff' }
                   : isYoung
                   ? { borderColor: '#CBD5E1' }
                   : undefined}
+                title={parent.key}
               >
-                すべて({catCount})
+                {parent.short}({count})
               </button>
-              {cat.parents.map(parent => {
-                const count = parentCounts.get(parent.key) ?? 0;
-                const isSelected = selection.parent === parent.key;
-                return (
-                  <button
-                    key={parent.key}
-                    onClick={() => {
-                      // 同じ親を押したら解除
-                      if (isSelected && !selection.leaf) {
-                        onChange(EMPTY_FILTER);
-                      } else {
-                        onChange({ category: cat.category, parent: parent.key, leaf: null });
-                      }
-                    }}
-                    className={`chip whitespace-nowrap shrink-0 ${isSelected ? 'selected' : ''}`}
-                    style={isSelected
-                      ? { backgroundColor: parent.hex, borderColor: parent.hex, color: '#fff' }
-                      : isYoung
-                      ? { borderColor: '#CBD5E1' }
-                      : undefined}
-                    title={parent.key}
-                  >
-                    {parent.short}({count})
-                  </button>
-                );
-              })}
-              {idx < ORG_HIERARCHY.length - 1 && <div className="w-0.5 shrink-0" />}
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
 
       {/* ── 子行：親が選択されてる時だけ出る ── */}
       {selectedParent && (
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar pt-0.5 items-center animate-slide-down px-1">
-          <span className="text-[10px] text-[var(--color-subtext)] shrink-0 pl-0.5">
-            {selectedCategory === 'young' ? '地区:' : '地区:'}
-          </span>
+          <span className="text-[10px] text-[var(--color-subtext)] shrink-0 pl-0.5">地区:</span>
           <button
-            onClick={() => onChange({ category: selectedCategory, parent: selectedParent.key, leaf: null })}
+            onClick={() => onChange({ category: selectedParentCategory, parent: selectedParent.key, leaf: null })}
             className={`chip chip-sm whitespace-nowrap shrink-0 ${selection.leaf === null ? 'selected' : ''}`}
             style={selection.leaf === null
               ? { backgroundColor: selectedParent.hex, borderColor: selectedParent.hex, color: '#fff' }
@@ -170,7 +177,7 @@ export default function DistrictFilter({ selection, onChange, members }: Props) 
             return (
               <button
                 key={leaf.key}
-                onClick={() => onChange({ category: selectedCategory, parent: selectedParent.key, leaf: leaf.key })}
+                onClick={() => onChange({ category: selectedParentCategory, parent: selectedParent.key, leaf: leaf.key })}
                 className={`chip chip-sm whitespace-nowrap shrink-0 ${isSelected ? 'selected' : ''}`}
                 style={isSelected
                   ? { backgroundColor: leaf.hex, borderColor: leaf.hex, color: '#fff' }
