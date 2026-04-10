@@ -185,12 +185,12 @@ export default function MembersListSheet({
                   <button
                     onClick={() => setFilterModalOpen(true)}
                     aria-label="フィルター"
-                    className={`relative w-9 h-9 rounded-full flex items-center justify-center active:bg-[#F0F0F0] ${
+                    className={`relative w-11 h-11 rounded-full flex items-center justify-center active:bg-[#F0F0F0] ${
                       hasAnyFilter ? 'bg-[#F0F0F0]' : ''
                     }`}
                   >
                     <SlidersHorizontal
-                      size={18}
+                      size={24}
                       className={hasAnyFilter ? 'text-[var(--color-text)]' : 'text-[var(--color-subtext)]'}
                     />
                     {hasAnyFilter && (

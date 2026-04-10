@@ -23,11 +23,13 @@ const FIELD_TO_COLUMN: Record<string, string> = {
 };
 
 // ── ステータスセル（タップで切替・大きいアイコン＋縦積みプルダウン） ──
-function StatusCell({ item, member, memberId, onSaved }: {
+function StatusCell({ item, member, memberId, onSaved, alignRight }: {
   item: typeof STATUS_GRID_ITEMS[0];
   member: Record<string, string | null | undefined>;
   memberId: string;
   onSaved: (key: string, value: string) => void;
+  /** true: 右端のセル — プルダウンを左方向（セルの左隣）に出す */
+  alignRight?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const level = item.evaluate(member);
@@ -69,7 +71,9 @@ function StatusCell({ item, member, memberId, onSaved }: {
         <div className={`text-4xl font-bold ${display.color} transition-transform duration-150`}>{display.symbol}</div>
       </button>
       {open && (
-        <div className="absolute top-1/2 left-full -translate-y-1/2 ml-2 bg-white rounded-xl shadow-lg z-10 flex flex-col overflow-hidden min-w-[52px]">
+        <div className={`absolute top-1/2 -translate-y-1/2 bg-white rounded-xl shadow-lg z-10 flex flex-col overflow-hidden min-w-[52px] ${
+          alignRight ? 'right-full mr-2' : 'left-full ml-2'
+        }`}>
           {options.map(opt => (
             <button
               key={opt.level}
@@ -383,10 +387,11 @@ export default function MemberInfo({ member, onUpdate }: Props) {
       <div className="ios-card px-4 pt-3 pb-4 hover:!opacity-100">
         <h3 className="text-sm font-semibold text-[var(--color-subtext)] mb-2">ステータス</h3>
         <div className="grid grid-cols-7 gap-2 text-center">
-          {STATUS_GRID_ITEMS.map(item => (
+          {STATUS_GRID_ITEMS.map((item, idx, arr) => (
             <StatusCell key={item.key} item={item} memberId={local.id}
               member={local as unknown as Record<string, string | null | undefined>}
-              onSaved={handleSaved} />
+              onSaved={handleSaved}
+              alignRight={idx >= arr.length - 2} />
           ))}
         </div>
       </div>
