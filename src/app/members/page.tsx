@@ -4,10 +4,13 @@ import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Table, Calendar, ChevronDown, X } from 'lucide-react';
 import Link from 'next/link';
 import type { MemberWithVisitInfo, Visit } from '../../lib/types';
-import { VISIT_STATUS_CONFIG } from '../../lib/constants';
+import { VISIT_STATUS_CONFIG, findParentOrg } from '../../lib/constants';
 import { getMembersWithVisitInfo, getAllVisits, getVisitsByDate } from '../../lib/storage';
 import MemberCard from '../../components/MemberCard';
 import CalendarGrid from '../../components/CalendarGrid';
+import DistrictFilter, { type FilterSelection, matchFilter } from '../../components/DistrictFilter';
+
+const EMPTY_FILTER: FilterSelection = { parent: null, leaf: null };
 
 // ひらがな/カタカナの先頭文字から行を判定
 function getKanaGroup(kana: string | undefined): string {
@@ -25,18 +28,6 @@ function getKanaGroup(kana: string | undefined): string {
   if (/[わをんワヲン]/.test(c)) return 'わ';
   return 'その他';
 }
-
-const DISTRICTS: { key: string; short: string }[] = [
-  { key: '豊岡部香城地区', short: '香城' },
-  { key: '豊岡部英雄地区', short: '英雄' },
-  { key: '豊岡部正義地区', short: '正義' },
-  { key: '光陽部光陽地区', short: '光陽' },
-  { key: '光陽部光輝地区', short: '光輝' },
-  { key: '光陽部黄金地区', short: '黄金' },
-  { key: '豊岡中央支部歓喜地区', short: '歓喜' },
-  { key: '豊岡中央支部ナポレオン地区', short: 'ナポレオン' },
-  { key: '豊岡中央支部幸福地区', short: '幸福' },
-];
 
 const PERIOD_FILTERS: { key: string; label: string; minDays: number; maxDays: number }[] = [
   { key: 'this_week', label: '今週',    minDays: 0,  maxDays: 7 },
@@ -56,7 +47,7 @@ type PillKey = 'district' | 'period' | 'category' | null;
 export default function MembersPage() {
   const [members, setMembers] = useState<MemberWithVisitInfo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [district, setDistrict] = useState<string | null>(null);
+  const [filter, setFilter] = useState<FilterSelection>(EMPTY_FILTER);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [periodFilter, setPeriodFilter] = useState<string | null>(null);
   const [periodStart, setPeriodStart] = useState<string | null>(null);
@@ -146,7 +137,8 @@ export default function MembersPage() {
   const filtered = useMemo(() => {
     const period = periodFilter ? PERIOD_FILTERS.find(p => p.key === periodFilter) : null;
     const result = members.filter(m => {
-      if (district && m.district !== district) return false;
+      // 階層フィルター（男子部→部→地区 / ヤング→本部→地区）
+      if (!matchFilter(m, filter)) return false;
       if (categoryFilter) {
         if (categoryFilter === 'unvisited') {
           if (m.totalVisits > 0) return false;
@@ -176,7 +168,7 @@ export default function MembersPage() {
       return aKana.localeCompare(bKana, 'ja');
     });
     return result;
-  }, [members, district, categoryFilter, periodFilter, periodStart, periodEnd]);
+  }, [members, filter, categoryFilter, periodFilter, periodStart, periodEnd]);
 
   const grouped = useMemo(() => {
     const groups: { label: string; members: MemberWithVisitInfo[] }[] = [];
@@ -194,7 +186,16 @@ export default function MembersPage() {
   }, [filtered]);
 
   // 各ピルの現在値ラベル
-  const districtLabel = district ? DISTRICTS.find(d => d.key === district)?.short ?? 'すべて' : 'すべて';
+  const districtLabel = useMemo(() => {
+    if (!filter.parent) return 'すべて';
+    const parent = findParentOrg(filter.parent);
+    if (!parent) return 'すべて';
+    if (filter.leaf) {
+      const leaf = parent.children.find(c => c.key === filter.leaf);
+      return leaf ? `${parent.short}・${leaf.short}` : parent.short;
+    }
+    return parent.short;
+  }, [filter]);
   const fmtShort = (d: string) => {
     const [, m, day] = d.split('-');
     return `${Number(m)}/${Number(day)}`;
@@ -209,7 +210,7 @@ export default function MembersPage() {
   const periodActive = periodFilter !== null || periodStart !== null;
   const categoryLabel = categoryFilter ? CATEGORY_FILTERS.find(c => c.key === categoryFilter)?.label ?? 'すべて' : 'すべて';
 
-  const hasAnyFilter = district !== null || periodActive || categoryFilter !== null;
+  const hasAnyFilter = filter.parent !== null || periodActive || categoryFilter !== null;
 
   return (
     <div className="h-full flex flex-col bg-[var(--color-bg)]">
@@ -302,7 +303,7 @@ export default function MembersPage() {
               </p>
               {hasAnyFilter && (
                 <button
-                  onClick={() => { setDistrict(null); setPeriodFilter(null); setPeriodStart(null); setPeriodEnd(null); setCategoryFilter(null); }}
+                  onClick={() => { setFilter(EMPTY_FILTER); setPeriodFilter(null); setPeriodStart(null); setPeriodEnd(null); setCategoryFilter(null); }}
                   className="text-xs text-[var(--color-subtext)] underline"
                 >
                   クリア
@@ -320,7 +321,7 @@ export default function MembersPage() {
                   <div className="flex items-center justify-between h-full gap-1">
                     <div className="flex items-baseline gap-1.5 min-w-0">
                       <span className="text-[10px] font-bold text-[var(--color-text)] shrink-0">地区</span>
-                      <span className={`text-[12px] truncate ${district ? 'text-[var(--color-text)] font-medium' : 'text-[var(--color-subtext)]'}`}>{districtLabel}</span>
+                      <span className={`text-[12px] truncate ${filter.parent ? 'text-[var(--color-text)] font-medium' : 'text-[var(--color-subtext)]'}`}>{districtLabel}</span>
                     </div>
                     <ChevronDown size={12} className="text-[var(--color-subtext)] shrink-0" />
                   </div>
@@ -372,18 +373,27 @@ export default function MembersPage() {
                     </div>
                     <div className="max-h-[60vh] overflow-y-auto">
                       {openPill === 'district' && (
-                        <>
-                          <DropdownItem label="すべて" selected={district === null} onClick={() => { setDistrict(null); setOpenPill(null); }} />
-                          {DISTRICTS.map(d => (
-                            <DropdownItem
-                              key={d.key}
-                              label={d.short}
-                              count={members.filter(m => m.district === d.key).length}
-                              selected={district === d.key}
-                              onClick={() => { setDistrict(d.key); setOpenPill(null); }}
-                            />
-                          ))}
-                        </>
+                        <div className="p-3">
+                          <DistrictFilter
+                            selection={filter}
+                            onChange={setFilter}
+                            members={members}
+                          />
+                          <div className="flex items-center justify-between pt-3 mt-3 border-t border-[#F0F0F0]">
+                            <button
+                              onClick={() => setFilter(EMPTY_FILTER)}
+                              className="text-xs text-[var(--color-subtext)] underline px-1"
+                            >
+                              クリア
+                            </button>
+                            <button
+                              onClick={() => setOpenPill(null)}
+                              className="text-xs font-bold text-white bg-[#222] rounded-full px-4 py-1.5"
+                            >
+                              適用
+                            </button>
+                          </div>
+                        </div>
                       )}
                       {openPill === 'period' && (
                         <div className="p-3">

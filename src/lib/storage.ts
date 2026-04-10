@@ -11,6 +11,8 @@ function toMember(row: MemberRow): Member {
     name: row.name,
     nameKana: row.name_kana ?? undefined,
     district: row.district,
+    category: (row.category === 'young' ? 'young' : 'general'),
+    honbu: row.honbu ?? undefined,
     address: row.address ?? undefined,
     lat: row.lat ?? undefined,
     lng: row.lng ?? undefined,

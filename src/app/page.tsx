@@ -6,22 +6,14 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import type { MemberWithVisitInfo } from '../lib/types';
 import { getMembersWithVisitInfo } from '../lib/storage';
+import { ORG_HIERARCHY, findParentOrg } from '../lib/constants';
 import MemberBottomSheet from '../components/MemberBottomSheet';
 import DistrictMembersBottomSheet from '../components/DistrictMembersBottomSheet';
+import DistrictFilter, { type FilterSelection, matchFilter } from '../components/DistrictFilter';
 
 const MapView = dynamic(() => import('../components/MapView'), { ssr: false });
 
-const DISTRICTS: { key: string; short: string }[] = [
-  { key: '豊岡部香城地区', short: '香城' },
-  { key: '豊岡部英雄地区', short: '英雄' },
-  { key: '豊岡部正義地区', short: '正義' },
-  { key: '光陽部光陽地区', short: '光陽' },
-  { key: '光陽部光輝地区', short: '光輝' },
-  { key: '光陽部黄金地区', short: '黄金' },
-  { key: '豊岡中央支部歓喜地区', short: '歓喜' },
-  { key: '豊岡中央支部ナポレオン地区', short: 'ナポレオン' },
-  { key: '豊岡中央支部幸福地区', short: '幸福' },
-];
+const EMPTY_FILTER: FilterSelection = { parent: null, leaf: null };
 
 export default function HomePage() {
   const [members, setMembers] = useState<MemberWithVisitInfo[]>([]);
@@ -29,7 +21,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [locating, setLocating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [district, setDistrict] = useState<string | null>(null);
+  const [filter, setFilter] = useState<FilterSelection>(EMPTY_FILTER);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const mapWrapRef = useRef<HTMLDivElement>(null);
 
@@ -75,11 +67,10 @@ export default function HomePage() {
     [members, selectedId]
   );
 
-  // 地区フィルター適用後のメンバー
+  // 地区フィルター適用後のメンバー（階層対応）
   const filteredMembers = useMemo(() => {
-    if (!district) return members;
-    return members.filter(m => m.district === district);
-  }, [members, district]);
+    return members.filter(m => matchFilter(m, filter));
+  }, [members, filter]);
 
   // 検索候補（名前・カナ・住所で部分一致）
   const suggestions = useMemo(() => {
@@ -94,6 +85,21 @@ export default function HomePage() {
       .slice(0, 8);
   }, [filteredMembers, searchQuery]);
 
+  // ボトムシートのタイトル（地区選択中の時）
+  const bottomSheetTitle = useMemo(() => {
+    if (!filter.parent) return null;
+    const parent = findParentOrg(filter.parent);
+    if (!parent) return null;
+    if (filter.leaf) {
+      const leaf = parent.children.find(c => c.key === filter.leaf);
+      return leaf ? `${parent.short}・${leaf.short}` : parent.short;
+    }
+    // 親のみ
+    const cat = ORG_HIERARCHY.find(c => c.parents.some(p => p.key === filter.parent));
+    const suffix = cat?.category === 'young' ? '' : '';
+    return `${parent.short}${suffix}`;
+  }, [filter]);
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -104,8 +110,7 @@ export default function HomePage() {
 
   return (
     <div className="h-full relative">
-      {/* マップ全面表示 — absoluteで親コンテナ内に収める（fixedはタッチイベント干渉の原因）。
-          親のpb分だけ下に拡張してタブバー境界のグレー線を消す */}
+      {/* マップ全面表示 */}
       <div
         ref={mapWrapRef}
         className="absolute inset-0 z-0"
@@ -115,11 +120,11 @@ export default function HomePage() {
           members={filteredMembers}
           selectedMemberId={selectedId}
           onMemberSelect={(id) => setSelectedId(id)}
-          onMapClick={() => { setSelectedId(null); setDistrict(null); setShowSuggestions(false); }}
+          onMapClick={() => { setSelectedId(null); setFilter(EMPTY_FILTER); setShowSuggestions(false); }}
         />
       </div>
 
-      {/* Google Maps風 上部オーバーレイ: 検索バー + 地区チップ */}
+      {/* Google Maps風 上部オーバーレイ: 検索バー + 地区フィルター */}
       <div className="absolute top-0 left-0 right-0 z-20 pt-[calc(env(safe-area-inset-top)+8px)] pointer-events-none">
         {/* 検索バー */}
         <div className="px-3 pointer-events-auto">
@@ -167,32 +172,14 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* 地区フィルターチップ */}
-        <div className="mt-2 overflow-x-auto no-scrollbar pointer-events-auto">
-          <div className="flex gap-2 px-3 pb-1">
-            <button
-              onClick={() => setDistrict(null)}
-              className={`shrink-0 h-8 px-3 rounded-full text-[13px] font-medium whitespace-nowrap shadow-[0_1px_3px_rgba(0,0,0,0.15)] transition-colors ${
-                district === null
-                  ? 'bg-[#E8F0FE] text-[#1A73E8] border border-[#1A73E8]'
-                  : 'bg-white text-[#3C4043] border border-white'
-              }`}
-            >
-              すべて
-            </button>
-            {DISTRICTS.map(({ key, short }) => (
-              <button
-                key={key}
-                onClick={() => setDistrict(district === key ? null : key)}
-                className={`shrink-0 h-8 px-3 rounded-full text-[13px] font-medium whitespace-nowrap shadow-[0_1px_3px_rgba(0,0,0,0.15)] transition-colors ${
-                  district === key
-                    ? 'bg-[#E8F0FE] text-[#1A73E8] border border-[#1A73E8]'
-                    : 'bg-white text-[#3C4043] border border-white'
-                }`}
-              >
-                {short}
-              </button>
-            ))}
+        {/* 階層化地区フィルター（白背景カードで包んでマップ上で見やすく） */}
+        <div className="mt-2 px-3 pointer-events-auto">
+          <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-[0_2px_6px_rgba(0,0,0,0.12)] px-2 py-1.5">
+            <DistrictFilter
+              selection={filter}
+              onChange={setFilter}
+              members={members}
+            />
           </div>
         </div>
       </div>
@@ -215,12 +202,13 @@ export default function HomePage() {
         <Plus size={24} />
       </Link>
 
-      {/* 地区メンバー一覧ボトムシート（地区選択中 & メンバー未選択時のみ） */}
+      {/* 地区メンバー一覧ボトムシート（フィルター選択中 & メンバー未選択時のみ） */}
       <DistrictMembersBottomSheet
-        districtShort={district && !selectedId ? (DISTRICTS.find(d => d.key === district)?.short ?? null) : null}
+        districtShort={filter.parent && !selectedId ? (bottomSheetTitle ?? '') : null}
+        title={bottomSheetTitle ?? undefined}
         members={filteredMembers}
         onSelectMember={(id) => setSelectedId(id)}
-        onClose={() => setDistrict(null)}
+        onClose={() => setFilter(EMPTY_FILTER)}
       />
 
       {/* メンバー詳細ボトムシート */}

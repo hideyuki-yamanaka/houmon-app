@@ -11,7 +11,13 @@ import {
   useMap,
 } from 'react-leaflet';
 import type { MemberWithVisitInfo } from '../lib/types';
-import { MAP_DEFAULT_CENTER, MAP_DEFAULT_ZOOM } from '../lib/constants';
+import {
+  MAP_DEFAULT_CENTER,
+  MAP_DEFAULT_ZOOM,
+  findOrgLeaf,
+  findParentOrg,
+  getParentOrgKey,
+} from '../lib/constants';
 
 const TILE_URL = 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=ja&scale=2';
 const TILE_ATTRIBUTION = '&copy; Google';
@@ -48,15 +54,31 @@ const GPS_DOT_ICON = L.divIcon({
   iconAnchor: [22, 22],
 });
 
-// ── Google Maps風ピン（未訪問=白、訪問済み=赤） ──
-const PIN_COLOR_VISITED = '#EA4335';   // Google Maps red
-const PIN_COLOR_UNVISITED = '#FFFFFF'; // White
+// ── 本部/地区ごとに色分けしたピン ──
+// - 色は ORG_HIERARCHY の leaf.hex（なければ parent.hex）を使用
+// - 訪問済み = 塗りつぶし + 白いドット
+// - 未訪問   = 白地 + 組織色のストローク + 組織色のドット
+// - 未分類   = グレー
+const FALLBACK_COLOR = '#9AA0A6';
+
+function getMemberOrgColor(member: MemberWithVisitInfo): string {
+  const leaf = findOrgLeaf(member.district);
+  if (leaf) return leaf.hex;
+  const parentKey = getParentOrgKey(member);
+  if (parentKey) {
+    const parent = findParentOrg(parentKey);
+    if (parent) return parent.hex;
+  }
+  return FALLBACK_COLOR;
+}
 
 function createMemberPin(member: MemberWithVisitInfo, isSelected: boolean): L.DivIcon {
   const hasVisited = member.totalVisits > 0;
-  const pinColor = hasVisited ? PIN_COLOR_VISITED : PIN_COLOR_UNVISITED;
-  const dotColor = hasVisited ? '#FFFFFF' : '#BBBBC0';
-  const strokeColor = hasVisited ? '#C1281E' : '#BBBBC0';
+  const orgColor = getMemberOrgColor(member);
+
+  const pinColor = hasVisited ? orgColor : '#FFFFFF';
+  const dotColor = hasVisited ? '#FFFFFF' : orgColor;
+  const strokeColor = orgColor;
 
   const scale = isSelected ? 1.3 : 1;
 
@@ -81,7 +103,7 @@ function createMemberPin(member: MemberWithVisitInfo, isSelected: boolean): L.Di
         overflow: visible;
       ">
         <path d="M14 0C6.268 0 0 6.268 0 14C0 24.5 14 40 14 40S28 24.5 28 14C28 6.268 21.732 0 14 0Z"
-              fill="${pinColor}" stroke="${strokeColor}" stroke-width="1"/>
+              fill="${pinColor}" stroke="${strokeColor}" stroke-width="${hasVisited ? 1 : 2}"/>
         <circle cx="14" cy="13.5" r="5" fill="${dotColor}"/>
       </svg>
     </div>

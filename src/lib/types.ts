@@ -1,9 +1,14 @@
+// ── メンバーカテゴリ ──
+export type MemberCategory = 'general' | 'young';
+
 // ── メンバー ──
 export interface Member {
   id: string;
   name: string;
   nameKana?: string;
-  district: string;
+  district: string;                  // 男子部: "豊岡部英雄地区" など親+地区結合 / ヤング: "下山地区" など地区のみ
+  category?: MemberCategory;         // 省略時は 'general' 扱い
+  honbu?: string;                    // ヤング限定: "東栄本部" "豊岡本部" など親組織
   address?: string;
   lat?: number;
   lng?: number;
@@ -90,6 +95,8 @@ export interface MemberRow {
   youth_group: string | null;
   notes: string | null;
   visit_cycle_days: number;
+  category: string;
+  honbu: string | null;
   created_at: string;
   updated_at: string;
 }

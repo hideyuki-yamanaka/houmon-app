@@ -1,17 +1,153 @@
-import type { VisitStatus, Respondent } from './types';
+import type { VisitStatus, Respondent, MemberCategory } from './types';
 
-// ── 地区カラー（9地区） ──
-export const DISTRICT_COLORS: Record<string, { hex: string; bg: string; text: string }> = {
-  '豊岡部英雄地区':         { hex: '#2563EB', bg: 'bg-blue-600',    text: 'text-blue-600' },
-  '豊岡部香城地区':         { hex: '#059669', bg: 'bg-emerald-600', text: 'text-emerald-600' },
-  '豊岡部正義地区':         { hex: '#D97706', bg: 'bg-amber-600',   text: 'text-amber-600' },
-  '光陽部光陽地区':         { hex: '#7C3AED', bg: 'bg-violet-600',  text: 'text-violet-600' },
-  '光陽部光輝地区':         { hex: '#DC2626', bg: 'bg-red-600',     text: 'text-red-600' },
-  '光陽部黄金地区':         { hex: '#CA8A04', bg: 'bg-yellow-600',  text: 'text-yellow-600' },
-  '豊岡中央支部歓喜地区':   { hex: '#0891B2', bg: 'bg-cyan-600',    text: 'text-cyan-600' },
-  '豊岡中央支部ナポレオン地区': { hex: '#4F46E5', bg: 'bg-indigo-600', text: 'text-indigo-600' },
-  '豊岡中央支部幸福地区':   { hex: '#DB2777', bg: 'bg-pink-600',    text: 'text-pink-600' },
-};
+// ========================================
+// 組織階層（2層構造）
+// - 男子部: 部 → 地区（district は "豊岡部英雄地区" のように結合文字列）
+// - ヤング: 本部 → 地区（district は "下山地区" など地区名のみ、honbu フィールドで本部を保持）
+// ========================================
+
+export interface OrgLeaf {
+  key: string;   // 男子部は district の値そのまま。ヤングは地区名（member.district と一致）
+  short: string; // ピル表示用の短縮名
+  hex: string;   // ピン・タグの基本色
+}
+
+export interface OrgParent {
+  key: string;   // 部名 or 本部名
+  short: string;
+  hex: string;   // 親組織の代表色
+  children: OrgLeaf[];
+}
+
+export interface OrgCategory {
+  category: MemberCategory;
+  label: string; // "男子部" / "ヤング"
+  parents: OrgParent[];
+}
+
+export const ORG_HIERARCHY: OrgCategory[] = [
+  {
+    category: 'general',
+    label: '男子部',
+    parents: [
+      {
+        key: '豊岡部', short: '豊岡部', hex: '#2563EB',
+        children: [
+          { key: '豊岡部香城地区', short: '香城', hex: '#059669' },
+          { key: '豊岡部英雄地区', short: '英雄', hex: '#2563EB' },
+          { key: '豊岡部正義地区', short: '正義', hex: '#D97706' },
+        ],
+      },
+      {
+        key: '光陽部', short: '光陽部', hex: '#7C3AED',
+        children: [
+          { key: '光陽部光陽地区', short: '光陽', hex: '#7C3AED' },
+          { key: '光陽部光輝地区', short: '光輝', hex: '#DC2626' },
+          { key: '光陽部黄金地区', short: '黄金', hex: '#CA8A04' },
+        ],
+      },
+      {
+        key: '豊岡中央支部', short: '中央', hex: '#0891B2',
+        children: [
+          { key: '豊岡中央支部歓喜地区', short: '歓喜', hex: '#0891B2' },
+          { key: '豊岡中央支部ナポレオン地区', short: 'ナポレオン', hex: '#4F46E5' },
+          { key: '豊岡中央支部幸福地区', short: '幸福', hex: '#DB2777' },
+        ],
+      },
+    ],
+  },
+  {
+    category: 'young',
+    label: 'ヤング',
+    parents: [
+      {
+        key: '東栄本部', short: '東栄', hex: '#1D4ED8',
+        children: [
+          { key: '下山地区', short: '下山', hex: '#1D4ED8' },
+          { key: '沼畑地区', short: '沼畑', hex: '#2563EB' },
+          { key: '山本地区', short: '山本', hex: '#3B82F6' },
+        ],
+      },
+      {
+        key: '豊岡本部', short: '豊岡', hex: '#4338CA',
+        children: [
+          { key: '豊岡北地区', short: '豊岡北', hex: '#4338CA' },
+          { key: '豊岡中央地区', short: '豊岡中', hex: '#6366F1' },
+          { key: '豊岡南地区', short: '豊岡南', hex: '#818CF8' },
+        ],
+      },
+      {
+        key: '旭創価本部', short: '旭創価', hex: '#0E7490',
+        children: [
+          { key: '東川地区', short: '東川', hex: '#0E7490' },
+        ],
+      },
+      {
+        key: '東旭川本部', short: '東旭川', hex: '#0F766E',
+        children: [
+          { key: '東旭川地区', short: '東旭川', hex: '#0F766E' },
+        ],
+      },
+    ],
+  },
+];
+
+// ── キー→色のフラットマップ（旧 DISTRICT_COLORS 互換） ──
+function buildDistrictColors(): Record<string, { hex: string; bg: string; text: string }> {
+  const map: Record<string, { hex: string; bg: string; text: string }> = {};
+  for (const cat of ORG_HIERARCHY) {
+    for (const parent of cat.parents) {
+      // 親組織キー（"豊岡部" など）自体も参照できるように
+      map[parent.key] = { hex: parent.hex, bg: '', text: '' };
+      for (const leaf of parent.children) {
+        map[leaf.key] = { hex: leaf.hex, bg: '', text: '' };
+      }
+    }
+  }
+  return map;
+}
+
+export const DISTRICT_COLORS: Record<string, { hex: string; bg: string; text: string }> = buildDistrictColors();
+
+// ── ユーティリティ ──
+
+/** member の所属する本部/部（parentKey）を返す */
+export function getParentOrgKey(member: { district: string; category?: MemberCategory; honbu?: string }): string | null {
+  if (member.category === 'young') return member.honbu ?? null;
+  // 男子部は district 文字列から部を推測
+  for (const cat of ORG_HIERARCHY) {
+    if (cat.category !== 'general') continue;
+    for (const parent of cat.parents) {
+      if (member.district.startsWith(parent.key)) return parent.key;
+    }
+  }
+  return null;
+}
+
+/** 親キー（部 or 本部）から OrgParent を検索 */
+export function findParentOrg(parentKey: string): OrgParent | null {
+  for (const cat of ORG_HIERARCHY) {
+    const p = cat.parents.find(p => p.key === parentKey);
+    if (p) return p;
+  }
+  return null;
+}
+
+/** district の key（leaf）から OrgLeaf を検索 */
+export function findOrgLeaf(districtKey: string): OrgLeaf | null {
+  for (const cat of ORG_HIERARCHY) {
+    for (const parent of cat.parents) {
+      const leaf = parent.children.find(c => c.key === districtKey);
+      if (leaf) return leaf;
+    }
+  }
+  return null;
+}
+
+/** ヤング本部一覧（後方互換用） */
+export const YOUNG_HONBU_KEYS = ORG_HIERARCHY
+  .find(c => c.category === 'young')!
+  .parents.map(p => p.key);
 
 // ── 訪問カテゴリ ──
 export const VISIT_STATUS_CONFIG: Record<VisitStatus, { label: string; color: string; bg: string }> = {

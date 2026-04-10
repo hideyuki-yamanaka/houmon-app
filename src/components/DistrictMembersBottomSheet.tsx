@@ -8,12 +8,13 @@ import SwipeableBottomSheet from './SwipeableBottomSheet';
 
 interface Props {
   districtShort: string | null; // 「香城」等。null→非表示
+  title?: string;               // 省略時は `${districtShort}地区`。「ヤング」等の独自タイトル用
   members: MemberWithVisitInfo[];
   onSelectMember: (id: string) => void;
   onClose: () => void;
 }
 
-export default function DistrictMembersBottomSheet({ districtShort, members, onSelectMember, onClose }: Props) {
+export default function DistrictMembersBottomSheet({ districtShort, title, members, onSelectMember, onClose }: Props) {
   // 閉じるアニメーション中も前の地区名を表示するため
   const lastDistrictRef = useRef<string | null>(null);
   const lastMembersRef = useRef<MemberWithVisitInfo[]>([]);
@@ -46,7 +47,7 @@ export default function DistrictMembersBottomSheet({ districtShort, members, onS
             {/* ヘッダー */}
             <div className="px-4 pt-1 pb-2 flex items-center justify-between border-b border-[#F0F0F0] shrink-0">
               <div className="flex items-baseline gap-2">
-                <h2 className="text-lg font-bold">{displayDistrict}地区</h2>
+                <h2 className="text-lg font-bold">{title ?? `${displayDistrict}地区`}</h2>
                 <span className="text-sm text-[var(--color-subtext)]">{sorted.length}人</span>
               </div>
               <button

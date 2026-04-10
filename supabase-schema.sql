@@ -27,9 +27,15 @@ CREATE TABLE members (
   youth_group TEXT,
   notes TEXT,
   visit_cycle_days INTEGER DEFAULT 30,
+  category TEXT NOT NULL DEFAULT 'general', -- 'general' | 'young'
+  honbu TEXT,                                -- ヤング限定: "東栄本部" "豊岡本部" など
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- 既存DB向け移行:
+-- ALTER TABLE members ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'general';
+-- ALTER TABLE members ADD COLUMN IF NOT EXISTS honbu TEXT;
 
 -- 訪問記録テーブル
 CREATE TABLE visits (
