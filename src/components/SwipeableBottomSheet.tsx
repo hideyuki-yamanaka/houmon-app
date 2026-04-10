@@ -10,6 +10,12 @@ interface Props {
   peekHeight: number; // px
   zIndex?: number;
   children: (snap: SheetSnap) => ReactNode;
+  /**
+   * シートの上端の外側に浮かぶ要素（例: ストリートビューボタン）。
+   * シートと同じ transform コンテナ内に配置されるため、シートの動きに追従する。
+   * full スナップ時は透明化して非表示。
+   */
+  renderAbove?: (snap: SheetSnap) => ReactNode;
 }
 
 const TAB_H = 60;
@@ -45,7 +51,7 @@ const SHEET_TRANSITION = `transform ${SHEET_DURATION_MS}ms ${SHEET_EASE}`;
 //      React state や ref キャッシュに頼らない。DOM が唯一の source of truth。
 // ──────────────────────────────────────────────────────────────
 
-export default function SwipeableBottomSheet({ open, onClose, peekHeight, zIndex = 40, children }: Props) {
+export default function SwipeableBottomSheet({ open, onClose, peekHeight, zIndex = 40, children, renderAbove }: Props) {
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const handleRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -270,41 +276,65 @@ export default function SwipeableBottomSheet({ open, onClose, peekHeight, zIndex
   return (
     <div
       ref={refCallback}
-      className="fixed left-0 right-0 bg-white max-w-[1366px] mx-auto bottom-sheet"
+      className="fixed left-0 right-0 max-w-[1366px] mx-auto"
       style={{
         // CSS だけで border box を決める。JS は一切 height を触らない。
         // ブラウザが visualViewport に合わせて自動でサイズ調整する。
         top: `${TOP_GAP}px`,
         bottom: `calc(${TAB_H}px + env(safe-area-inset-bottom))`,
         zIndex,
-        overflow: 'hidden',
         // transform は JSX style に書かない（reconciler が触らないように）
         // ref callback で imperative にセットする
         willChange: 'transform',
         backfaceVisibility: 'hidden',
-        // GPU レイヤー昇格と独立した paint コンテキスト
-        contain: 'layout paint',
+        // この外側コンテナは overflow を clip しない。clip は内側の視覚シートで行う。
+        // こうすることで renderAbove スロットをシート上端の外側に浮かべられる。
       }}
     >
-      {/* ハンドルバー（ドラッグ領域） */}
-      <div
-        ref={handleRef}
-        className="flex justify-center pt-2.5 pb-1.5 cursor-grab active:cursor-grabbing"
-        style={{ touchAction: 'none', minHeight: HANDLE_H }}
-      >
-        <div className="w-9 h-[5px] rounded-full bg-gray-300" />
-      </div>
+      {/* シートの外・上側に浮かぶスロット（例: ストリートビューボタン）
+          シートと同じ transform に乗るのでスワイプに追従する */}
+      {renderAbove && (
+        <div
+          className="absolute left-4 transition-opacity duration-300"
+          style={{
+            bottom: 'calc(100% + 12px)',
+            opacity: snap === 'full' ? 0 : 1,
+            pointerEvents: snap === 'full' ? 'none' : 'auto',
+          }}
+        >
+          {renderAbove(snap)}
+        </div>
+      )}
 
-      {/* コンテンツ */}
+      {/* 視覚的なシート本体 — ここで bg / 角丸 / overflow clip を担当 */}
       <div
-        ref={contentRef}
+        className="absolute inset-0 bg-white bottom-sheet"
         style={{
-          height: `calc(100% - ${HANDLE_H}px)`,
-          overflowY: snap === 'full' ? 'auto' : 'hidden',
-          overflowX: 'hidden',
+          overflow: 'hidden',
+          // GPU レイヤー昇格と独立した paint コンテキスト（内側だけに適用）
+          contain: 'layout paint',
         }}
       >
-        {children(snap)}
+        {/* ハンドルバー（ドラッグ領域） */}
+        <div
+          ref={handleRef}
+          className="flex justify-center pt-2.5 pb-1.5 cursor-grab active:cursor-grabbing"
+          style={{ touchAction: 'none', minHeight: HANDLE_H }}
+        >
+          <div className="w-9 h-[5px] rounded-full bg-gray-300" />
+        </div>
+
+        {/* コンテンツ */}
+        <div
+          ref={contentRef}
+          style={{
+            height: `calc(100% - ${HANDLE_H}px)`,
+            overflowY: snap === 'full' ? 'auto' : 'hidden',
+            overflowX: 'hidden',
+          }}
+        >
+          {children(snap)}
+        </div>
       </div>
     </div>
   );

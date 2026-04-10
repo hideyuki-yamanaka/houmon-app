@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronRight, Plus, MapPin, Clock, PersonStanding } from 'lucide-react';
+import { ChevronRight, Plus, MapPin, Clock, Footprints } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit } from '../lib/types';
 import { formatDate } from '../lib/utils';
 import { getVisits } from '../lib/storage';
@@ -38,10 +38,18 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
     return () => clearTimeout(t);
   }, [member?.id]);
 
-  // 訪問ログあり → 270px（訪問ログ見出し＋リスト分の余白あり）
-  // 訪問ログなし → 200px（訪問ログセクション丸ごと非表示でコンパクト）
+  // 訪問ログあり → 260px（訪問ログ見出し＋リスト分の余白あり）
+  // 訪問ログなし → 190px（訪問ログセクション丸ごと非表示でコンパクト）
+  // ※ストリートビューボタンをシート外に出した分、ちょっと詰めた
   const hasVisits = (displayMember?.totalVisits ?? 0) > 0;
-  const peekHeight = hasVisits ? 270 : 200;
+  const peekHeight = hasVisits ? 260 : 190;
+
+  // ストリートビュー URL（Google Maps web/アプリの Street View モード）
+  // シート外の「上端貼り付き」ボタンで使うので、外側で計算しておく
+  const streetViewUrl =
+    displayMember?.lat != null && displayMember?.lng != null
+      ? `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${displayMember.lat},${displayMember.lng}`
+      : null;
 
   return (
     <SwipeableBottomSheet
@@ -49,81 +57,74 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
       onClose={onClose}
       peekHeight={peekHeight}
       zIndex={40}
+      renderAbove={
+        streetViewUrl
+          ? () => (
+              <a
+                href={streetViewUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="ストリートビューで見る"
+                onClick={e => e.stopPropagation()}
+                className="w-12 h-12 rounded-full bg-white shadow-[0_3px_10px_rgba(0,0,0,0.22)] flex items-center justify-center active:scale-95 transition-transform"
+              >
+                <Footprints size={22} className="text-[#5F6368]" strokeWidth={2} />
+              </a>
+            )
+          : undefined
+      }
     >
       {(snap) => {
         if (!displayMember) return null;
         const m = displayMember;
 
-        // ストリートビュー URL（Google Maps web/アプリの Street View モード）
-        const streetViewUrl =
-          m.lat != null && m.lng != null
-            ? `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${m.lat},${m.lng}`
-            : null;
-
         return (
           <div className="flex flex-col">
-            {/* ヘッダー: 左上にストリートビュー + 右に名前/地区/住所 */}
-            <div className="flex gap-3 px-4 pt-1 pb-3">
-              {/* ストリートビューボタン（左上） */}
-              {streetViewUrl && (
+            {/* ヘッダー: 名前/地区/住所 */}
+            <div className="px-4 pt-1 pb-3">
+              <button
+                onClick={() => router.push(`/members/${m.id}`)}
+                className="flex items-center justify-between w-full text-left"
+              >
+                <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                  <h2 className="text-lg font-bold truncate">{m.name}</h2>
+                  <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0" />
+                </div>
+              </button>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)]">
+                  {m.district.replace(/豊岡部|光陽部|豊岡中央支部/g, '')}
+                </span>
+                {m.category === 'young' && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#0EA5E9] text-white leading-none">
+                    ヤング
+                  </span>
+                )}
+                <span className="flex items-center gap-1 text-xs text-[var(--color-subtext)]">
+                  <Clock size={14} strokeWidth={1.8} />
+                  {m.lastVisitDate
+                    ? `${formatDate(m.lastVisitDate, 'yyyy年M月d日')}（${m.totalVisits}回）`
+                    : '----年--月--日'}
+                </span>
+              </div>
+
+              {/* 住所（Googleマップ遷移リンク） */}
+              {m.address && (
                 <a
-                  href={streetViewUrl}
+                  href={
+                    m.lat != null && m.lng != null
+                      ? `https://www.google.com/maps/search/?api=1&query=${m.lat},${m.lng}`
+                      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(m.address.replace(/\s.*$/, ''))}`
+                  }
                   target="_blank"
                   rel="noopener noreferrer"
-                  aria-label="ストリートビューで見る"
+                  className="flex items-center gap-1 mt-1.5 text-xs text-[var(--color-subtext)] active:text-[var(--color-text)] transition-colors"
                   onClick={e => e.stopPropagation()}
-                  className="shrink-0 w-16 h-16 rounded-xl bg-gradient-to-br from-[#E8EAED] to-[#DADCE0] flex flex-col items-center justify-center active:scale-95 transition-transform shadow-sm"
                 >
-                  <PersonStanding size={28} className="text-[#5F6368]" strokeWidth={2} />
-                  <span className="text-[9px] mt-0.5 text-[#5F6368] font-medium leading-none">ストリート</span>
+                  <MapPin size={16} strokeWidth={1.8} className="text-[var(--color-icon-gray)] shrink-0" />
+                  <span className="flex-1 truncate">{m.address}</span>
                 </a>
               )}
-
-              <div className="flex-1 min-w-0">
-                <button
-                  onClick={() => router.push(`/members/${m.id}`)}
-                  className="flex items-center justify-between w-full text-left"
-                >
-                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                    <h2 className="text-lg font-bold truncate">{m.name}</h2>
-                    <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0" />
-                  </div>
-                </button>
-                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)]">
-                    {m.district.replace(/豊岡部|光陽部|豊岡中央支部/g, '')}
-                  </span>
-                  {m.category === 'young' && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#0EA5E9] text-white leading-none">
-                      ヤング
-                    </span>
-                  )}
-                  <span className="flex items-center gap-1 text-xs text-[var(--color-subtext)]">
-                    <Clock size={14} strokeWidth={1.8} />
-                    {m.lastVisitDate
-                      ? `${formatDate(m.lastVisitDate, 'yyyy年M月d日')}（${m.totalVisits}回）`
-                      : '----年--月--日'}
-                  </span>
-                </div>
-
-                {/* 住所（Googleマップ遷移リンク） */}
-                {m.address && (
-                  <a
-                    href={
-                      m.lat != null && m.lng != null
-                        ? `https://www.google.com/maps/search/?api=1&query=${m.lat},${m.lng}`
-                        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(m.address.replace(/\s.*$/, ''))}`
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 mt-1.5 text-xs text-[var(--color-subtext)] active:text-[var(--color-text)] transition-colors"
-                    onClick={e => e.stopPropagation()}
-                  >
-                    <MapPin size={16} strokeWidth={1.8} className="text-[var(--color-icon-gray)] shrink-0" />
-                    <span className="flex-1 truncate">{m.address}</span>
-                  </a>
-                )}
-              </div>
             </div>
 
             {/* 訪問ログ: 訪問実績がある場合のみセクション丸ごと表示
