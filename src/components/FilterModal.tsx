@@ -27,7 +27,10 @@ export const PERIOD_FILTERS: { key: string; label: string; minDays: number; maxD
 export const CATEGORY_FILTERS: { key: string; label: string }[] = [
   { key: 'visited', label: '訪問済み' },
   { key: 'unvisited', label: '未訪問' },
-  ...Object.entries(VISIT_STATUS_CONFIG).map(([key, config]) => ({ key, label: config.label })),
+  // 'met'（会えた）は『訪問済み』と意味が被るため除外
+  ...Object.entries(VISIT_STATUS_CONFIG)
+    .filter(([key]) => key !== 'met')
+    .map(([key, config]) => ({ key, label: config.label })),
 ];
 
 interface Props {
