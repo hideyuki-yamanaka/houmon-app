@@ -352,6 +352,23 @@ function MapDragHandler({ onDrag }: { onDrag?: () => void }) {
 export default function MapView({ members, selectedMemberId, onMemberSelect, onMapClick, onUserMapDrag, layerMode = 'standard' }: MapViewProps) {
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
 
+  // マウント時にサイレントに現在地を取りに行って、GPS 青ドットを最初から表示する。
+  // watchPosition でユーザー移動にも追従。権限拒否やタイムアウト時は黙って何もしない
+  // （ユーザーが locate ボタンを押した時だけエラーメッセージを出す方針）。
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        setCurrentLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      },
+      () => {
+        /* サイレントに失敗。マーカーは出さない。 */
+      },
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 },
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, []);
+
   const geoMembers = useMemo(
     () => members.filter(m => m.lat != null && m.lng != null),
     [members]
