@@ -1,1 +1,29 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><rect width="36" height="36" fill="#FFFFFF"/><g transform="translate(1.8,1.8) scale(0.9)"><path fill="#A0041E" d="M9.344 14.702h-2c-.276 0-.5-.224-.5-.5v-7c0-.276.224-.5.5-.5h2c.276 0 .5.224.5.5v7c0 .276-.224.5-.5.5z"/><path fill="#FFE8B6" d="M5 16L18 3l13 13v17H5z"/><path fill="#FFCC4D" d="M18 16h1v16h-1z"/><path fill="#66757F" d="M31 17c-.256 0-.512-.098-.707-.293L18 4.414 5.707 16.707c-.391.391-1.023.391-1.414 0s-.391-1.023 0-1.414l13-13c.391-.391 1.023-.391 1.414 0l13 13c.391.391.391 1.023 0 1.414-.195.195-.451.293-.707.293z"/><path fill="#66757F" d="M18 17c-.256 0-.512-.098-.707-.293-.391-.391-.391-1.023 0-1.414l6.5-6.5c.391-.391 1.023-.391 1.414 0s.391 1.023 0 1.414l-6.5 6.5c-.195.195-.451.293-.707.293z"/><path fill="#C1694F" d="M10 26h4v6h-4z"/><path fill="#55ACEE" d="M10 17h4v4h-4zm12.5 0h4v4h-4zm0 9h4v4h-4z"/><path fill="#5C913B" d="M33.5 33.5c0 .828-.672 1.5-1.5 1.5H4c-.828 0-1.5-.672-1.5-1.5S3.172 32 4 32h28c.828 0 1.5.672 1.5 1.5z"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <!-- 家庭訪問アプリはオレンジ系で差別化 -->
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FB923C"/>
+      <stop offset="1" stop-color="#EA580C"/>
+    </linearGradient>
+  </defs>
+  <!-- アイコン全体を 95% に縮小して中央寄せ -->
+  <g transform="translate(12.8 12.8) scale(0.95)">
+    <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+    <!-- 家のシルエットを中心 (256,256) で 112%（前回の118%から95%に縮小） -->
+    <g transform="translate(256 256) scale(1.12) translate(-256 -256)">
+      <!-- 家のシルエット（白）— stroke-linejoin=round で全コーナーを丸めて柔らかく -->
+      <path
+        fill="#FFFFFF"
+        stroke="#FFFFFF"
+        stroke-width="32"
+        stroke-linejoin="round"
+        stroke-linecap="round"
+        d="M256 100 L416 252 L382 252 L382 412 L130 412 L130 252 L96 252 Z"/>
+      <!-- ドア（ペールオレンジ）— 上端を丸めてアーチドア風に -->
+      <path fill="#FED7AA" d="M232 340 Q232 316 256 316 Q280 316 280 340 L280 412 L232 412 Z"/>
+      <!-- 窓（ペールオレンジ）— rx 大きめで柔らかく -->
+      <rect x="158" y="280" width="48" height="48" rx="12" fill="#FED7AA"/>
+      <rect x="306" y="280" width="48" height="48" rx="12" fill="#FED7AA"/>
+    </g>
+  </g>
+</svg>
