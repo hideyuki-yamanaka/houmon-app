@@ -77,6 +77,25 @@ export default function SwipeableBottomSheet({ open, onClose, peekHeight, zIndex
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // ── コンテンツのtouchAction動的管理 ──
+  // fullモード: スクロールトップ時はnone（ドラッグ優先）、スクロール中はpan-y（ブラウザスクロール）
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!content || !visible) return;
+
+    if (snapRef.current !== 'full') {
+      content.style.touchAction = 'none';
+      return;
+    }
+
+    const update = () => {
+      content.style.touchAction = content.scrollTop <= 0 ? 'none' : 'pan-y';
+    };
+    update();
+    content.addEventListener('scroll', update, { passive: true });
+    return () => content.removeEventListener('scroll', update);
+  }, [visible, snap]);
+
   // ── タッチジェスチャー ──
   useEffect(() => {
     const sheet = sheetRef.current;
@@ -95,14 +114,6 @@ export default function SwipeableBottomSheet({ open, onClose, peekHeight, zIndex
 
     const onStart = (e: TouchEvent) => {
       const touch = e.touches[0];
-      const isHandle = handle.contains(e.target as Node);
-      const isContent = content?.contains(e.target as Node);
-
-      // full モード: ハンドルからのみドラッグ開始
-      // peek モード: シート全体からドラッグ可能
-      if (snapRef.current === 'full' && !isHandle) return;
-      if (!isHandle && !isContent) return;
-
       startY = touch.clientY;
       startTY = currentTY;
       lastY = touch.clientY;
@@ -120,6 +131,16 @@ export default function SwipeableBottomSheet({ open, onClose, peekHeight, zIndex
       // ドラッグしきい値未満 → まだ確定しない（タップの可能性）
       if (!confirmed) {
         if (Math.abs(dy) < DRAG_THRESHOLD) return;
+
+        // fullモード: スクロール位置が0より下 or 上スワイプ → ブラウザスクロールに委譲
+        if (snapRef.current === 'full') {
+          const scrollTop = content?.scrollTop ?? 0;
+          if (scrollTop > 1 || dy < 0) {
+            dragging = false;
+            return;
+          }
+        }
+
         confirmed = true;
         // 開始位置をリセットしてジャンプ防止
         startY = touch.clientY;
@@ -214,7 +235,6 @@ export default function SwipeableBottomSheet({ open, onClose, peekHeight, zIndex
           height: `calc(100% - ${HANDLE_H}px)`,
           overflowY: snap === 'full' ? 'auto' : 'hidden',
           overflowX: 'hidden',
-          touchAction: snap === 'full' ? 'pan-y' : 'none',
         }}
       >
         {children(snap)}
