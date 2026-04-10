@@ -164,9 +164,9 @@ export default function VisitDetailClient() {
             <button
               onClick={handleDelete}
               disabled={deleting}
-              className="flex items-center gap-1.5 py-0.5 px-3 text-[var(--color-subtext)] hover:opacity-70 active:opacity-50 transition-opacity text-sm font-medium"
+              className="flex items-center gap-1 py-0.5 px-2 text-[#DC2626] hover:opacity-70 active:opacity-50 transition-opacity text-[11px] font-medium"
             >
-              <Trash2 size={14} />
+              <Trash2 size={11} />
               {deleting ? '削除中...' : 'ゴミ箱に移動'}
             </button>
           </div>
