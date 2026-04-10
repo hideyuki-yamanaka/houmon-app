@@ -361,18 +361,22 @@ export default function MemberInfo({ member, onUpdate }: Props) {
         )}
 
         {/* 開閉トグル：閉じてる時は上向きに白へフェードするグラデで「下に隠れとるで」感を出す */}
-        <button
-          type="button"
-          onClick={() => setInfoOpen(o => !o)}
-          aria-expanded={infoOpen}
-          className={`relative w-full flex items-center justify-center text-[12px] font-medium text-[var(--color-primary)] active:opacity-60 transition-opacity ${
+        <div
+          className={`relative w-full flex items-center justify-center ${
             infoOpen
-              ? 'pt-2 pb-3'
-              : '-mt-10 pt-10 pb-3 bg-gradient-to-b from-white/0 via-white/70 to-white'
+              ? 'pt-2 pb-4'
+              : '-mt-12 pt-12 pb-4 bg-gradient-to-b from-white/0 via-white/70 to-white pointer-events-none'
           }`}
         >
-          <span>{infoOpen ? '閉じる' : '続きを見る'}</span>
-        </button>
+          <button
+            type="button"
+            onClick={() => setInfoOpen(o => !o)}
+            aria-expanded={infoOpen}
+            className="pointer-events-auto px-4 py-1.5 rounded-full border border-[#D1D5DB] text-[11px] text-[#6B7280] bg-white active:opacity-60 transition-opacity"
+          >
+            {infoOpen ? '閉じる' : '続きを見る'}
+          </button>
+        </div>
       </div>
 
       {/* ○×△ ステータスグリッド（タップで編集） */}

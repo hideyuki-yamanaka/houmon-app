@@ -99,19 +99,45 @@ export default function CalendarPage() {
     // (親の layout.tsx 側は `pb-[calc(60px+safe)] relative`)
     <div className="absolute inset-0 flex flex-col bg-[var(--color-bg)]">
       {/* ヘッダー */}
-      <div className="ios-nav px-4 py-3">
+      <div className="ios-nav px-4 py-3 shrink-0">
         <h1 className="text-xl font-bold text-center">カレンダー</h1>
       </div>
 
-      {/* md 未満: 縦積み / md 以上: 左カレンダー + 右訪問ログカード */}
-      <div className="flex-1 overflow-y-auto">
+      {/* md 未満: カレンダーは固定で訪問ログ部分だけスクロール
+          md 以上: 左カレンダー + 右訪問ログカードの2カラム */}
+      {/* モバイル: カレンダー固定領域 */}
+      <div className="px-4 pt-3 shrink-0 md:hidden">
+        <div className="bg-white rounded-xl p-2">
+          <CalendarGrid
+            year={year}
+            month={month}
+            selectedDate={selectedDate}
+            visitDates={visitDates}
+            onSelectDate={setSelectedDate}
+            onPrevMonth={handlePrevMonth}
+            onNextMonth={handleNextMonth}
+          />
+        </div>
+      </div>
+
+      {/* モバイル: 訪問ログだけスクロール */}
+      <div
+        className="flex-1 overflow-y-auto md:hidden"
+        style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom) + 16px)' }}
+      >
+        <div className="px-4 pt-4">
+          {visitListSection}
+        </div>
+      </div>
+
+      {/* md 以上: 既存の2カラムレイアウト（カレンダーは sticky） */}
+      <div className="hidden md:block flex-1 overflow-y-auto">
         <div
           className="md:grid md:grid-cols-[minmax(460px,560px)_1fr] md:gap-12 md:px-8 md:pt-6 md:max-w-6xl md:mx-auto md:w-full"
           style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom) + 16px)' }}
         >
-          {/* 左カラム: カレンダー */}
-          <div className="px-4 pt-3 md:px-0 md:pt-0">
-            <div className="bg-white rounded-xl p-2 md:p-4 md:sticky md:top-4">
+          <div className="md:px-0 md:pt-0">
+            <div className="bg-white rounded-xl md:p-4 md:sticky md:top-4">
               <CalendarGrid
                 year={year}
                 month={month}
@@ -123,9 +149,7 @@ export default function CalendarPage() {
               />
             </div>
           </div>
-
-          {/* 右カラム: 訪問ログカード */}
-          <div className="px-4 pt-4 md:px-0 md:pt-0">
+          <div className="md:px-0 md:pt-0">
             {visitListSection}
           </div>
         </div>
