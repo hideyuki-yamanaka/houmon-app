@@ -114,6 +114,9 @@ export default function SwipeableBottomSheet({ open, onClose, peekHeight, zIndex
 
     const onStart = (e: TouchEvent) => {
       const touch = e.touches[0];
+      // 重要: 開閉アニメーションや外部要因でシート位置が変わっている可能性があるので
+      // ドラッグ開始時に必ず現在のスナップ位置と同期する（stale closure 対策）
+      currentTY = getSnapY(snapRef.current);
       startY = touch.clientY;
       startTY = currentTY;
       lastY = touch.clientY;
