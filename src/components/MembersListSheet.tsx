@@ -83,8 +83,9 @@ export function applyAllFilters(members: MemberWithVisitInfo[], a: AppliedFilter
   });
 }
 
-// peek: 見出し＋アイコンの1行＋ちょっとだけリストが覗く高さ
-const PEEK_HEIGHT = 140;
+// peek: 初期表示で「メンバーの2人目ぐらいまで見える」高さ
+// （ヘッダー + あ行ラベル + カード2枚分 + 少し下に余白）
+const PEEK_HEIGHT = 250;
 // mini: 見出し行＋ドラッグハンドルだけ（限界まで下げる）
 const MINI_HEIGHT = 72;
 
@@ -172,11 +173,11 @@ export default function MembersListSheet({
                   <h2 className="text-lg font-bold">メンバー</h2>
                   <span className="text-sm text-[var(--color-subtext)]">{filtered.length}人</span>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   {hasAnyFilter && (
                     <button
                       onClick={handleClearAll}
-                      className="text-xs text-[var(--color-subtext)] underline"
+                      className="text-xs text-[var(--color-subtext)] px-2 py-1 mr-1 active:opacity-60"
                     >
                       クリア
                     </button>
