@@ -81,7 +81,7 @@ function createMemberPin(member: MemberWithVisitInfo, isSelected: boolean): L.Di
         overflow: visible;
       ">
         <path d="M14 0C6.268 0 0 6.268 0 14C0 24.5 14 40 14 40S28 24.5 28 14C28 6.268 21.732 0 14 0Z"
-              fill="${pinColor}" stroke="${strokeColor}" stroke-width="1.5"/>
+              fill="${pinColor}" stroke="${strokeColor}" stroke-width="1"/>
         <circle cx="14" cy="13.5" r="5" fill="${dotColor}"/>
       </svg>
     </div>
