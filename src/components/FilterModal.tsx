@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import type { MemberWithVisitInfo } from '../lib/types';
 import { VISIT_STATUS_CONFIG } from '../lib/constants';
-import DistrictFilter, { type FilterSelection, EMPTY_FILTER } from './DistrictFilter';
+import DistrictFilter, { type FilterSelection } from './DistrictFilter';
 
 // ──────────────────────────────────────────────────────────────
 // フィルター設定モーダル（地区 / 期間 / カテゴリ を縦並びで一括編集）
@@ -12,10 +12,9 @@ import DistrictFilter, { type FilterSelection, EMPTY_FILTER } from './DistrictFi
 //
 // 設計:
 //   - 単一モーダル、縦スクロール
-//   - 内部で「ドラフト」state を持ち、『適用』押下で親に commit
-//     → ユーザーが途中まで触って閉じても地図側フィルターに反映されない
-//   - 『クリア』は全部リセット（フッター常設）
-//   - 『適用』ボタンは件数付き "(N件)"
+//   - 『リアルタイム反映モード』: タップした瞬間に親に通知 → 下のマップUIが即更新
+//   - 適用/クリアのフッターは撤廃。件数はヘッダーに常時表示
+//   - 閉じるのは ×ボタン or 背景タップ or ESC のみ
 // ──────────────────────────────────────────────────────────────
 
 export const PERIOD_FILTERS: { key: string; label: string; minDays: number; maxDays: number }[] = [
@@ -40,19 +39,15 @@ interface Props {
   periodFilter: string | null;
   /** 現在のカテゴリフィルターキー */
   categoryFilter: string | null;
-  /** ドラフトを commit したいとき親に反映 */
-  onApply: (next: {
+  /** タップした瞬間に親へ通知する（リアルタイム反映） */
+  onChange: (next: {
     filter: FilterSelection;
     periodFilter: string | null;
     categoryFilter: string | null;
   }) => void;
   members: MemberWithVisitInfo[];
-  /** 件数プレビュー用の matcher. 現在のドラフトで何人残るかを計算する関数 */
-  countMatches: (next: {
-    filter: FilterSelection;
-    periodFilter: string | null;
-    categoryFilter: string | null;
-  }) => number;
+  /** 現在のフィルターでマッチする件数（親で計算して渡す） */
+  matchCount: number;
 }
 
 const SLIDE_DURATION_MS = 320;
@@ -63,15 +58,10 @@ export default function FilterModal({
   filter,
   periodFilter,
   categoryFilter,
-  onApply,
+  onChange,
   members,
-  countMatches,
+  matchCount,
 }: Props) {
-  // ドラフト state
-  const [draftFilter, setDraftFilter] = useState<FilterSelection>(filter);
-  const [draftPeriod, setDraftPeriod] = useState<string | null>(periodFilter);
-  const [draftCategory, setDraftCategory] = useState<string | null>(categoryFilter);
-
   // mounted: DOM に存在するか（閉じアニメ中も true）
   // closing: 閉じアニメ再生中（下にスライドアウト）
   const [mounted, setMounted] = useState(open);
@@ -93,15 +83,6 @@ export default function FilterModal({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-
-  // 開いた瞬間に親の現在値でドラフトを初期化
-  useEffect(() => {
-    if (open) {
-      setDraftFilter(filter);
-      setDraftPeriod(periodFilter);
-      setDraftCategory(categoryFilter);
-    }
-  }, [open, filter, periodFilter, categoryFilter]);
 
   // ESC で閉じる
   useEffect(() => {
@@ -125,25 +106,15 @@ export default function FilterModal({
 
   if (!mounted) return null;
 
-  const count = countMatches({
-    filter: draftFilter,
-    periodFilter: draftPeriod,
-    categoryFilter: draftCategory,
-  });
-
-  const handleClear = () => {
-    setDraftFilter(EMPTY_FILTER);
-    setDraftPeriod(null);
-    setDraftCategory(null);
+  // タップ即 onChange（リアルタイム反映）
+  const setFilterAndNotify = (next: FilterSelection) => {
+    onChange({ filter: next, periodFilter, categoryFilter });
   };
-
-  const handleApply = () => {
-    onApply({
-      filter: draftFilter,
-      periodFilter: draftPeriod,
-      categoryFilter: draftCategory,
-    });
-    onClose();
+  const setPeriodAndNotify = (next: string | null) => {
+    onChange({ filter, periodFilter: next, categoryFilter });
+  };
+  const setCategoryAndNotify = (next: string | null) => {
+    onChange({ filter, periodFilter, categoryFilter: next });
   };
 
   return (
@@ -171,9 +142,12 @@ export default function FilterModal({
             : undefined,
         }}
       >
-        {/* ヘッダー */}
+        {/* ヘッダー: 見出しの横にリアルタイム件数を出す */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#F0F0F0] shrink-0">
-          <h2 className="text-base font-bold">フィルター</h2>
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-base font-bold">フィルター</h2>
+            <span className="text-xs text-[var(--color-subtext)]">{matchCount}件</span>
+          </div>
           <button
             onClick={onClose}
             aria-label="閉じる"
@@ -189,8 +163,8 @@ export default function FilterModal({
           <section>
             <h3 className="text-xs font-bold text-[var(--color-subtext)] mb-2">地区</h3>
             <DistrictFilter
-              selection={draftFilter}
-              onChange={setDraftFilter}
+              selection={filter}
+              onChange={setFilterAndNotify}
               members={members}
               alwaysOpen
             />
@@ -201,9 +175,9 @@ export default function FilterModal({
             <h3 className="text-xs font-bold text-[var(--color-subtext)] mb-2">最終訪問からの期間</h3>
             <div className="flex flex-wrap gap-1.5">
               <button
-                onClick={() => setDraftPeriod(null)}
+                onClick={() => setPeriodAndNotify(null)}
                 className={`px-3 py-1.5 text-[12px] rounded-full border transition-colors ${
-                  !draftPeriod
+                  !periodFilter
                     ? 'bg-[#222] text-white border-[#222]'
                     : 'bg-white text-[#222] border-[#E5E5EA] active:bg-[#F5F5F5]'
                 }`}
@@ -213,9 +187,9 @@ export default function FilterModal({
               {PERIOD_FILTERS.map((p) => (
                 <button
                   key={p.key}
-                  onClick={() => setDraftPeriod(p.key)}
+                  onClick={() => setPeriodAndNotify(periodFilter === p.key ? null : p.key)}
                   className={`px-3 py-1.5 text-[12px] rounded-full border transition-colors ${
-                    draftPeriod === p.key
+                    periodFilter === p.key
                       ? 'bg-[#222] text-white border-[#222]'
                       : 'bg-white text-[#222] border-[#E5E5EA] active:bg-[#F5F5F5]'
                   }`}
@@ -231,9 +205,9 @@ export default function FilterModal({
             <h3 className="text-xs font-bold text-[var(--color-subtext)] mb-2">カテゴリ</h3>
             <div className="flex flex-wrap gap-1.5">
               <button
-                onClick={() => setDraftCategory(null)}
+                onClick={() => setCategoryAndNotify(null)}
                 className={`px-3 py-1.5 text-[12px] rounded-full border transition-colors ${
-                  !draftCategory
+                  !categoryFilter
                     ? 'bg-[#222] text-white border-[#222]'
                     : 'bg-white text-[#222] border-[#E5E5EA] active:bg-[#F5F5F5]'
                 }`}
@@ -243,9 +217,9 @@ export default function FilterModal({
               {CATEGORY_FILTERS.map((c) => (
                 <button
                   key={c.key}
-                  onClick={() => setDraftCategory(c.key)}
+                  onClick={() => setCategoryAndNotify(categoryFilter === c.key ? null : c.key)}
                   className={`px-3 py-1.5 text-[12px] rounded-full border transition-colors ${
-                    draftCategory === c.key
+                    categoryFilter === c.key
                       ? 'bg-[#222] text-white border-[#222]'
                       : 'bg-white text-[#222] border-[#E5E5EA] active:bg-[#F5F5F5]'
                   }`}
@@ -255,22 +229,6 @@ export default function FilterModal({
               ))}
             </div>
           </section>
-        </div>
-
-        {/* フッター: クリア(左) + 適用(右) */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-[#F0F0F0] shrink-0">
-          <button
-            onClick={handleClear}
-            className="text-xs text-[var(--color-subtext)] underline px-2 py-2"
-          >
-            クリア
-          </button>
-          <button
-            onClick={handleApply}
-            className="text-sm font-bold text-white bg-[#111] rounded-full px-5 py-2 active:scale-95 transition-transform"
-          >
-            適用（{count}件）
-          </button>
         </div>
       </div>
     </div>

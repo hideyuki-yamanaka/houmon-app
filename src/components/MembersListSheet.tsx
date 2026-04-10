@@ -126,13 +126,9 @@ export default function MembersListSheet({
     periodFilter !== null ||
     categoryFilter !== null;
 
-  // FilterModal の件数プレビュー用
-  const countMatches = useCallback(
-    (a: AppliedFilters) => applyAllFilters(members, a).length,
-    [members],
-  );
-
-  const handleApply = useCallback(
+  // FilterModal のリアルタイム onChange ハンドラ
+  // タップ即ここに来る → state を更新 → 下のマップも即再描画
+  const handleFilterChange = useCallback(
     (next: AppliedFilters) => {
       onFilterChange(next.filter);
       setPeriodFilter(next.periodFilter);
@@ -228,9 +224,9 @@ export default function MembersListSheet({
         filter={filter}
         periodFilter={periodFilter}
         categoryFilter={categoryFilter}
-        onApply={handleApply}
+        onChange={handleFilterChange}
         members={members}
-        countMatches={countMatches}
+        matchCount={filtered.length}
       />
     </>
   );
