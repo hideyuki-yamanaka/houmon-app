@@ -202,17 +202,20 @@ export default function MembersListSheet({
             </div>
 
             {/* リスト */}
-            <div className="flex-1 overflow-y-auto px-4 pt-3 pb-4">
+            {/* ↓ pt は付けない。あ行ラベルが sticky なので、padding 入れると
+                スクロール時に上に隙間ができてカードが透けてしまう。
+                breathing room はラベル側 (pt-3) で持たせる */}
+            <div className="flex-1 overflow-y-auto px-4 pb-4">
               {filtered.length === 0 ? (
                 <p className="text-sm text-[var(--color-subtext)] text-center py-4">メンバーが見つかりません</p>
               ) : (
                 <div className="space-y-1">
                   {grouped.map((group) => (
                     <div key={group.label}>
-                      <div className="text-xs font-bold text-[var(--color-subtext)] bg-white sticky top-0 py-1.5 px-1 z-10">
+                      <div className="text-xs font-bold text-[var(--color-subtext)] bg-white sticky top-0 pt-3 pb-1.5 px-1 z-10">
                         {group.label}行
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-0">
                         {group.members.map((m) => (
                           <MemberCard key={m.id} member={m} onSelect={onSelectMember} />
                         ))}

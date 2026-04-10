@@ -4,32 +4,19 @@ import Link from 'next/link';
 import { ChevronRight, Clock } from 'lucide-react';
 import type { MemberWithVisitInfo } from '../lib/types';
 import { formatDate } from '../lib/utils';
+import MemberPin from './MemberPin';
 
 interface Props {
   member: MemberWithVisitInfo;
   onSelect?: (id: string) => void;
 }
 
-// マップと同じスタイルのピンアイコン（ベタ塗り + 白丸）
-function PinIcon({ visited }: { visited: boolean }) {
-  const fill = visited ? '#EA4335' : '#BBBBC0';
-  return (
-    <svg width="28" height="40" viewBox="0 0 28 40" fill="none" className="shrink-0">
-      <path
-        d="M14 0C6.268 0 0 6.268 0 14C0 24.5 14 40 14 40S28 24.5 28 14C28 6.268 21.732 0 14 0Z"
-        fill={fill}
-      />
-      <circle cx="14" cy="13.5" r="5" fill="#FFFFFF" />
-    </svg>
-  );
-}
-
 export default function MemberCard({ member, onSelect }: Props) {
   const hasVisits = member.totalVisits > 0;
 
   const inner = (
-    <div className="ios-card px-3 py-3.5 flex items-center gap-3">
-        <PinIcon visited={hasVisits} />
+    <div className="ios-card px-3 py-2.5 flex items-center gap-3">
+        <MemberPin member={member} visited={hasVisits} />
         <div className="flex-1 min-w-0">
           {member.nameKana && (
             <span className="text-[10px] text-[var(--color-subtext)] block leading-tight">{member.nameKana}</span>

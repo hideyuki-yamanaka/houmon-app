@@ -14,9 +14,7 @@ import type { MemberWithVisitInfo } from '../lib/types';
 import {
   MAP_DEFAULT_CENTER,
   MAP_DEFAULT_ZOOM,
-  findOrgLeaf,
-  findParentOrg,
-  getParentOrgKey,
+  getMemberOrgColor,
 } from '../lib/constants';
 
 // ── タイルレイヤー設定 ──
@@ -70,23 +68,10 @@ const GPS_DOT_ICON = L.divIcon({
 });
 
 // ── 本部/地区ごとに色分けしたピン ──
-// - 色は ORG_HIERARCHY の leaf.hex（なければ parent.hex）を使用
+// - 色は getMemberOrgColor (constants.ts) を使用。MemberCard と完全に同じ色ロジック
 // - 訪問済み = 塗りつぶし + 白いドット
 // - 未訪問   = 白地 + 組織色のストローク + 組織色のドット
-// - 未分類   = グレー
-const FALLBACK_COLOR = '#9AA0A6';
-
-function getMemberOrgColor(member: MemberWithVisitInfo): string {
-  const leaf = findOrgLeaf(member.district);
-  if (leaf) return leaf.hex;
-  const parentKey = getParentOrgKey(member);
-  if (parentKey) {
-    const parent = findParentOrg(parentKey);
-    if (parent) return parent.hex;
-  }
-  return FALLBACK_COLOR;
-}
-
+// - 未分類   = グレー（MEMBER_PIN_FALLBACK_COLOR）
 function createMemberPin(member: MemberWithVisitInfo, isSelected: boolean): L.DivIcon {
   const hasVisited = member.totalVisits > 0;
   const orgColor = getMemberOrgColor(member);

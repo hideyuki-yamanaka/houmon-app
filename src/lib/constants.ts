@@ -124,6 +124,28 @@ export function findParentOrg(parentKey: string): OrgParent | null {
   return null;
 }
 
+// ── マップピン色 ──
+// MapView と MemberCard の両方で使う共通ロジック。
+// 「未訪問 = 白地 + 組織色ストローク + 組織色ドット」
+// 「訪問済み = 組織色塗り + 白ドット」というルールはどちらも同じなので、
+// 色の決定はここに集約してる。
+export const MEMBER_PIN_FALLBACK_COLOR = '#9AA0A6';
+
+export function getMemberOrgColor(member: {
+  district: string;
+  category?: MemberCategory;
+  honbu?: string;
+}): string {
+  const leaf = findOrgLeaf(member.district);
+  if (leaf) return leaf.hex;
+  const parentKey = getParentOrgKey(member);
+  if (parentKey) {
+    const parent = findParentOrg(parentKey);
+    if (parent) return parent.hex;
+  }
+  return MEMBER_PIN_FALLBACK_COLOR;
+}
+
 /** district の key（leaf）から OrgLeaf を検索 */
 export function findOrgLeaf(districtKey: string): OrgLeaf | null {
   for (const cat of ORG_HIERARCHY) {
