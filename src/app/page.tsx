@@ -6,8 +6,8 @@ import dynamic from 'next/dynamic';
 import type { MemberWithVisitInfo } from '../lib/types';
 import { getMembersWithVisitInfo } from '../lib/storage';
 import MemberBottomSheet from '../components/MemberBottomSheet';
-import MembersListSheet from '../components/MembersListSheet';
-import { type FilterSelection, matchFilter, EMPTY_FILTER } from '../components/DistrictFilter';
+import MembersListSheet, { applyAllFilters, type AppliedFilters } from '../components/MembersListSheet';
+import { type FilterSelection, EMPTY_FILTER } from '../components/DistrictFilter';
 import type { MapLayerMode } from '../components/MapView';
 import type { SheetHandle } from '../components/SwipeableBottomSheet';
 
@@ -19,7 +19,17 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [locating, setLocating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  // フィルター3点を全部 HomePage で hold する。
+  // こうしないと、子の MembersListSheet が内部 state で抱えると
+  // マップピン用の filteredMembers に反映されず「件数0なのにピン残ってる」状態になる。
   const [filter, setFilter] = useState<FilterSelection>(EMPTY_FILTER);
+  const [periodFilter, setPeriodFilter] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const handleFiltersChange = useCallback((next: AppliedFilters) => {
+    setFilter(next.filter);
+    setPeriodFilter(next.periodFilter);
+    setCategoryFilter(next.categoryFilter);
+  }, []);
   const [showSuggestions, setShowSuggestions] = useState(false);
   // マップのレイヤーモード（通常 ⇄ 航空写真）。セッション中のみ保持（永続化なし）
   const [layerMode, setLayerMode] = useState<MapLayerMode>('standard');
@@ -81,10 +91,11 @@ export default function HomePage() {
     [members, selectedId]
   );
 
-  // 地区フィルター適用後のメンバー（階層対応）
+  // フィルター3点（地区/期間/カテゴリ）を全部適用した後のメンバー。
+  // これがマップピンとリスト両方の "唯一の真実" になる。
   const filteredMembers = useMemo(() => {
-    return members.filter(m => matchFilter(m, filter));
-  }, [members, filter]);
+    return applyAllFilters(members, { filter, periodFilter, categoryFilter });
+  }, [members, filter, periodFilter, categoryFilter]);
 
   // 検索候補（名前・カナ・住所で部分一致）
   const suggestions = useMemo(() => {
@@ -218,7 +229,9 @@ export default function HomePage() {
         onClose={() => { /* closable=false なので呼ばれない */ }}
         onSelectMember={(id) => setSelectedId(id)}
         filter={filter}
-        onFilterChange={setFilter}
+        periodFilter={periodFilter}
+        categoryFilter={categoryFilter}
+        onFiltersChange={handleFiltersChange}
         sheetHandleRef={listSheetRef}
       />
 

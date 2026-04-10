@@ -41,21 +41,27 @@ interface Props {
   onClose: () => void;
   /** カード/ピンから選択された時 */
   onSelectMember: (id: string) => void;
-  /** 地図ピンをフィルターするために filter 変更を親に通知 */
+  /** 地区フィルター（HomePage で hold） */
   filter: FilterSelection;
-  onFilterChange: (f: FilterSelection) => void;
+  /** 期間フィルター（HomePage で hold） */
+  periodFilter: string | null;
+  /** カテゴリフィルター（HomePage で hold） */
+  categoryFilter: string | null;
+  /** フィルター3点まとめて変更する（マップと一覧を同時に動かすため） */
+  onFiltersChange: (next: AppliedFilters) => void;
   /** 親から imperative にスナップ位置を制御したい時の ref */
   sheetHandleRef?: Ref<SheetHandle>;
 }
 
-type AppliedFilters = {
+export type AppliedFilters = {
   filter: FilterSelection;
   periodFilter: string | null;
   categoryFilter: string | null;
 };
 
-// 実際の matcher。FilterModal からプレビュー件数を求めるのにも使う。
-function applyAllFilters(members: MemberWithVisitInfo[], a: AppliedFilters): MemberWithVisitInfo[] {
+// 実際の matcher。FilterModal からプレビュー件数を求めるのにも、
+// HomePage がマップピンの絞り込みに使うのにも、両方に使う共通関数。
+export function applyAllFilters(members: MemberWithVisitInfo[], a: AppliedFilters): MemberWithVisitInfo[] {
   const period = a.periodFilter ? PERIOD_FILTERS.find((p) => p.key === a.periodFilter) : null;
   return members.filter((m) => {
     if (!matchFilter(m, a.filter)) return false;
@@ -88,13 +94,18 @@ export default function MembersListSheet({
   onClose,
   onSelectMember,
   filter,
-  onFilterChange,
+  periodFilter,
+  categoryFilter,
+  onFiltersChange,
   sheetHandleRef,
 }: Props) {
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
-  const [periodFilter, setPeriodFilter] = useState<string | null>(null);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
 
+  // 注意: ここで filtered に渡す members は、すでに HomePage 側でも
+  // 同じ applyAllFilters を通った filteredMembers が渡ってくるので、
+  // 二重適用しても結果は同じ（idempotent）。あえて再適用してるのは、
+  // FilterModal が「地区/期間/カテゴリ」を個別の draft 状態で動かしても
+  // ちゃんと再計算されるようにするための保険。
   const filtered = useMemo(() => {
     const result = applyAllFilters(members, { filter, periodFilter, categoryFilter });
     result.sort((a, b) => {
@@ -127,21 +138,17 @@ export default function MembersListSheet({
     categoryFilter !== null;
 
   // FilterModal のリアルタイム onChange ハンドラ
-  // タップ即ここに来る → state を更新 → 下のマップも即再描画
+  // 親 (HomePage) に3点まとめて通知 → マップピンも即連動
   const handleFilterChange = useCallback(
     (next: AppliedFilters) => {
-      onFilterChange(next.filter);
-      setPeriodFilter(next.periodFilter);
-      setCategoryFilter(next.categoryFilter);
+      onFiltersChange(next);
     },
-    [onFilterChange],
+    [onFiltersChange],
   );
 
   const handleClearAll = useCallback(() => {
-    onFilterChange(EMPTY_FILTER);
-    setPeriodFilter(null);
-    setCategoryFilter(null);
-  }, [onFilterChange]);
+    onFiltersChange({ filter: EMPTY_FILTER, periodFilter: null, categoryFilter: null });
+  }, [onFiltersChange]);
 
   return (
     <>
