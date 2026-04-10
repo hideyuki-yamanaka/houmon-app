@@ -37,7 +37,7 @@ export default function MemberBottomSheet({ member, onClose }: Props) {
     <SwipeableBottomSheet
       open={!!member}
       onClose={onClose}
-      peekHeight={180}
+      peekHeight={270}
       zIndex={40}
     >
       {(snap) => {
