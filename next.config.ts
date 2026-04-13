@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  basePath: '/houmon-app',
+  basePath: process.env.BASE_PATH || '',
   output: 'export',
   images: { unoptimized: true },
 };
