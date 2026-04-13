@@ -97,7 +97,7 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef }: P
                 >
                   <h2 className="text-lg font-bold truncate">
                     {m.nameKana
-                      ? <ruby className="leading-relaxed">{m.name}<rp>(</rp><rt className="text-[9px] font-normal text-[var(--color-subtext)] tracking-wide">{m.nameKana}</rt><rp>)</rp></ruby>
+                      ? <ruby style={{ rubyPosition: 'over', lineHeight: '2.2' }}>{m.name}<rp>(</rp><rt className="text-[9px] font-normal text-[var(--color-subtext)] tracking-wide">{m.nameKana}</rt><rp>)</rp></ruby>
                       : m.name}
                     {(() => {
                       if (!m.birthday) return null;
