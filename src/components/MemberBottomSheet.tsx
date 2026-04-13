@@ -89,7 +89,7 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef }: P
         return (
           <div className="flex flex-col">
             {/* ヘッダー: 名前/地区/住所 + 右上『記録する』ボタン */}
-            <div className="px-4 pt-0 pb-3">
+            <div className="px-4 pt-1.5 pb-3">
               <div className="flex items-start justify-between gap-3">
                 <button
                   onClick={() => router.push(`/members/${m.id}`)}
@@ -97,7 +97,7 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef }: P
                 >
                   <h2 className="text-lg font-bold truncate">
                     {m.nameKana
-                      ? <ruby style={{ rubyPosition: 'over', lineHeight: '2.2' }}>{m.name}<rp>(</rp><rt className="text-[9px] font-normal text-[var(--color-subtext)] tracking-wide">{m.nameKana}</rt><rp>)</rp></ruby>
+                      ? <ruby>{m.name}<rp>(</rp><rt className="text-[9px] font-normal text-[var(--color-subtext)] tracking-wide" style={{ transform: 'translateY(-3px)' }}>{m.nameKana}</rt><rp>)</rp></ruby>
                       : m.name}
                     {(() => {
                       if (!m.birthday) return null;
