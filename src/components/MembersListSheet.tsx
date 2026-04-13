@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useCallback, type Ref } from 'react';
+import { useMemo, useState, useCallback, type Ref, type ReactNode } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
 import type { MemberWithVisitInfo } from '../lib/types';
 import MemberCard from './MemberCard';
@@ -51,6 +51,8 @@ interface Props {
   onFiltersChange: (next: AppliedFilters) => void;
   /** 親から imperative にスナップ位置を制御したい時の ref */
   sheetHandleRef?: Ref<SheetHandle>;
+  /** シート上端の外に浮かべる要素（現在地ボタン等） */
+  renderAbove?: () => ReactNode;
 }
 
 export type AppliedFilters = {
@@ -99,6 +101,7 @@ export default function MembersListSheet({
   categoryFilter,
   onFiltersChange,
   sheetHandleRef,
+  renderAbove,
 }: Props) {
   const [filterModalOpen, setFilterModalOpen] = useState(false);
 
@@ -163,6 +166,7 @@ export default function MembersListSheet({
         // full のとき safe-area-inset-top のすぐ下まで上がる
         topGap="env(safe-area-inset-top)"
         handleRef={sheetHandleRef}
+        renderAbove={renderAbove ? () => <><div />{renderAbove()}</> : undefined}
       >
         {() => (
           <div className="flex flex-col h-full">

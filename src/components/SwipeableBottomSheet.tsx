@@ -44,7 +44,7 @@ interface Props {
   topGap?: number | string;
 }
 
-const TAB_H = 60;
+const TAB_H = 48;
 const DEFAULT_TOP_GAP: number = 100; // 全画面時のトップマージン（検索バー分）
 const V_THRESHOLD = 0.4; // px/ms — スワイプ速度しきい値
 const DRAG_THRESHOLD = 8; // px — ドラッグ開始しきい値（タップと区別）
@@ -350,7 +350,7 @@ export default function SwipeableBottomSheet({ open, onClose, peekHeight, miniHe
           シートと同じ transform に乗るのでスワイプに追従する */}
       {renderAbove && (
         <div
-          className="absolute left-4 transition-opacity duration-300"
+          className="absolute left-4 right-4 flex items-end justify-between transition-opacity duration-300"
           style={{
             bottom: 'calc(100% + 12px)',
             opacity: snap === 'full' ? 0 : 1,

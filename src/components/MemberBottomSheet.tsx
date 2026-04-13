@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type Ref } from 'react';
+import { useEffect, useRef, useState, type Ref, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, MapPin, Clock, Footprints, PencilLine } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit } from '../lib/types';
@@ -14,12 +14,14 @@ interface Props {
   /** 親から imperative にスナップ位置を制御したい時の ref
    *  （マップドラッグで mini に下げる用） */
   sheetHandleRef?: Ref<SheetHandle>;
+  /** シート上端の外に浮かべる要素（現在地ボタン等） */
+  renderAbove?: () => ReactNode;
 }
 
 // mini スナップ時の可視高さ（ドラッグハンドル＋名前1行がギリ見える）
 const MINI_HEIGHT = 72;
 
-export default function MemberBottomSheet({ member, onClose, sheetHandleRef }: Props) {
+export default function MemberBottomSheet({ member, onClose, sheetHandleRef, renderAbove: renderAboveProp }: Props) {
   const router = useRouter();
   const [visits, setVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -66,18 +68,23 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef }: P
       handleRef={sheetHandleRef}
       zIndex={40}
       renderAbove={
-        streetViewUrl
+        (streetViewUrl || renderAboveProp)
           ? () => (
-              <a
-                href={streetViewUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="ストリートビューで見る"
-                onClick={e => e.stopPropagation()}
-                className="w-12 h-12 rounded-full bg-white shadow-[0_3px_10px_rgba(0,0,0,0.22)] flex items-center justify-center active:scale-95 transition-transform"
-              >
-                <Footprints size={22} className="text-[#5F6368]" strokeWidth={2} />
-              </a>
+              <>
+                {streetViewUrl ? (
+                  <a
+                    href={streetViewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="ストリートビューで見る"
+                    onClick={e => e.stopPropagation()}
+                    className="w-12 h-12 rounded-full bg-white shadow-[0_3px_10px_rgba(0,0,0,0.22)] flex items-center justify-center active:scale-95 transition-transform"
+                  >
+                    <Footprints size={22} className="text-[#5F6368]" strokeWidth={2} />
+                  </a>
+                ) : <div />}
+                {renderAboveProp?.()}
+              </>
             )
           : undefined
       }

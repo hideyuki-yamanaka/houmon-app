@@ -102,10 +102,40 @@ export default function HomePage() {
       .finally(() => setLoading(false));
   }, []);
 
+  // 起動時に自動で現在地を取得してマップを移動（パーミッション済みなら無音で実行）
+  const autoLocatedRef = useRef(false);
+  useEffect(() => {
+    if (autoLocatedRef.current) return;
+    autoLocatedRef.current = true;
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const container = mapWrapRef.current?.querySelector('.leaflet-container');
+        container?.dispatchEvent(
+          new CustomEvent('locate-me', { detail: { lat: pos.coords.latitude, lng: pos.coords.longitude } })
+        );
+      },
+      () => { /* パーミッション未許可なら静かに無視 */ },
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
+    );
+  }, []);
+
   const selectedMember = useMemo(
     () => members.find(m => m.id === selectedId) ?? null,
     [members, selectedId]
   );
+
+  // 現在地ボタン（両シートの renderAbove に渡してシート上端右に追従させる）
+  const renderLocateButton = useCallback(() => (
+    <button
+      onClick={handleLocate}
+      disabled={locating}
+      aria-label="現在地"
+      className="w-12 h-12 rounded-full bg-white text-[#111] flex items-center justify-center shadow-[0_3px_10px_rgba(0,0,0,0.22)] active:scale-95 transition-transform disabled:opacity-70"
+    >
+      <LocateFixed size={22} className={locating ? 'animate-spin' : ''} />
+    </button>
+  ), [handleLocate, locating]);
 
   // フィルター3点（地区/期間/カテゴリ）を全部適用した後のメンバー。
   // これがマップピンとリスト両方の "唯一の真実" になる。
@@ -226,16 +256,6 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 現在地ボタン（シート peek の上に配置） */}
-      <button
-        onClick={handleLocate}
-        disabled={locating}
-        aria-label="現在地"
-        className="fixed right-5 bottom-[calc(220px+env(safe-area-inset-bottom))] z-30 w-12 h-12 rounded-full bg-white text-[#111] flex items-center justify-center shadow-lg active:scale-95 transition-transform disabled:opacity-70"
-      >
-        <LocateFixed size={22} className={locating ? 'animate-spin' : ''} />
-      </button>
-
       {/* メンバー一覧シート。
           - メンバー選択中は隠す（MemberBottomSheet が前面に来る）
           - ユーザーがマップをドラッグしたら mini スナップへ自動で下がる */}
@@ -249,6 +269,7 @@ export default function HomePage() {
         categoryFilter={categoryFilter}
         onFiltersChange={handleFiltersChange}
         sheetHandleRef={listSheetRef}
+        renderAbove={renderLocateButton}
       />
 
       {/* メンバー詳細ボトムシート（ピン/カードタップで上に重なる） */}
@@ -256,6 +277,7 @@ export default function HomePage() {
         member={selectedMember}
         onClose={() => setSelectedId(null)}
         sheetHandleRef={memberSheetRef}
+        renderAbove={renderLocateButton}
       />
     </div>
   );
