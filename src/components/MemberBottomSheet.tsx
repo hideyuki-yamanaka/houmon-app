@@ -95,21 +95,24 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef }: P
                   onClick={() => router.push(`/members/${m.id}`)}
                   className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
                 >
-                  <h2 className="text-lg font-bold truncate">
-                    {m.nameKana
-                      ? <ruby>{m.name}<rp>(</rp><rt className="text-[9px] font-normal text-[var(--color-subtext)] tracking-wide" style={{ transform: 'translateY(-3px)' }}>{m.nameKana}</rt><rp>)</rp></ruby>
-                      : m.name}
-                    {(() => {
-                      if (!m.birthday) return null;
-                      const parts = m.birthday.replace(/\//g, '-').split('-').map(Number);
-                      if (parts.length !== 3 || parts.some(isNaN)) return null;
-                      const [y, mo, d] = parts;
-                      const today = new Date();
-                      let age = today.getFullYear() - y;
-                      if (today.getMonth() + 1 - mo < 0 || (today.getMonth() + 1 === mo && today.getDate() < d)) age--;
-                      return age >= 0 ? <span className="text-[13px] font-normal text-[var(--color-subtext)] ml-1">({age})</span> : null;
-                    })()}
-                  </h2>
+                  <div className="min-w-0">
+                    {m.nameKana && (
+                      <div className="text-[9px] font-normal text-[var(--color-subtext)] tracking-wide leading-none mb-0.5">{m.nameKana}</div>
+                    )}
+                    <h2 className="text-lg font-bold truncate">
+                      {m.name}
+                      {(() => {
+                        if (!m.birthday) return null;
+                        const parts = m.birthday.replace(/\//g, '-').split('-').map(Number);
+                        if (parts.length !== 3 || parts.some(isNaN)) return null;
+                        const [y, mo, d] = parts;
+                        const today = new Date();
+                        let age = today.getFullYear() - y;
+                        if (today.getMonth() + 1 - mo < 0 || (today.getMonth() + 1 === mo && today.getDate() < d)) age--;
+                        return age >= 0 ? <span className="text-[13px] font-normal text-[var(--color-subtext)] ml-1">({age})</span> : null;
+                      })()}
+                    </h2>
+                  </div>
                   <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0" />
                 </button>
                 <button
