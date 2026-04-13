@@ -22,13 +22,29 @@ export default function HomePage() {
   // フィルター3点を全部 HomePage で hold する。
   // こうしないと、子の MembersListSheet が内部 state で抱えると
   // マップピン用の filteredMembers に反映されず「件数0なのにピン残ってる」状態になる。
-  const [filter, setFilter] = useState<FilterSelection>(EMPTY_FILTER);
-  const [periodFilter, setPeriodFilter] = useState<string | null>(null);
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [filter, setFilter] = useState<FilterSelection>(() => {
+    if (typeof window === 'undefined') return EMPTY_FILTER;
+    try { const s = localStorage.getItem('houmon_filter'); return s ? JSON.parse(s) : EMPTY_FILTER; } catch { return EMPTY_FILTER; }
+  });
+  const [periodFilter, setPeriodFilter] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('houmon_periodFilter') || null;
+  });
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('houmon_categoryFilter') || null;
+  });
   const handleFiltersChange = useCallback((next: AppliedFilters) => {
     setFilter(next.filter);
     setPeriodFilter(next.periodFilter);
     setCategoryFilter(next.categoryFilter);
+    try {
+      localStorage.setItem('houmon_filter', JSON.stringify(next.filter));
+      if (next.periodFilter) localStorage.setItem('houmon_periodFilter', next.periodFilter);
+      else localStorage.removeItem('houmon_periodFilter');
+      if (next.categoryFilter) localStorage.setItem('houmon_categoryFilter', next.categoryFilter);
+      else localStorage.removeItem('houmon_categoryFilter');
+    } catch { /* ignore */ }
   }, []);
   const [showSuggestions, setShowSuggestions] = useState(false);
   // マップのレイヤーモード（通常 ⇄ 航空写真）。セッション中のみ保持（永続化なし）

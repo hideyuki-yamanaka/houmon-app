@@ -12,6 +12,19 @@ interface Props {
   onUpdate?: (updated: Partial<Member>) => void;
 }
 
+/** 生年月日文字列 ("1989/7/28" or "1989-07-28") から現在の年齢を算出 */
+function calcAgeFromBirthday(birthday: string | undefined): number | null {
+  if (!birthday) return null;
+  const parts = birthday.replace(/\//g, '-').split('-').map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) return null;
+  const [y, m, d] = parts;
+  const today = new Date();
+  let age = today.getFullYear() - y;
+  const monthDiff = today.getMonth() + 1 - m;
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < d)) age--;
+  return age >= 0 ? age : null;
+}
+
 const FIELD_TO_COLUMN: Record<string, string> = {
   name: 'name', nameKana: 'name_kana', role: 'role', address: 'address',
   birthday: 'birthday', age: 'age', enrollmentDate: 'enrollment_date',
@@ -308,10 +321,10 @@ function SelectField({ label, value, fieldKey, memberId, options, onSaved, half 
 }
 
 // ── インライン編集フィールド ──
-function EditableField({ label, value, fieldKey, memberId, link, onSaved, half }: {
+function EditableField({ label, value, fieldKey, memberId, link, onSaved, half, suffix }: {
   label: string; value: string | number | undefined; fieldKey: string;
   memberId: string; link?: string; onSaved: (key: string, value: string) => void;
-  half?: boolean;
+  half?: boolean; suffix?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(String(value ?? ''));
@@ -355,16 +368,21 @@ function EditableField({ label, value, fieldKey, memberId, link, onSaved, half }
     <div className={`py-2 cursor-pointer transition-opacity duration-150 hover:opacity-70 ${half ? '' : 'border-b border-[#F0F0F0]'}`}
       onClick={() => { setEditValue(displayValue); setEditing(true); }}>
       <div className="text-[10px] text-[var(--color-subtext)] mb-0.5">{label}</div>
-      {displayValue ? (
-        link ? (
-          <a href={link} target="_blank" rel="noopener noreferrer"
-            className="text-sm text-[var(--color-text)] flex items-center gap-1"
-            onClick={e => e.stopPropagation()}>
-            {displayValue}
-            <ExternalLink size={16} className="text-[var(--color-icon-gray)]" />
-          </a>
-        ) : <span className="text-sm">{displayValue}</span>
-      ) : <span className="text-sm text-[#CCC] italic">未入力</span>}
+      <div className="flex items-baseline gap-2">
+        <div className="flex-1 min-w-0">
+          {displayValue ? (
+            link ? (
+              <a href={link} target="_blank" rel="noopener noreferrer"
+                className="text-sm text-[var(--color-text)] flex items-center gap-1"
+                onClick={e => e.stopPropagation()}>
+                {displayValue}
+                <ExternalLink size={16} className="text-[var(--color-icon-gray)]" />
+              </a>
+            ) : <span className="text-sm">{displayValue}</span>
+          ) : <span className="text-sm text-[#CCC] italic">未入力</span>}
+        </div>
+        {suffix && <span className="text-sm text-[var(--color-subtext)] shrink-0">{suffix}</span>}
+      </div>
     </div>
   );
 }
@@ -395,9 +413,9 @@ export default function MemberInfo({ member, onUpdate }: Props) {
       .catch(() => { /* サイレントに失敗 */ });
   }, [member?.id, member?.name, member?.nameKana, handleSaved]);
 
-  const F = (key: string, label: string, value: string | number | undefined, opts?: { link?: string; half?: boolean }) => (
+  const F = (key: string, label: string, value: string | number | undefined, opts?: { link?: string; half?: boolean; suffix?: string }) => (
     <EditableField key={key} fieldKey={key} label={label} value={value}
-      memberId={local.id} link={opts?.link} onSaved={handleSaved} half={opts?.half} />
+      memberId={local.id} link={opts?.link} onSaved={handleSaved} half={opts?.half} suffix={opts?.suffix} />
   );
 
   return (
@@ -414,7 +432,9 @@ export default function MemberInfo({ member, onUpdate }: Props) {
 
         {/* 常に見える部分（住所まで） */}
         <div className="px-4">
-          {F('nameKana', '読み仮名', local.nameKana)}
+          {F('nameKana', '読み仮名', local.nameKana, {
+            suffix: (() => { const a = calcAgeFromBirthday(local.birthday); return a != null ? `${a}歳` : undefined; })(),
+          })}
 
           {/* 役職 / 同居 — 横並び（行下のアンダーラインなし） */}
           <div className="grid grid-cols-2 gap-x-4 border-b border-[#F0F0F0]">
