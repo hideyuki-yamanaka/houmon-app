@@ -97,7 +97,7 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef }: P
                 >
                   <h2 className="text-lg font-bold truncate">
                     {m.nameKana
-                      ? <ruby>{m.name}<rp>(</rp><rt className="text-[9px] font-normal text-[var(--color-subtext)]">{m.nameKana}</rt><rp>)</rp></ruby>
+                      ? <ruby className="leading-relaxed">{m.name}<rp>(</rp><rt className="text-[9px] font-normal text-[var(--color-subtext)] tracking-wide">{m.nameKana}</rt><rp>)</rp></ruby>
                       : m.name}
                     {(() => {
                       if (!m.birthday) return null;
@@ -107,7 +107,7 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef }: P
                       const today = new Date();
                       let age = today.getFullYear() - y;
                       if (today.getMonth() + 1 - mo < 0 || (today.getMonth() + 1 === mo && today.getDate() < d)) age--;
-                      return age >= 0 ? <span className="text-xs font-normal text-[var(--color-subtext)] ml-1">({age})</span> : null;
+                      return age >= 0 ? <span className="text-[13px] font-normal text-[var(--color-subtext)] ml-1">({age})</span> : null;
                     })()}
                   </h2>
                   <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0" />
