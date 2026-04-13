@@ -97,7 +97,7 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef }: P
                 >
                   <div className="min-w-0">
                     {m.nameKana && (
-                      <div className="text-[9px] font-normal text-[var(--color-subtext)] tracking-wide leading-none mb-0.5">{m.nameKana}</div>
+                      <div className="text-[9px] font-normal text-[var(--color-subtext)] tracking-wide leading-none">{m.nameKana}</div>
                     )}
                     <h2 className="text-lg font-bold truncate">
                       {m.name}
@@ -113,7 +113,7 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef }: P
                       })()}
                     </h2>
                   </div>
-                  <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0" />
+                  <ChevronRight size={24} className="text-[var(--color-icon-gray)] shrink-0" />
                 </button>
                 <button
                   onClick={() => router.push(`/visits/new?memberId=${m.id}`)}
