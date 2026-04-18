@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useState, useMemo, useRef } from 'react';
-import { MapPin, TrendingUp, TrendingDown, AlertCircle, Users, Home, Flame } from 'lucide-react';
 import Link from 'next/link';
 import type { MemberWithVisitInfo, Visit, VisitStatus } from '../../lib/types';
 import { getMembersWithVisitInfo, getAllVisits } from '../../lib/storage';
