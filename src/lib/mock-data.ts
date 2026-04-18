@@ -128,6 +128,7 @@ export function getMockMembersWithVisitInfo(): MemberWithVisitInfo[] {
   const visitsByMember = new Map<string, { lastDate: string; lastStatus: string; count: number }>();
 
   for (const v of MOCK_VISITS) {
+    if (v.deletedAt) continue; // 論理削除済みはカウントしない
     const existing = visitsByMember.get(v.memberId);
     if (existing) {
       existing.count++;

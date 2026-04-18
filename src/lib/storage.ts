@@ -3,6 +3,60 @@ import { nanoid } from 'nanoid';
 import type { Member, MemberRow, MemberWithVisitInfo, Visit, VisitRow, VisitStatus, Respondent } from './types';
 import { MOCK_MEMBERS, MOCK_VISITS, getMockMembersWithVisitInfo, getMockVisits } from './mock-data';
 
+// ── モック環境の永続化（localStorage） ──
+// .env が無い＝Supabase に繋がってない状態でも、フォームで追加した訪問が
+// リロード後もダッシュボードに残るようにするためのレイヤー。
+// 1 回だけ localStorage を読んで MOCK_VISITS を書き換え、以降は MOCK_VISITS を
+// 変更するたびに persistMockVisits() で書き戻す。
+const MOCK_STORAGE_KEY = 'houmon-app:mock-visits-v1';
+let mockHydrated = false;
+
+function ensureMockHydrated(): void {
+  if (mockHydrated) return;
+  mockHydrated = true;
+  if (typeof window === 'undefined') return; // SSR では何もしない
+  try {
+    const raw = window.localStorage.getItem(MOCK_STORAGE_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw) as Visit[];
+    if (!Array.isArray(saved)) return;
+    // seed 側にあって保存側に無いもの（初期サンプルなど）は残す。id が重複したら保存側を優先。
+    const savedIds = new Set(saved.map((v) => v.id));
+    const merged: Visit[] = [
+      ...saved,
+      ...MOCK_VISITS.filter((v) => !savedIds.has(v.id)),
+    ];
+    MOCK_VISITS.length = 0;
+    MOCK_VISITS.push(...merged);
+  } catch {
+    // 壊れてても致命傷にしない
+  }
+}
+
+function persistMockVisits(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(MOCK_STORAGE_KEY, JSON.stringify(MOCK_VISITS));
+  } catch {
+    // 容量オーバーなどは無視
+  }
+}
+
+// updates は VisitRow (snake_case) なので、保管している Visit (camelCase) へマップしてマージ
+function applyMockUpdates(current: Visit, updates: Partial<VisitRow>): Visit {
+  const next: Visit = { ...current };
+  if (updates.visited_at !== undefined) next.visitedAt = updates.visited_at;
+  if (updates.status !== undefined) next.status = updates.status as VisitStatus;
+  if (updates.respondent !== undefined) next.respondent = (updates.respondent as Respondent | null) ?? undefined;
+  if (updates.notes !== undefined) next.notes = (updates.notes as Record<string, unknown> | null) ?? undefined;
+  if (updates.summary !== undefined) next.summary = updates.summary ?? undefined;
+  if (updates.keywords !== undefined) next.keywords = (updates.keywords as string[] | null) ?? undefined;
+  if (updates.images !== undefined) next.images = (updates.images as string[] | null) ?? undefined;
+  if (updates.deleted_at !== undefined) next.deletedAt = updates.deleted_at ?? undefined;
+  next.updatedAt = new Date().toISOString();
+  return next;
+}
+
 // ── Row → App 変換 ──
 
 function toMember(row: MemberRow): Member {
@@ -97,7 +151,10 @@ export async function getAllMemberIds(): Promise<string[]> {
 }
 
 export async function getAllVisitIds(): Promise<string[]> {
-  if (isMockMode) return MOCK_VISITS.map(v => v.id);
+  if (isMockMode) {
+    ensureMockHydrated();
+    return MOCK_VISITS.filter(v => !v.deletedAt).map(v => v.id);
+  }
   const { data, error } = await supabase
     .from('visits')
     .select('id')
@@ -109,7 +166,10 @@ export async function getAllVisitIds(): Promise<string[]> {
 // ── 訪問記録 CRUD ──
 
 export async function getVisits(memberId: string): Promise<Visit[]> {
-  if (isMockMode) return getMockVisits(memberId);
+  if (isMockMode) {
+    ensureMockHydrated();
+    return getMockVisits(memberId).filter(v => !v.deletedAt);
+  }
   const { data, error } = await supabase
     .from('visits')
     .select('*')
@@ -122,6 +182,7 @@ export async function getVisits(memberId: string): Promise<Visit[]> {
 
 export async function getVisitById(id: string): Promise<(Visit & { memberName: string; memberDistrict: string }) | null> {
   if (isMockMode) {
+    ensureMockHydrated();
     const v = MOCK_VISITS.find(v => v.id === id);
     if (!v) return null;
     const member = MOCK_MEMBERS.find(m => m.id === v.memberId);
@@ -143,8 +204,9 @@ export async function getVisitById(id: string): Promise<(Visit & { memberName: s
 
 export async function getVisitsByDate(date: string): Promise<(Visit & { memberName: string; memberDistrict: string })[]> {
   if (isMockMode) {
+    ensureMockHydrated();
     return MOCK_VISITS
-      .filter(v => v.visitedAt === date)
+      .filter(v => v.visitedAt === date && !v.deletedAt)
       .map(v => {
         const member = MOCK_MEMBERS.find(m => m.id === v.memberId);
         return { ...v, memberName: member?.name ?? '', memberDistrict: member?.district ?? '' };
@@ -166,8 +228,9 @@ export async function getVisitsByDate(date: string): Promise<(Visit & { memberNa
 
 export async function getVisitsByMonth(year: number, month: number): Promise<Visit[]> {
   if (isMockMode) {
+    ensureMockHydrated();
     const prefix = `${year}-${String(month).padStart(2, '0')}`;
-    return MOCK_VISITS.filter(v => v.visitedAt.startsWith(prefix));
+    return MOCK_VISITS.filter(v => v.visitedAt.startsWith(prefix) && !v.deletedAt);
   }
   const start = `${year}-${String(month).padStart(2, '0')}-01`;
   const endMonth = month === 12 ? 1 : month + 1;
@@ -207,7 +270,11 @@ export async function createVisit(
     updated_at: now,
   };
   if (isMockMode) {
-    return toVisit(row);
+    ensureMockHydrated();
+    const v = toVisit(row);
+    MOCK_VISITS.push(v);
+    persistMockVisits();
+    return v;
   }
   const { error } = await supabase.from('visits').insert(row);
   if (error) throw error;
@@ -216,6 +283,12 @@ export async function createVisit(
 
 export async function updateVisit(id: string, updates: Partial<VisitRow>): Promise<void> {
   if (isMockMode) {
+    ensureMockHydrated();
+    const idx = MOCK_VISITS.findIndex((v) => v.id === id);
+    if (idx >= 0) {
+      MOCK_VISITS[idx] = applyMockUpdates(MOCK_VISITS[idx], updates);
+      persistMockVisits();
+    }
     return;
   }
   const { error } = await supabase
@@ -315,7 +388,10 @@ async function backfillGuessedKana<T extends Member>(members: T[]): Promise<T[]>
 let kanaBackfillDone = false;
 
 export async function getMembersWithVisitInfo(): Promise<MemberWithVisitInfo[]> {
-  if (isMockMode) return getMockMembersWithVisitInfo();
+  if (isMockMode) {
+    ensureMockHydrated();
+    return getMockMembersWithVisitInfo();
+  }
   const [rawMembers, { data: visitData }] = await Promise.all([
     getMembers(),
     supabase
@@ -364,7 +440,13 @@ export async function getMembersWithVisitInfo(): Promise<MemberWithVisitInfo[]> 
 }
 
 export async function getAllVisits(): Promise<Visit[]> {
-  if (isMockMode) return MOCK_VISITS.sort((a, b) => b.visitedAt.localeCompare(a.visitedAt));
+  if (isMockMode) {
+    ensureMockHydrated();
+    return MOCK_VISITS
+      .filter(v => !v.deletedAt)
+      .slice()
+      .sort((a, b) => b.visitedAt.localeCompare(a.visitedAt));
+  }
   const { data, error } = await supabase
     .from('visits')
     .select('*')

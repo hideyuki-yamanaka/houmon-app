@@ -32,8 +32,12 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  // 手動「保存」ボタン押下時だけ出す完了トースト（自動保存では出さない）
+  const [showSavedToast, setShowSavedToast] = useState(false);
+  const manualSaveRef = useRef(false);
 
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const isCreatingRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -89,8 +93,26 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
     if (notes) updates.notes = notes;
     if (summary) updates.summary = summary;
     if (images.length > 0) updates.images = images;
+    manualSaveRef.current = true; // このセーブは手動 → 完了トースト出す対象
     save(updates);
   }, [save, status, date, respondent, notes, summary, images]);
+
+  // saveState が 'saved' になったタイミングで、手動保存起因ならトースト表示
+  useEffect(() => {
+    if (saveState === 'saved' && manualSaveRef.current) {
+      manualSaveRef.current = false;
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      setShowSavedToast(true);
+      toastTimerRef.current = setTimeout(() => setShowSavedToast(false), 1800);
+    }
+  }, [saveState]);
+
+  // トーストタイマーのクリーンアップ
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
+  }, []);
 
   // デバウンス付き自動保存
   const debouncedSave = useCallback((updates: Record<string, unknown>, immediate = false) => {
@@ -353,6 +375,24 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
             </button>
           </div>
 
+        </div>
+      </div>
+
+      {/* 保存完了トースト — 手動保存ボタン押下時だけフワッと出す。1.8秒で自動で消える */}
+      <div
+        aria-live="polite"
+        className={`pointer-events-none fixed left-1/2 -translate-x-1/2 z-[60] transition-all duration-200 ${
+          showSavedToast
+            ? 'opacity-100 translate-y-0'
+            : 'opacity-0 translate-y-2'
+        }`}
+        style={{ bottom: 'calc(80px + env(safe-area-inset-bottom))' }}
+      >
+        <div className="flex items-center gap-2 bg-[#111] text-white rounded-full pl-3 pr-4 py-2.5 shadow-lg">
+          <span className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+            <Check size={13} strokeWidth={3} className="text-white" />
+          </span>
+          <span className="text-sm font-bold">保存しました</span>
         </div>
       </div>
 
