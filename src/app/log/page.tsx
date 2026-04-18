@@ -713,38 +713,6 @@ export default function LogPage() {
               );
             })()}
 
-            {/* 自動インサイト — 一番下、全幅 */}
-            {insights.length > 0 && (
-              <div className="md:col-span-2 lg:col-span-4 pt-2">
-                <div className="px-1 mb-2">
-                  <h3 className="text-lg font-bold leading-tight">ちょっと気になる動き</h3>
-                  <p className="text-xs text-[var(--color-subtext)] mt-0.5">データから自動で見つけた気づき</p>
-                </div>
-                {/* スマホ・PCともに1列でフル幅 — 個々のインサイトにしっかり目が行くように */}
-                <div className="flex flex-col gap-2">
-                  {insights.map(i => {
-                    const Icon = i.icon;
-                    const toneClass =
-                      i.tone === 'warn' ? 'bg-amber-50 border-amber-200 text-amber-800'
-                      : i.tone === 'good' ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                      : 'bg-blue-50 border-blue-200 text-blue-800';
-                    return (
-                      <div
-                        key={i.key}
-                        className={`ios-card border flex items-start gap-3 hover:!opacity-100 ${toneClass}`}
-                        style={{ padding: 'var(--tune-card-pad, 2.125rem)' }}
-                      >
-                        <Icon size={22} className="shrink-0 mt-0.5" />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-base font-bold">{i.title}</div>
-                          <div className="text-sm mt-0.5 opacity-80">{i.body}</div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
