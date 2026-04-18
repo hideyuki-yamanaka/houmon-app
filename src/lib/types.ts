@@ -37,7 +37,7 @@ export interface Member {
 export type VisitStatus = 'met' | 'absent' | 'refused' | 'unknown_address' | 'moved';
 
 // ── 対応者 ──
-export type Respondent = 'wife' | 'son' | 'sibling';
+export type Respondent = 'father' | 'mother' | 'wife' | 'son' | 'sibling';
 
 // ── 訪問記録 ──
 export interface Visit {
