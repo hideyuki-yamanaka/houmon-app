@@ -177,7 +177,12 @@ export default function MembersListSheet({
               <div className="flex items-center justify-between">
                 <div className="flex items-baseline gap-2">
                   <h2 className="text-lg font-bold">メンバー</h2>
-                  <span className="text-sm text-[var(--color-subtext)]">{filtered.length}人</span>
+                  <span className="text-sm text-[var(--color-subtext)]">
+                    {filtered.length}人
+                    <span className="ml-1 text-[var(--color-subtext)]">
+                      （訪問済み{filtered.filter(m => m.totalVisits > 0).length}人）
+                    </span>
+                  </span>
                 </div>
                 <div className="flex items-center gap-3">
                   {hasAnyFilter && (
