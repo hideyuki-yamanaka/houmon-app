@@ -173,6 +173,8 @@ export const VISIT_STATUS_CONFIG: Record<VisitStatus, { label: string; color: st
 
 // ── 対応者 ──
 export const RESPONDENT_CONFIG: Record<Respondent, { label: string }> = {
+  father:  { label: '父' },
+  mother:  { label: '母' },
   wife:    { label: '妻' },
   son:     { label: '息子' },
   sibling: { label: '兄弟' },
