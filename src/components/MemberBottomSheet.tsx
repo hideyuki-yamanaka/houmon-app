@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState, type Ref, type ReactNode } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, MapPin, Clock, Footprints, PencilLine } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit } from '../lib/types';
-import { formatDate } from '../lib/utils';
+import { VISIT_STATUS_CONFIG } from '../lib/constants';
+import { formatDate, stripBuildingName } from '../lib/utils';
 import { getVisits } from '../lib/storage';
 import SwipeableBottomSheet, { type SheetHandle } from './SwipeableBottomSheet';
 
