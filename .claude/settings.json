@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node scripts/:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx --prefix:*)",
+      "Bash(npx --no-install:*)",
+      "Bash(npx --yes:*)",
+      "Bash(./node_modules/.bin/:*)",
+      "Bash(node_modules/.bin/:*)",
+      "Bash(/tmp/houmon-app/node_modules/.bin/:*)",
+      "Bash(vercel ls:*)",
+      "Bash(vercel env:*)",
+      "Bash(npx vercel:*)",
+      "Bash(python3 -m json.tool)",
+      "Bash(ls /tmp/:*)",
+      "Bash(ls *.csv)",
+      "Bash(ls -la .env*)",
+      "Bash(rm -rf .next)",
+      "Bash(rm -rf src/app/proposals)",
+      "Bash(tar -xzf:*)",
+      "Read(//tmp/**)",
+      "Read(//private/tmp/**)"
+    ]
+  }
+}
