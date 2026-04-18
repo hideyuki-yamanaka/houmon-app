@@ -150,13 +150,14 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                 </span>
               </div>
 
-              {/* 住所（Googleマップ遷移リンク） */}
+              {/* 住所（Googleマップ遷移リンク）
+                  表示は建物名込みのフル住所、Maps へ飛ばす時は建物名を除いた住所で検索 */}
               {m.address && (
                 <a
                   href={
                     m.lat != null && m.lng != null
                       ? `https://www.google.com/maps/search/?api=1&query=${m.lat},${m.lng}`
-                      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(m.address.replace(/\s.*$/, ''))}`
+                      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stripBuildingName(m.address))}`
                   }
                   target="_blank"
                   rel="noopener noreferrer"
