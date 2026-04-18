@@ -13,9 +13,21 @@ import type { SheetHandle } from '../components/SwipeableBottomSheet';
 
 const MapView = dynamic(() => import('../components/MapView'), { ssr: false });
 
+// 詳細ページから戻ってきた時に「見ていた人のピンを中央に表示する」ための
+// sessionStorage キー。詳細ページで setItem しておいて、このページのマウント時に
+// 読み込んで selectedId に復元する。一度使ったらクリア。
+const LAST_VIEWED_MEMBER_KEY = 'houmon_lastViewedMemberId';
+
 export default function HomePage() {
   const [members, setMembers] = useState<MemberWithVisitInfo[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const id = sessionStorage.getItem(LAST_VIEWED_MEMBER_KEY);
+      if (id) sessionStorage.removeItem(LAST_VIEWED_MEMBER_KEY);
+      return id;
+    } catch { return null; }
+  });
   const [loading, setLoading] = useState(true);
   const [locating, setLocating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');

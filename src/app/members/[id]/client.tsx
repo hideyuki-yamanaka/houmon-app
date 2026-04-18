@@ -30,6 +30,12 @@ export default function MemberDetailClient() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // ホームに戻ってきた時、マップがこのメンバーのピンを中央に表示するよう記録する。
+  // page.tsx 側が sessionStorage から読み込んで selectedId に復元 → PanToSelected が発火。
+  useEffect(() => {
+    try { sessionStorage.setItem('houmon_lastViewedMemberId', id); } catch { /* ignore */ }
+  }, [id]);
+
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') fetchData();

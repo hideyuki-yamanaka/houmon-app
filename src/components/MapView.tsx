@@ -129,13 +129,12 @@ function PanToSelected({ members, selectedId }: { members: MemberWithVisitInfo[]
   const prevRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!selectedId || selectedId === prevRef.current) {
-      prevRef.current = selectedId;
-      return;
-    }
-    prevRef.current = selectedId;
+    if (!selectedId || selectedId === prevRef.current) return;
     const m = members.find(x => x.id === selectedId);
+    // members がまだロード中なら prevRef を更新せずリトライを待つ
+    // （詳細ページから戻ってきた時、初回レンダーでは members が空のことがある）
     if (m?.lat == null || m?.lng == null) return;
+    prevRef.current = selectedId;
 
     const latLng = L.latLng(m.lat, m.lng);
     const t = window.setTimeout(() => {

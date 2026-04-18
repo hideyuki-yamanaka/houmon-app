@@ -29,6 +29,12 @@ export default function VisitDetailClient() {
 
   useEffect(() => { fetchVisit(); }, [fetchVisit]);
 
+  // ホームに戻ってきた時、マップがこの訪問のメンバーのピンを中央に表示するよう記録する。
+  useEffect(() => {
+    if (!visit?.memberId) return;
+    try { sessionStorage.setItem('houmon_lastViewedMemberId', visit.memberId); } catch { /* ignore */ }
+  }, [visit?.memberId]);
+
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') fetchVisit();
