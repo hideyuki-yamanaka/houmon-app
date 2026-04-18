@@ -179,24 +179,32 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                   <p className="text-sm text-[var(--color-subtext)]">読み込み中...</p>
                 ) : (
                   <div className="space-y-2">
-                    {visits.map(v => (
-                      <button
-                        key={v.id}
-                        onClick={() => router.push(`/visits/${v.id}`)}
-                        className="block w-full text-left"
-                      >
-                        <div className="px-3 py-2.5 rounded-lg bg-[#F5F5F5] active:bg-[#EBEBEB] transition-colors flex items-center gap-2">
-                          <span className="text-sm font-medium shrink-0">
-                            {formatDate(v.visitedAt, 'yyyy年M月d日')}
-                          </span>
-                          {v.summary && (
-                            <span className="text-xs text-[var(--color-subtext)] truncate">
-                              {v.summary}
+                    {visits.map(v => {
+                      const sc = VISIT_STATUS_CONFIG[v.status];
+                      return (
+                        <Link
+                          key={v.id}
+                          href={`/visits/${v.id}`}
+                          className="block w-full text-left"
+                        >
+                          <div className="px-3 py-2.5 rounded-lg bg-[#F5F5F5] active:bg-[#EBEBEB] transition-colors flex items-center gap-2">
+                            <span className="text-sm font-medium shrink-0">
+                              {formatDate(v.visitedAt, 'yyyy年M月d日')}
                             </span>
-                          )}
-                        </div>
-                      </button>
-                    ))}
+                            {sc && (
+                              <span className={`text-[11px] px-2 py-0.5 rounded-full shrink-0 ${sc.bg} ${sc.color}`}>
+                                {sc.label}
+                              </span>
+                            )}
+                            {v.summary && (
+                              <span className="text-xs text-[var(--color-subtext)] truncate">
+                                {v.summary}
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    })}
                     {m.totalVisits > 5 && (
                       <button
                         onClick={() => router.push(`/members/${m.id}`)}
