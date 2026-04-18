@@ -210,7 +210,20 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
         <h1 className="text-base font-bold truncate flex-1 text-center">
           {member.name}さんへの訪問ログ
         </h1>
-        <div className="w-[52px] shrink-0" />
+        <button
+          type="button"
+          onClick={handleManualSave}
+          disabled={saveState === 'saving'}
+          aria-label="保存"
+          className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#111] text-white text-[13px] font-bold px-3.5 py-1.5 active:scale-95 transition-transform disabled:opacity-60"
+        >
+          {saveState === 'saving' ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : saveState === 'saved' ? (
+            <Check size={14} strokeWidth={2.4} />
+          ) : null}
+          保存
+        </button>
       </nav>
 
       {/* フォーム本体 */}
