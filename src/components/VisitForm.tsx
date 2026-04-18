@@ -45,13 +45,18 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
       isCreatingRef.current = true;
       setSaveState('saving');
       try {
-        const visit = await createVisit(member.id, date, status);
+        // updates で渡ってきた status / visited_at を優先（state がまだ反映前の可能性があるため）
+        const effectiveStatus = (updates.status as VisitStatus) ?? status;
+        const effectiveDate = (updates.visited_at as string) ?? date;
+        const visit = await createVisit(member.id, effectiveDate, effectiveStatus);
         setVisitId(visit.id);
-        // 追加フィールドがあればすぐ更新
-        const extraUpdates: Record<string, unknown> = {};
-        if (respondent) extraUpdates.respondent = respondent;
-        if (notes) extraUpdates.notes = notes;
-        if (summary) extraUpdates.summary = summary;
+        // 作成時に済ませられなかった残りの項目をまとめて 1 回で更新
+        const extraUpdates: Record<string, unknown> = { ...updates };
+        delete extraUpdates.status;
+        delete extraUpdates.visited_at;
+        if (respondent && extraUpdates.respondent === undefined) extraUpdates.respondent = respondent;
+        if (notes && extraUpdates.notes === undefined) extraUpdates.notes = notes;
+        if (summary && extraUpdates.summary === undefined) extraUpdates.summary = summary;
         if (Object.keys(extraUpdates).length > 0) {
           await updateVisit(visit.id, extraUpdates);
         }
@@ -72,6 +77,20 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
       setSaveState('error');
     }
   }, [visitId, member.id, date, status, respondent, notes, summary]);
+
+  // 手動保存ボタン: デバウンスをキャンセルして即保存
+  const handleManualSave = useCallback(() => {
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    const updates: Record<string, unknown> = {
+      status,
+      visited_at: date,
+    };
+    if (respondent) updates.respondent = respondent;
+    if (notes) updates.notes = notes;
+    if (summary) updates.summary = summary;
+    if (images.length > 0) updates.images = images;
+    save(updates);
+  }, [save, status, date, respondent, notes, summary, images]);
 
   // デバウンス付き自動保存
   const debouncedSave = useCallback((updates: Record<string, unknown>, immediate = false) => {
