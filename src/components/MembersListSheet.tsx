@@ -85,11 +85,13 @@ export function applyAllFilters(members: MemberWithVisitInfo[], a: AppliedFilter
   });
 }
 
-// peek: 初期表示で「メンバーの2人目ぐらいまで見える」高さ
-// （ヘッダー + あ行ラベル + カード2枚分 + 少し下に余白）
-const PEEK_HEIGHT = 260;
+// peek: 初期表示で「メンバーの3〜4人目ぐらいまで見える」高さ
+// （ヘッダー + あ行ラベル + カード数枚 + 下部タブに被らない余白）
+// 320: スマホで iOS のホームインジケータ域を考慮しても
+//      フィルターアイコンやボタンが見切れないサイズ
+const PEEK_HEIGHT = 320;
 // mini: 見出し行＋ドラッグハンドルだけ（限界まで下げる）
-const MINI_HEIGHT = 72;
+const MINI_HEIGHT = 80;
 
 export default function MembersListSheet({
   members,
