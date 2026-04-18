@@ -26,6 +26,28 @@ const STATUS_HEX: Record<VisitStatus, string> = {
   moved: '#8B5CF6',
 };
 
+// 週の始まりを月曜に揃える（土日=週末として扱う）
+// ヒデさんの運用：訪問は土日のみ、1週あたり3〜4人が目安 → 週単位で活動ペースを見る
+function mondayOf(d: Date): Date {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  const day = x.getDay(); // 0=Sun..6=Sat
+  const diff = day === 0 ? -6 : 1 - day;
+  x.setDate(x.getDate() + diff);
+  return x;
+}
+function fmtDate(d: Date) { return d.toISOString().slice(0, 10); }
+function emptyStatusCounts(): Record<VisitStatus, number> {
+  return { met: 0, absent: 0, refused: 0, unknown_address: 0, moved: 0 };
+}
+
+type WeekBucket = {
+  start: Date;
+  startStr: string;
+  counts: Record<VisitStatus, number>;
+  total: number;
+};
+
 export default function LogPage() {
   const [members, setMembers] = useState<MemberWithVisitInfo[]>([]);
   const [allVisits, setAllVisits] = useState<Visit[]>([]);
@@ -38,6 +60,8 @@ export default function LogPage() {
   // グラフ描画エリア（ラッパー）のサイズ。縦幅を「割合」カードにフィットさせるため可変にする。
   const trendWrapRef = useRef<HTMLDivElement>(null);
   const [trendChartH, setTrendChartH] = useState(200);
+  // 1ヶ月あたりの横幅（デザインチューナーの --tune-trend-step で live 調整できる）
+  const [trendStepPx, setTrendStepPx] = useState(120);
 
   useEffect(() => {
     Promise.all([getMembersWithVisitInfo(), getAllVisits()])
@@ -48,19 +72,30 @@ export default function LogPage() {
 
   // 推移グラフの縦フィル：ラッパー高さを ResizeObserver で拾って chartH に反映。
   // これで右隣「割合」カードに高さが揃い、縦方向の余白が消える。
+  // ついでにデザインチューナーの --tune-trend-step（ピクセル数）も読みに行く。
   useEffect(() => {
     const el = trendWrapRef.current;
     if (!el) return;
     const update = () => {
       const h = el.clientHeight;
       // X軸ラベル（h-10 + mt-1 = 約44px）を差し引いて、純粋なチャート高さとして使う
-      const chartOnly = Math.max(180, h - 48);
+      const chartOnly = Math.max(150, h - 48);
       setTrendChartH(chartOnly);
+      // CSS 変数から step 幅を取得（デザインチューナー反映用）
+      const stepRaw = getComputedStyle(document.documentElement).getPropertyValue('--tune-trend-step').trim();
+      const stepNum = stepRaw ? parseFloat(stepRaw) : NaN;
+      if (!Number.isNaN(stepNum) && stepNum > 0) setTrendStepPx(stepNum);
     };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
-    return () => ro.disconnect();
+    // :root の style 属性（= CSS 変数変更）を監視して step 幅を追従
+    const mo = new MutationObserver(update);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] });
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+    };
   }, [loading]);
 
   // 年間推移グラフ：データ読み込み完了後、右端（最新月＝現在地点）にスクロール。
@@ -133,6 +168,50 @@ export default function LogPage() {
     };
   }, [members, periodVisits]);
 
+  // 直近12週の週別バケット — 「家庭訪問の継続率」カード用。
+  // 週=月曜始まり。allVisits から 12 週分を集計し、各週のステータス別カウントを作る。
+  // period タブ（1週/1ヶ月/...）とは独立で、常に直近12週を見せる。
+  const weekly12 = useMemo<WeekBucket[]>(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const thisMon = mondayOf(today);
+    const buckets: WeekBucket[] = [];
+    for (let i = 11; i >= 0; i--) {
+      const start = new Date(thisMon);
+      start.setDate(thisMon.getDate() - i * 7);
+      buckets.push({ start, startStr: fmtDate(start), counts: emptyStatusCounts(), total: 0 });
+    }
+    for (const v of allVisits) {
+      const vMonStr = fmtDate(mondayOf(new Date(v.visitedAt)));
+      const b = buckets.find(b => b.startStr === vMonStr);
+      if (b) { b.counts[v.status]++; b.total++; }
+    }
+    return buckets;
+  }, [allVisits]);
+
+  // 連続訪問週数：今週（or 先週）から遡って何週連続で訪問があるか。
+  // 今週がまだ 0 でも、先週以前から遡って数える（土日まだ来てない週末運用を考慮）
+  const streakWeeks = useMemo(() => {
+    let count = 0;
+    for (let i = weekly12.length - 1; i >= 0; i--) {
+      if (weekly12[i].total > 0) count++;
+      else if (i === weekly12.length - 1) continue;
+      else break;
+    }
+    return count;
+  }, [weekly12]);
+
+  // 直近12週の手応え内訳（ステータス別カウント合計）— スタックバーとレジェンドで使う
+  const continuityStats = useMemo(() => {
+    const counts = emptyStatusCounts();
+    for (const w of weekly12) {
+      for (const s of Object.keys(counts) as VisitStatus[]) counts[s] += w.counts[s];
+    }
+    const total = (Object.values(counts) as number[]).reduce((a, b) => a + b, 0);
+    const metRate = total > 0 ? Math.round((counts.met / total) * 100) : 0;
+    return { counts, total, metRate };
+  }, [weekly12]);
+
   // 時系列グラフ用データ — 月別×直近12ヶ月の「訪問人数（ユニーク）」推移。
   // ヒデさんの要望で "1月は6人、2月は1人" みたいな月ごとの水位を見れるよう固定。
   // 期間タブ(1週/1ヶ月…)は上段の統計だけに効いて、このグラフは常に年間トレンド。
@@ -166,100 +245,6 @@ export default function LogPage() {
     return { buckets, monthCount };
   }, [allVisits]);
 
-  // 自動インサイト：データから気付きを自動抽出
-  const insights = useMemo(() => {
-    const items: { key: string; icon: typeof TrendingUp; tone: 'warn' | 'good' | 'info'; title: string; body: string }[] = [];
-
-    // 直近10訪問で不在が6以上
-    const recent10 = [...allVisits].sort((a, b) => b.visitedAt.localeCompare(a.visitedAt)).slice(0, 10);
-    const recentAbsent = recent10.filter(v => v.status === 'absent').length;
-    if (recent10.length >= 10 && recentAbsent >= 6) {
-      items.push({
-        key: 'absent-surge', icon: AlertCircle, tone: 'warn',
-        title: '不在が続いてるで',
-        body: `直近10回のうち${recentAbsent}回が不在。訪問タイミング変えてみる？`,
-      });
-    }
-
-    // 会えた率改善（前期間比 +10pt 以上）
-    if (periodVisits.length >= 5 && prevPeriodVisits.length >= 5) {
-      const curMet = periodVisits.filter(v => v.status === 'met').length / periodVisits.length * 100;
-      const prevMet = prevPeriodVisits.filter(v => v.status === 'met').length / prevPeriodVisits.length * 100;
-      const diff = curMet - prevMet;
-      if (diff >= 10) {
-        items.push({
-          key: 'met-up', icon: TrendingUp, tone: 'good',
-          title: '会えた率上がってる！',
-          body: `前の期間より +${Math.round(diff)}pt。ええ感じや。`,
-        });
-      } else if (diff <= -10) {
-        items.push({
-          key: 'met-down', icon: TrendingDown, tone: 'warn',
-          title: '会えた率が下がってる',
-          body: `前の期間より ${Math.round(diff)}pt。`,
-        });
-      }
-    }
-
-    // 未訪問多数（全期間で一度も訪問してないメンバーが30人以上）
-    const neverVisited = members.filter(m => m.totalVisits === 0).length;
-    if (neverVisited >= 30) {
-      items.push({
-        key: 'never-visited', icon: Users, tone: 'info',
-        title: '未訪問メンバーが多いで',
-        body: `${neverVisited}人がまだ一度も訪問されてへん。`,
-      });
-    }
-
-    // 地区別カバー率の偏り（最大と最小の差が 40pt 以上）
-    const districtRates = Array.from(stats.districtStats.entries())
-      .filter(([, d]) => d.total > 0)
-      .map(([k, d]) => ({ k, rate: (d.visited / d.total) * 100 }));
-    if (districtRates.length >= 2) {
-      const max = Math.max(...districtRates.map(d => d.rate));
-      const min = Math.min(...districtRates.map(d => d.rate));
-      if (max - min >= 40) {
-        const minDistrict = districtRates.find(d => d.rate === min)!;
-        items.push({
-          key: 'district-gap', icon: MapPin, tone: 'info',
-          title: '地区のカバー率にムラあり',
-          body: `${minDistrict.k.replace(/豊岡部|光陽部|豊岡中央支部/g, '')}地区が手薄（${Math.round(min)}%）。`,
-        });
-      }
-    }
-
-    // 転居増加（この期間で3件以上）
-    const movedCount = periodVisits.filter(v => v.status === 'moved').length;
-    if (movedCount >= 3) {
-      items.push({
-        key: 'moved-up', icon: Home, tone: 'info',
-        title: '転居が増えてきてる',
-        body: `この期間で${movedCount}件。名簿更新のタイミングかも。`,
-      });
-    }
-
-    // 連続訪問（直近7日すべてで訪問あり）
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const last7 = new Set<string>();
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      last7.add(d.toISOString().slice(0, 10));
-    }
-    const visitedDates = new Set(allVisits.map(v => v.visitedAt.slice(0, 10)));
-    const allCovered = Array.from(last7).every(d => visitedDates.has(d));
-    if (allCovered) {
-      items.push({
-        key: 'streak', icon: Flame, tone: 'good',
-        title: '7日連続で訪問中！',
-        body: '習慣化できてる。ほんま素晴らしい。',
-      });
-    }
-
-    return items;
-  }, [allVisits, periodVisits, prevPeriodVisits, members, stats.districtStats]);
-
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -269,7 +254,6 @@ export default function LogPage() {
   }
 
   const maxBucketCount = Math.max(1, ...timeSeries.buckets.map(b => b.count));
-  const totalStatusCount = Array.from(stats.statusCounts.values()).reduce((a, b) => a + b, 0);
 
   return (
     <div className="absolute inset-0 flex flex-col bg-[var(--color-bg)]">
@@ -279,8 +263,11 @@ export default function LogPage() {
 
       <div className="flex-1 overflow-y-auto">
         <div
-          className="max-w-[1366px] mx-auto px-4 pt-3"
-          style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom) + 16px)' }}
+          className="max-w-[1366px] mx-auto px-4"
+          style={{
+            paddingTop: 'var(--tune-section-pad-top, 0.75rem)',
+            paddingBottom: 'calc(60px + env(safe-area-inset-bottom) + 16px)',
+          }}
         >
           {/* 期間タブ — 横スクロール可、アクティブは黒塗り */}
           <div className="flex gap-2 overflow-x-auto -mx-4 px-4 pb-1 mb-3">
@@ -300,70 +287,173 @@ export default function LogPage() {
           </div>
 
           {/* 弁当グリッド：スマホ=1列 / タブレット=2列 / PC=4列
-              各カードに md: / lg: の col-span を付けてサイズを可変にする */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              各カードに md: / lg: の col-span を付けてサイズを可変にする。
+              gap はチューナーで可変にする（--tune-card-gap） */}
+          <div
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4"
+            style={{ gap: 'var(--tune-card-gap, 1rem)' }}
+          >
 
-            {/* ステータス別 横棒グラフ — PCでは訪問人数推移と横並び
-                (md: 2 col 全幅 / lg: 2 col = 半分)
-                ドーナツだと余白が目立っていたので、横棒＋大きめのフォントで情報密度を上げる */}
-            <div className="ios-card p-5 hover:!opacity-100 md:col-span-2 lg:col-span-2">
-              <div className="flex items-baseline justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-bold leading-tight">割合</h3>
-                  <p className="text-xs text-[var(--color-subtext)] mt-0.5">訪問の手応え内訳</p>
-                </div>
-                {totalStatusCount > 0 && (
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-4xl font-black tabular-nums leading-none">{totalStatusCount}</span>
-                    <span className="text-sm text-[var(--color-subtext)]">件</span>
-                  </div>
-                )}
-              </div>
-              {totalStatusCount === 0 ? (
-                <p className="text-sm text-[var(--color-subtext)] py-4 text-center">この期間の訪問はまだないで</p>
-              ) : (
-                <div className="space-y-4">
-                  {(Object.keys(VISIT_STATUS_CONFIG) as VisitStatus[]).map(status => {
-                    const count = stats.statusCounts.get(status) ?? 0;
-                    const pct = totalStatusCount > 0 ? Math.round((count / totalStatusCount) * 100) : 0;
-                    const hex = STATUS_HEX[status];
-                    return (
-                      <div key={status}>
-                        <div className="flex items-baseline justify-between mb-1.5">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: hex }} />
-                            <span className="text-[15px] font-medium truncate">{VISIT_STATUS_CONFIG[status].label}</span>
-                          </div>
-                          <div className="flex items-baseline gap-2 shrink-0 ml-2">
-                            <span className="text-xs text-[var(--color-subtext)] tabular-nums">{count}件</span>
-                            <span className="text-xl font-black tabular-nums w-12 text-right" style={{ color: count > 0 ? hex : '#D1D5DB' }}>{pct}%</span>
-                          </div>
-                        </div>
-                        <div className="h-2.5 bg-[#F3F4F6] rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-[width] duration-500"
-                            style={{ width: `${pct}%`, backgroundColor: hex }}
-                          />
-                        </div>
+            {/* 家庭訪問の継続率カード（案C: 4週刻みアンカー型）
+                - Hero：連続週数（🔥 streak weeks、オレンジ）
+                - 12週ドット：訪問があった週は緑、なしはグレー。今週は黒枠
+                - ドット下に 12週前 / 8週前 / 4週前 / 今週 の4アンカー + 短縮日付
+                - 最下段に手応えスタックバー + レジェンド（12週分合計）
+                - period タブとは独立で、常に直近12週を見せる */}
+            <div
+              className="ios-card hover:!opacity-100 md:col-span-2 lg:col-span-2 flex flex-col"
+              style={{ padding: 'var(--tune-card-pad, 2.125rem)' }}
+            >
+              {(() => {
+                const order: VisitStatus[] = ['met', 'absent', 'refused', 'unknown_address', 'moved'];
+                // 4アンカー：index → ラベル
+                const anchors: Record<number, string> = { 0: '12週前', 4: '8週前', 8: '4週前', 11: '今週' };
+                const { counts, total, metRate } = continuityStats;
+
+                return (
+                  <>
+                    {/* ヘッダー：左=タイトル、右=連続週数 Hero */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h3 className="text-lg font-bold leading-tight">家庭訪問の継続率</h3>
+                        <p className="text-xs text-[var(--color-subtext)] mt-0.5">直近12週の活動ペース</p>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                      <div className="flex items-baseline gap-1">
+                        <span
+                          className="font-black tabular-nums leading-none text-[#111]"
+                          style={{ fontSize: 'var(--tune-hero-size, 4rem)' }}
+                        >
+                          {streakWeeks}
+                        </span>
+                        <span className="text-sm font-bold text-[#111]">週連続</span>
+                      </div>
+                    </div>
+
+                    {/* 12週ドット */}
+                    <div className="mb-3">
+                      <div className="flex items-center gap-1 mb-1.5">
+                        {weekly12.map((w, i) => {
+                          const isCur = i === weekly12.length - 1;
+                          const hit = w.total > 0;
+                          return (
+                            <div key={i} className="flex-1">
+                              <div
+                                className="w-full rounded"
+                                style={{
+                                  aspectRatio: '1',
+                                  backgroundColor: hit ? '#10B981' : '#F3F4F6',
+                                  border: isCur ? '2px solid #111' : 'none',
+                                }}
+                                title={`${w.startStr}〜 ${w.total}人`}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {/* アンカーラベル：12週前 / 8週前 / 4週前 / 今週 + 日付 */}
+                      <div className="flex items-start gap-1">
+                        {weekly12.map((w, i) => {
+                          const label = anchors[i];
+                          const isCur = i === weekly12.length - 1;
+                          if (!label) return <div key={i} className="flex-1" />;
+                          return (
+                            <div key={i} className="flex-1 text-center">
+                              <div className="flex flex-col items-center">
+                                <span
+                                  className={`text-[10px] leading-none ${isCur ? 'font-black text-[#111]' : 'font-bold text-[var(--color-subtext)]'}`}
+                                >
+                                  {label}
+                                </span>
+                                <span className="text-[9px] tabular-nums text-[var(--color-subtext)] leading-none mt-0.5">
+                                  {w.start.getMonth() + 1}/{w.start.getDate()}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* 手応え内訳（12週合計）— mt-auto で下付け */}
+                    <div className="mt-auto">
+                      {total === 0 ? (
+                        <p className="text-sm text-[var(--color-subtext)] py-4 text-center">直近12週の訪問はまだないで</p>
+                      ) : (
+                        <>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-[11px] text-[var(--color-subtext)]">カテゴリ別割合</span>
+                            <span className="text-[12px] font-bold">会えた率 {metRate}%</span>
+                          </div>
+                          {/* スタックバー */}
+                          <div
+                            className="flex rounded-full overflow-hidden bg-[#F3F4F6]"
+                            style={{ height: 'var(--tune-bar-h, 3rem)' }}
+                          >
+                            {order.map(status => {
+                              const c = counts[status];
+                              if (c === 0) return null;
+                              const pct = (c / total) * 100;
+                              return (
+                                <div
+                                  key={status}
+                                  className="h-full transition-[width] duration-500"
+                                  style={{ width: `${pct}%`, backgroundColor: STATUS_HEX[status] }}
+                                  title={`${VISIT_STATUS_CONFIG[status].label}: ${c}件`}
+                                />
+                              );
+                            })}
+                          </div>
+                          {/* レジェンド */}
+                          <div
+                            className="pt-4 grid grid-cols-2 sm:grid-cols-3 gap-x-4"
+                            style={{ rowGap: 'var(--tune-legend-gap-y, 0rem)' }}
+                          >
+                            {order.map(status => {
+                              const c = counts[status];
+                              const hex = STATUS_HEX[status];
+                              return (
+                                <div key={status} className="flex items-center gap-2 min-w-0">
+                                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: hex }} />
+                                  <span className="text-[13px] truncate flex-1 text-[var(--color-subtext)]">
+                                    {VISIT_STATUS_CONFIG[status].label}
+                                  </span>
+                                  <span
+                                    className="text-base font-black tabular-nums"
+                                    style={{ color: c > 0 ? '#111' : '#D1D5DB' }}
+                                  >
+                                    {c}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {/* 月別訪問人数の年間推移 (md: 2 col 全幅 / lg: 2 col = 半分)
                 PCではステータスドーナツと横並び → グラフ幅が詰まるので横スクロール対応。
                 デフォルトは右端(最新月)にスクロールしておく。
                 縦はグリッドで割合カードと同じ高さに stretch、中身は flex-1 でフィル。 */}
-            <div className="ios-card p-5 hover:!opacity-100 md:col-span-2 lg:col-span-2 flex flex-col">
-              <div className="mb-3">
+            <div
+              className="ios-card hover:!opacity-100 md:col-span-2 lg:col-span-2 flex flex-col"
+              style={{ padding: 'var(--tune-card-pad, 2.125rem)' }}
+            >
+              <div className="mb-2.5">
                 <h3 className="text-lg font-bold leading-tight">訪問人数の推移</h3>
                 <p className="text-xs text-[var(--color-subtext)] mt-0.5">
                   直近{timeSeries.monthCount}ヶ月（月ごとのユニーク人数）
                 </p>
               </div>
-              <div ref={trendWrapRef} className="flex-1 min-h-[200px]">
+              <div
+                ref={trendWrapRef}
+                className="flex-1"
+                style={{ minHeight: 'var(--tune-trend-min-h, 280px)' }}
+              >
               {(() => {
                 // ─── 案C (3ヶ月ズーム) ───
                 // - 初期表示は3ヶ月が画面内に収まる幅（現在月を右端・前2ヶ月を同時表示）
@@ -373,7 +463,7 @@ export default function LogPage() {
                 const buckets = timeSeries.buckets;
                 const yMax = Math.max(6, maxBucketCount);
                 const chartH = trendChartH;   // 親カードの高さにフィットさせる可変値
-                const stepPx = 120;        // 1ヶ月あたりの横幅 → 3ヶ月で約360px見える
+                const stepPx = trendStepPx;   // 1ヶ月あたりの横幅（デザインチューナーで調整可）
                 const innerW = buckets.length * stepPx;
                 const xAt = (i: number) => i * stepPx + stepPx / 2;
                 const yAt = (c: number) => chartH - 40 - (c / yMax) * (chartH - 80);
@@ -495,7 +585,10 @@ export default function LogPage() {
               allDistricts.sort(([, a], [, b]) => b.visited - a.visited);
               const visibleDistricts = expandDistrict ? allDistricts : allDistricts.slice(0, 9);
               return (
-                <div className="ios-card p-4 hover:!opacity-100 md:col-span-1 lg:col-span-2">
+                <div
+                  className="ios-card hover:!opacity-100 md:col-span-1 lg:col-span-2"
+                  style={{ padding: 'var(--tune-card-pad, 2.125rem)' }}
+                >
                   <div className="flex items-baseline gap-2 mb-2.5">
                     <div>
                       <h3 className="text-lg font-bold leading-tight">地区別</h3>
@@ -503,25 +596,31 @@ export default function LogPage() {
                     </div>
                     <span className="text-xs text-[var(--color-subtext)] ml-auto">全{allDistricts.length}地区</span>
                   </div>
-                  {/* タイルは aspect-[2/1] の横長にして高さを削る。
-                      名前と数字を横並びにすることで更にコンパクト化（ヒデさん要望: 縦幅30%ダウン） */}
-                  <div className="grid grid-cols-3 gap-2">
+                  {/* タイルの aspect・gap・数字サイズは全部チューナーで可変 */}
+                  <div
+                    className="grid grid-cols-3"
+                    style={{ gap: 'var(--tune-district-gap, 0.5rem)' }}
+                  >
                     {visibleDistricts.map(([district, data]) => {
                       const hex = DISTRICT_COLORS[district]?.hex ?? '#6B7280';
                       const short = district.replace(/豊岡部|光陽部|豊岡中央支部/g, '');
                       return (
                         <div
                           key={district}
-                          className="rounded-xl px-3 py-2.5 flex flex-col justify-between aspect-[5/2] bg-[#F7F7F8] border border-[#EBEBEB]"
+                          className="rounded-xl px-3 py-2.5 flex flex-col justify-between bg-[#F7F7F8] border border-[#EBEBEB]"
+                          style={{ aspectRatio: 'var(--tune-district-aspect, 2.3)' }}
                         >
                           {/* 地区名 + カラードット（色はここだけ） */}
                           <div className="flex items-center gap-1.5 min-w-0">
                             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: hex }} />
                             <span className="text-[13px] font-semibold text-[#111] truncate">{short}</span>
                           </div>
-                          {/* 訪問人数 — でっかく、モノクロ */}
+                          {/* 訪問人数 — サイズはチューナーで調整 */}
                           <div className="flex items-baseline gap-1">
-                            <span className="text-3xl font-black tabular-nums leading-none text-[#111]">
+                            <span
+                              className="font-black tabular-nums leading-none text-[#111]"
+                              style={{ fontSize: 'var(--tune-district-num, 1.875rem)' }}
+                            >
                               {data.visited}
                             </span>
                             <span className="text-[11px] font-medium tabular-nums text-[var(--color-subtext)]">
@@ -554,34 +653,53 @@ export default function LogPage() {
                 .sort((a, b) => b.totalVisits - a.totalVisits)
                 .slice(0, 5); // TOP5
               return (
-                <div className="ios-card p-4 hover:!opacity-100 md:col-span-1 lg:col-span-2">
+                <div
+                  className="ios-card hover:!opacity-100 md:col-span-1 lg:col-span-2"
+                  style={{ padding: 'var(--tune-card-pad, 2.125rem)' }}
+                >
                   <div className="flex items-baseline gap-2 mb-2">
                     <div>
                       <h3 className="text-lg font-bold leading-tight">ランキング</h3>
                       <p className="text-xs text-[var(--color-subtext)] mt-0.5">訪問回数 TOP5（全期間）</p>
                     </div>
                   </div>
-                  {/* 行の縦 padding を py-2 → py-1 に絞ることで、地区別カードと揃えて縦幅を30%ほどダウン */}
+                  {/* 行の縦 padding はチューナーで可変（地区別カードとの縦幅バランス調整用） */}
                   <div>
                     {ranked.map((m, i) => {
-                      // TOP3 は金・銀・銅カラー、4〜5位はサブトーン
-                      const isTop3 = i < 3;
+                      // TOP3 は金・銀・銅カラー、4〜5位はサブトーン。フォントサイズは1〜5位で統一。
                       const medalColor = i === 0 ? '#D97706' : i === 1 ? '#9CA3AF' : i === 2 ? '#B45309' : '#9CA3AF';
                       return (
                         <Link
                           key={m.id}
                           href={`/members/${m.id}`}
-                          className="flex items-center gap-3 py-1.5 transition-opacity hover:opacity-70 border-b border-[#F0F0F0] last:border-b-0"
+                          className="flex items-center gap-3 transition-opacity hover:opacity-70 border-b border-[#F0F0F0] last:border-b-0"
+                          style={{
+                            paddingTop: 'var(--tune-ranking-row-pad, 0.725rem)',
+                            paddingBottom: 'var(--tune-ranking-row-pad, 0.725rem)',
+                          }}
                         >
                           <span
-                            className={`tabular-nums w-7 text-center shrink-0 leading-none ${isTop3 ? 'text-lg font-black' : 'text-sm font-bold'}`}
-                            style={{ color: medalColor }}
+                            className="tabular-nums w-7 text-center shrink-0 leading-none font-black"
+                            style={{
+                              color: medalColor,
+                              fontSize: 'var(--tune-ranking-num, 1.5rem)',
+                            }}
                           >
                             {i + 1}
                           </span>
-                          <span className="text-sm flex-1 truncate">{m.name}</span>
+                          <span
+                            className="flex-1 truncate"
+                            style={{ fontSize: 'var(--tune-ranking-name, 0.875rem)' }}
+                          >
+                            {m.name}
+                          </span>
                           <span className="flex items-baseline gap-0.5">
-                            <span className={`tabular-nums leading-none ${isTop3 ? 'text-lg font-black' : 'text-base font-bold'}`}>{m.totalVisits}</span>
+                            <span
+                              className="tabular-nums leading-none font-black"
+                              style={{ fontSize: 'var(--tune-ranking-num, 1.5rem)' }}
+                            >
+                              {m.totalVisits}
+                            </span>
                             <span className="text-[11px] text-[var(--color-subtext)]">回</span>
                           </span>
                         </Link>
@@ -611,7 +729,11 @@ export default function LogPage() {
                       : i.tone === 'good' ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
                       : 'bg-blue-50 border-blue-200 text-blue-800';
                     return (
-                      <div key={i.key} className={`ios-card p-5 border flex items-start gap-3 hover:!opacity-100 ${toneClass}`}>
+                      <div
+                        key={i.key}
+                        className={`ios-card border flex items-start gap-3 hover:!opacity-100 ${toneClass}`}
+                        style={{ padding: 'var(--tune-card-pad, 2.125rem)' }}
+                      >
                         <Icon size={22} className="shrink-0 mt-0.5" />
                         <div className="flex-1 min-w-0">
                           <div className="text-base font-bold">{i.title}</div>

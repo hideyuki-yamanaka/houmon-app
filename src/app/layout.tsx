@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import BottomTabBar from "../components/BottomTabBar";
+import DesignTuner from "../components/DesignTuner";
 
 export const metadata: Metadata = {
   title: "家庭訪問アプリ",
@@ -42,6 +43,8 @@ export default function RootLayout({
           {children}
         </div>
         <BottomTabBar />
+        {/* 開発環境専用のデザイン調整パネル。本番ビルドでは描画されない */}
+        <DesignTuner />
       </body>
     </html>
   );
