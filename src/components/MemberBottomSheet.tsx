@@ -20,8 +20,19 @@ interface Props {
   renderAbove?: () => ReactNode;
 }
 
-// mini スナップ時の可視高さ（ドラッグハンドル＋名前1行がギリ見える）
-const MINI_HEIGHT = 72;
+// mini スナップ時の可視高さ。
+// 『記録する』ボタンが下端で切れたり、タブバーに貼りつくギリギリになって
+// しまうのを避ける。
+//
+//   handle 28
+// + pt-1.5 6
+// + ボタン高さ 約34 (text-[13px] + py-2 + アイコン16)
+// = 68  ← ここがボタン下端
+//
+// ボタン下端から sheet 下端まで 50px 以上空けて「明らかに浮いてる」感を
+// 出すため 120 に設定。iOS Safari 側の JS キャッシュでも視覚的に差が
+// 出るよう、以前の 72 からガッツリ差をつける。
+const MINI_HEIGHT = 120;
 
 // 詳細・訪問ページへ遷移する時に「ホームに戻ってきた時どのピンに戻るか」を記録する。
 // ホーム画面 (page.tsx) が sessionStorage から読み込んで selectedId に復元 → PanToSelected で中央へ。
@@ -55,7 +66,7 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
     return () => clearTimeout(t);
   }, [member?.id]);
 
-  // 訪問ログあり → 260px（訪問ログ見出し＋リスト分の余白あり）
+  // 訪問ログあり → 240px（訪問ログ見出し＋リスト分の余白あり）
   // 訪問ログなし → 150px（訪問ログセクション丸ごと非表示でコンパクト）
   // ※記録するボタンをヘッダー右上に移したので底の余白が不要 → 更に詰めた
   const hasVisits = (displayMember?.totalVisits ?? 0) > 0;
