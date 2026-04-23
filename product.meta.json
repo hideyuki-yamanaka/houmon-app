@@ -2,5 +2,6 @@
   "name": "家庭訪問アプリ",
   "desc": "家庭訪問の記録・管理ツール。地図表示・ルート管理対応。",
   "icon": "🏠",
-  "iconBg": "#0a1a12"
+  "iconBg": "#0a1a12",
+  "path": "https://houmon-app-lilac.vercel.app/"
 }
