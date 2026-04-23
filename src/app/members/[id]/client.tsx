@@ -7,6 +7,7 @@ import Link from 'next/link';
 import type { Member, Visit } from '../../../lib/types';
 import { getMember, getVisits } from '../../../lib/storage';
 import MemberInfo from '../../../components/MemberInfo';
+import InfoSection from '../../../components/InfoSection';
 import VisitCard from '../../../components/VisitCard';
 
 export default function MemberDetailClient() {
@@ -81,6 +82,8 @@ export default function MemberDetailClient() {
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[1366px] mx-auto px-4 py-4 pb-24 space-y-4">
           <MemberInfo member={member} onUpdate={(updates) => setMember(prev => prev ? { ...prev, ...updates } : prev)} />
+
+          <InfoSection member={member} onUpdate={(updates) => setMember(prev => prev ? { ...prev, ...updates } : prev)} />
 
           <div className="mt-6">
             <h3 className="text-sm font-semibold text-[var(--color-subtext)] mb-3">

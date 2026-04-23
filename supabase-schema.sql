@@ -25,7 +25,8 @@ CREATE TABLE members (
   financial_contribution TEXT,
   activity_status TEXT,
   youth_group TEXT,
-  notes TEXT,
+  notes TEXT,                                -- 短い備考(一言コメント)
+  info TEXT,                                 -- 「情報」セクション(複数行・詳しいメンバー情報)
   visit_cycle_days INTEGER DEFAULT 30,
   category TEXT NOT NULL DEFAULT 'general', -- 'general' | 'young'
   honbu TEXT,                                -- ヤング限定: "東栄本部" "豊岡本部" など
@@ -36,6 +37,7 @@ CREATE TABLE members (
 -- 既存DB向け移行:
 -- ALTER TABLE members ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'general';
 -- ALTER TABLE members ADD COLUMN IF NOT EXISTS honbu TEXT;
+-- ALTER TABLE members ADD COLUMN IF NOT EXISTS info TEXT;
 
 -- 訪問記録テーブル
 CREATE TABLE visits (

@@ -86,6 +86,7 @@ function toMember(row: MemberRow): Member {
     activityStatus: row.activity_status ?? undefined,
     youthGroup: row.youth_group ?? undefined,
     notes: row.notes ?? undefined,
+    info: row.info ?? undefined,
     visitCycleDays: row.visit_cycle_days,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

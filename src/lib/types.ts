@@ -28,6 +28,7 @@ export interface Member {
   activityStatus?: string;
   youthGroup?: string;
   notes?: string;
+  info?: string;                     // 「情報」セクション(複数行、鉛筆アイコンで編集モード)
   visitCycleDays: number;
   createdAt: string;
   updatedAt: string;
@@ -94,6 +95,7 @@ export interface MemberRow {
   activity_status: string | null;
   youth_group: string | null;
   notes: string | null;
+  info: string | null;
   visit_cycle_days: number;
   category: string;
   honbu: string | null;
