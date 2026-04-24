@@ -3,10 +3,12 @@
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { LocateFixed, Search, X, Layers } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import type { MemberWithVisitInfo } from '../lib/types';
-import { getMembersWithVisitInfo } from '../lib/storage';
+import type { MemberWithVisitInfo, Visit } from '../lib/types';
+import { getMembersWithVisitInfo, getAllVisits } from '../lib/storage';
+import { searchMembers } from '../lib/search';
 import MemberBottomSheet from '../components/MemberBottomSheet';
 import MembersListSheet, { applyAllFilters, type AppliedFilters } from '../components/MembersListSheet';
+import SearchHits from '../components/SearchHits';
 import { type FilterSelection, EMPTY_FILTER } from '../components/DistrictFilter';
 import type { MapLayerMode } from '../components/MapView';
 import type { SheetHandle } from '../components/SwipeableBottomSheet';
@@ -20,6 +22,7 @@ const LAST_VIEWED_MEMBER_KEY = 'houmon_lastViewedMemberId';
 
 export default function HomePage() {
   const [members, setMembers] = useState<MemberWithVisitInfo[]>([]);
+  const [allVisits, setAllVisits] = useState<Visit[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     try {
@@ -108,8 +111,9 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    getMembersWithVisitInfo()
-      .then(setMembers)
+    // 検索で使う訪問ログ summary も一緒に取得(最初の1回だけ)
+    Promise.all([getMembersWithVisitInfo(), getAllVisits()])
+      .then(([m, v]) => { setMembers(m); setAllVisits(v); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -155,18 +159,11 @@ export default function HomePage() {
     return applyAllFilters(members, { filter, periodFilter, categoryFilter });
   }, [members, filter, periodFilter, categoryFilter]);
 
-  // 検索候補（名前・カナ・住所で部分一致）
-  const suggestions = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return [];
-    return filteredMembers
-      .filter(m =>
-        m.name.toLowerCase().includes(q) ||
-        (m.nameKana ?? '').toLowerCase().includes(q) ||
-        (m.address ?? '').toLowerCase().includes(q)
-      )
-      .slice(0, 8);
-  }, [filteredMembers, searchQuery]);
+  // 検索ヒット(横断検索: 名前/ふりがな/地区/住所/職場/家族/情報/備考/訪問ログsummary)
+  // 1メンバー内で複数フィールドマッチした場合、1ヒット=1エントリで返る(P1 密リスト方式)。
+  const searchHits = useMemo(() => {
+    return searchMembers(searchQuery, filteredMembers, allVisits);
+  }, [filteredMembers, allVisits, searchQuery]);
 
   if (loading) {
     return (
@@ -214,7 +211,7 @@ export default function HomePage() {
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
               onFocus={() => setShowSuggestions(true)}
-              placeholder="メンバー・住所で検索"
+              placeholder="名前・住所・情報・訪問ログから検索"
               className="flex-1 ml-3 bg-transparent outline-none text-[15px] placeholder:text-[#5F6368]"
             />
             {searchQuery && (
@@ -228,26 +225,17 @@ export default function HomePage() {
             )}
           </div>
 
-          {/* 検索候補ドロップダウン */}
-          {showSuggestions && suggestions.length > 0 && (
-            <div className="mt-1 bg-white rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.15)] overflow-hidden max-h-[50vh] overflow-y-auto">
-              {suggestions.map(m => (
-                <button
-                  key={m.id}
-                  onClick={() => {
-                    setSelectedId(m.id);
-                    setShowSuggestions(false);
-                    setSearchQuery('');
-                  }}
-                  className="w-full text-left px-4 py-3 active:bg-[#F0F0F0] border-b border-[#F0F0F0] last:border-b-0"
-                >
-                  <div className="text-[14px] font-medium">{m.name}</div>
-                  {m.address && (
-                    <div className="text-[12px] text-[#5F6368] truncate mt-0.5">{m.address}</div>
-                  )}
-                </button>
-              ))}
-            </div>
+          {/* 検索ヒットリスト(P1 密リスト方式: 1ヒット=1行、ハイライト付き) */}
+          {showSuggestions && searchQuery.trim() && (
+            <SearchHits
+              hits={searchHits}
+              query={searchQuery}
+              onSelect={(id) => {
+                setSelectedId(id);
+                setShowSuggestions(false);
+                setSearchQuery('');
+              }}
+            />
           )}
         </div>
 
