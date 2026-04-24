@@ -15,13 +15,16 @@ import { useState, useRef, useEffect } from 'react';
 import { Pencil, Check, X } from 'lucide-react';
 import type { Member, MemberRow } from '../lib/types';
 import { updateMember } from '../lib/storage';
+import Highlight from './Highlight';
 
 interface Props {
   member: Member;
   onUpdate?: (updated: Partial<Member>) => void;
+  /** 検索から来た時、本文内の該当文字列をハイライトする */
+  highlightQuery?: string;
 }
 
-export default function InfoSection({ member, onUpdate }: Props) {
+export default function InfoSection({ member, onUpdate, highlightQuery }: Props) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(member.info ?? '');
   const [saving, setSaving] = useState(false);
@@ -124,7 +127,7 @@ export default function InfoSection({ member, onUpdate }: Props) {
           />
         ) : hasInfo ? (
           <div className="text-sm text-[var(--color-text)] whitespace-pre-wrap leading-relaxed break-words">
-            {member.info}
+            <Highlight text={member.info} query={highlightQuery} />
           </div>
         ) : (
           <button

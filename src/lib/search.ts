@@ -22,6 +22,7 @@ export interface SearchMatch {
   fieldIcon: LucideIcon;
   text: string;       // 該当箇所の周辺テキスト(長文は前後28字でトリム)
   visitedAt?: string; // 訪問ログのみ使用
+  visitId?: string;   // 訪問ログのみ使用 — 詳細ページで該当カードにスクロールするための id
 }
 
 export interface SearchHit {
@@ -118,6 +119,7 @@ export function searchMembers(
             fieldIcon: Calendar,
             text: extractContext(v.summary ?? '', q),
             visitedAt: v.visitedAt,
+            visitId: v.id,
           },
         });
       }

@@ -6,10 +6,16 @@ import type { Member, MemberRow } from '../lib/types';
 import { STATUS_GRID_ITEMS, STATUS_LEVEL_DISPLAY, type StatusLevel } from '../lib/constants';
 import { updateMember } from '../lib/storage';
 import { guessKana } from '../lib/kanaGuess';
+import Highlight from './Highlight';
 
 interface Props {
   member: Member;
   onUpdate?: (updated: Partial<Member>) => void;
+  /** 検索から来た時、表示テキスト内の該当文字列をハイライトする */
+  highlightQuery?: string;
+  /** どのサブフィールド(name/address/workplace/notes/...)で
+   *  ヒットしたか。アコーディオン内フィールドなら自動展開するため。 */
+  highlightField?: string | null;
 }
 
 /** 生年月日文字列 ("1989/7/28" or "1989-07-28") から現在の年齢を算出 */
@@ -245,7 +251,7 @@ function AgeField({ value, memberId, onSaved, half }: {
 }
 
 // ── 選択肢プルダウンフィールド ──
-function SelectField({ label, value, fieldKey, memberId, options, onSaved, half }: {
+function SelectField({ label, value, fieldKey, memberId, options, onSaved, half, highlightQuery }: {
   label: string;
   value: string | undefined;
   fieldKey: string;
@@ -253,6 +259,7 @@ function SelectField({ label, value, fieldKey, memberId, options, onSaved, half 
   options: string[];
   onSaved: (key: string, value: string) => void;
   half?: boolean;
+  highlightQuery?: string;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -287,7 +294,7 @@ function SelectField({ label, value, fieldKey, memberId, options, onSaved, half 
       >
         <div className="text-[10px] text-[var(--color-subtext)] mb-0.5">{label}</div>
         {displayValue
-          ? <span className="text-sm">{displayValue}</span>
+          ? <span className="text-sm"><Highlight text={displayValue} query={highlightQuery} /></span>
           : <span className="text-sm text-[#CCC] italic">未入力</span>
         }
       </button>
@@ -321,10 +328,12 @@ function SelectField({ label, value, fieldKey, memberId, options, onSaved, half 
 }
 
 // ── インライン編集フィールド ──
-function EditableField({ label, value, fieldKey, memberId, link, onSaved, half, suffix }: {
+function EditableField({ label, value, fieldKey, memberId, link, onSaved, half, suffix, highlightQuery }: {
   label: string; value: string | number | undefined; fieldKey: string;
   memberId: string; link?: string; onSaved: (key: string, value: string) => void;
   half?: boolean; suffix?: string;
+  /** 表示テキスト内でハイライトするクエリ文字列 */
+  highlightQuery?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(String(value ?? ''));
@@ -375,10 +384,10 @@ function EditableField({ label, value, fieldKey, memberId, link, onSaved, half, 
               <a href={link} target="_blank" rel="noopener noreferrer"
                 className="text-sm text-[var(--color-text)] flex items-center gap-1"
                 onClick={e => e.stopPropagation()}>
-                {displayValue}
+                <Highlight text={displayValue} query={highlightQuery} />
                 <ExternalLink size={16} className="text-[var(--color-icon-gray)]" />
               </a>
-            ) : <span className="text-sm">{displayValue}</span>
+            ) : <span className="text-sm"><Highlight text={displayValue} query={highlightQuery} /></span>
           ) : <span className="text-sm text-[#CCC] italic">未入力</span>}
         </div>
         {suffix && <span className="text-sm text-[var(--color-subtext)] shrink-0">{suffix}</span>}
@@ -387,11 +396,23 @@ function EditableField({ label, value, fieldKey, memberId, link, onSaved, half, 
   );
 }
 
-export default function MemberInfo({ member, onUpdate }: Props) {
+export default function MemberInfo({ member, onUpdate, highlightQuery, highlightField }: Props) {
   const [local, setLocal] = useState(member);
-  // 基本情報アコーディオン: デフォルト閉じ（ステータス＋訪問ログをファーストビューに出す）
-  const [infoOpen, setInfoOpen] = useState(false);
+
+  // アコーディオン内のフィールド(workplace/notes/phone/mobile/educationLevel/birthday/age/enrollmentDate)
+  // で検索ヒットしてたら、初期から展開しておく。
+  // それ以外(name/nameKana/address/family/role/district) は折りたたみ上部に見えるので閉じたままで OK。
+  const ACCORDION_FIELDS = new Set([
+    'workplace', 'notes', 'phone', 'mobile', 'educationLevel',
+    'birthday', 'age', 'enrollmentDate',
+  ]);
+  const initialInfoOpen = !!(highlightField && ACCORDION_FIELDS.has(highlightField));
+  const [infoOpen, setInfoOpen] = useState(initialInfoOpen);
   useEffect(() => { setLocal(member); }, [member]);
+  // member が変わった時やハイライト対象が変わった時にも開閉を更新
+  useEffect(() => {
+    if (initialInfoOpen) setInfoOpen(true);
+  }, [initialInfoOpen]);
 
   const handleSaved = useCallback((key: string, value: string) => {
     setLocal(prev => ({ ...prev, [key]: value || undefined }));
@@ -415,7 +436,8 @@ export default function MemberInfo({ member, onUpdate }: Props) {
 
   const F = (key: string, label: string, value: string | number | undefined, opts?: { link?: string; half?: boolean; suffix?: string }) => (
     <EditableField key={key} fieldKey={key} label={label} value={value}
-      memberId={local.id} link={opts?.link} onSaved={handleSaved} half={opts?.half} suffix={opts?.suffix} />
+      memberId={local.id} link={opts?.link} onSaved={handleSaved} half={opts?.half} suffix={opts?.suffix}
+      highlightQuery={highlightQuery} />
   );
 
   return (
@@ -426,7 +448,7 @@ export default function MemberInfo({ member, onUpdate }: Props) {
         <div className="flex items-center gap-2 px-4 pt-3 pb-1 min-w-0">
           <h3 className="text-sm font-semibold text-[var(--color-subtext)]">基本情報</h3>
           <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)] truncate">
-            {local.district}
+            <Highlight text={local.district} query={highlightQuery} />
           </span>
         </div>
 
@@ -446,6 +468,7 @@ export default function MemberInfo({ member, onUpdate }: Props) {
               options={['ニューリーダー', '地区リーダー']}
               onSaved={handleSaved}
               half
+              highlightQuery={highlightQuery}
             />
             <SelectField
               label="同居"
@@ -455,6 +478,7 @@ export default function MemberInfo({ member, onUpdate }: Props) {
               options={['親']}
               onSaved={handleSaved}
               half
+              highlightQuery={highlightQuery}
             />
           </div>
 
@@ -482,6 +506,7 @@ export default function MemberInfo({ member, onUpdate }: Props) {
               memberId={local.id}
               options={['1級', '2級', '3級', '任用試験']}
               onSaved={handleSaved}
+              highlightQuery={highlightQuery}
             />
             {F('workplace', '職場', local.workplace)}
             {/* 備考は最後尾なので half=true でアンダーラインを消す */}

@@ -6,12 +6,15 @@ import { VISIT_STATUS_CONFIG, RESPONDENT_CONFIG } from '../lib/constants';
 import { formatDate } from '../lib/utils';
 import type { Respondent } from '../lib/types';
 import { ChevronRight } from 'lucide-react';
+import Highlight from './Highlight';
 
 interface Props {
   visit: Visit;
+  /** 検索ヒットから飛んで来た時に summary 内の該当文字列をハイライト */
+  highlightQuery?: string;
 }
 
-export default function VisitCard({ visit }: Props) {
+export default function VisitCard({ visit, highlightQuery }: Props) {
   const statusConfig = VISIT_STATUS_CONFIG[visit.status];
   const respondentConfig = visit.respondent ? RESPONDENT_CONFIG[visit.respondent as Respondent] : null;
 
@@ -31,7 +34,9 @@ export default function VisitCard({ visit }: Props) {
             )}
           </div>
           {visit.summary && (
-            <p className="text-sm text-[var(--color-subtext)] mt-1.5 line-clamp-2">{visit.summary}</p>
+            <p className="text-sm text-[var(--color-subtext)] mt-1.5 line-clamp-2">
+              <Highlight text={visit.summary} query={highlightQuery} />
+            </p>
           )}
         </div>
         <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0" />

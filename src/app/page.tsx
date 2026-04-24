@@ -225,13 +225,14 @@ export default function HomePage() {
             )}
           </div>
 
-          {/* 検索ヒットリスト(P1 密リスト方式: 1ヒット=1行、ハイライト付き) */}
+          {/* 検索ヒットリスト(P1 密リスト方式: 1ヒット=1行、ハイライト付き)
+              クリックするとメンバー詳細ページへ遷移し、該当セクションにスクロール＋フラッシュする。
+              SearchHits 内部で Next Link を使うため、遷移はここで setSelectedId を呼ばなくて OK。 */}
           {showSuggestions && searchQuery.trim() && (
             <SearchHits
               hits={searchHits}
               query={searchQuery}
-              onSelect={(id) => {
-                setSelectedId(id);
+              onNavigate={() => {
                 setShowSuggestions(false);
                 setSearchQuery('');
               }}
