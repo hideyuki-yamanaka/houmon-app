@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ChevronRight, MapPin, Clock, Footprints, PencilLine } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit } from '../lib/types';
 import { VISIT_STATUS_CONFIG } from '../lib/constants';
-import { formatDate, stripBuildingName } from '../lib/utils';
+import { formatDate, resolveAge, stripBuildingName } from '../lib/utils';
 import { getVisits } from '../lib/storage';
 import SwipeableBottomSheet, { type SheetHandle } from './SwipeableBottomSheet';
 
@@ -129,14 +129,9 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                     <h2 className="text-lg font-bold truncate">
                       {m.name}
                       {(() => {
-                        if (!m.birthday) return null;
-                        const parts = m.birthday.replace(/\//g, '-').split('-').map(Number);
-                        if (parts.length !== 3 || parts.some(isNaN)) return null;
-                        const [y, mo, d] = parts;
-                        const today = new Date();
-                        let age = today.getFullYear() - y;
-                        if (today.getMonth() + 1 - mo < 0 || (today.getMonth() + 1 === mo && today.getDate() < d)) age--;
-                        return age >= 0 ? <span className="text-[13px] font-normal text-[var(--color-subtext)] ml-1">({age})</span> : null;
+                        // 生年月日があれば毎年自動で加齢、無ければ保存済みの age をフォールバック
+                        const age = resolveAge(m);
+                        return age != null ? <span className="text-[13px] font-normal text-[var(--color-subtext)] ml-1">({age})</span> : null;
                       })()}
                     </h2>
                   </div>

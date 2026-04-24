@@ -6,6 +6,7 @@ import type { Member, MemberRow } from '../lib/types';
 import { STATUS_GRID_ITEMS, STATUS_LEVEL_DISPLAY, type StatusLevel } from '../lib/constants';
 import { updateMember } from '../lib/storage';
 import { guessKana } from '../lib/kanaGuess';
+import { resolveAge } from '../lib/utils';
 import Highlight from './Highlight';
 
 interface Props {
@@ -18,22 +19,9 @@ interface Props {
   highlightField?: string | null;
 }
 
-/** 生年月日文字列 ("1989/7/28" or "1989-07-28") から現在の年齢を算出 */
-function calcAgeFromBirthday(birthday: string | undefined): number | null {
-  if (!birthday) return null;
-  const parts = birthday.replace(/\//g, '-').split('-').map(Number);
-  if (parts.length !== 3 || parts.some(isNaN)) return null;
-  const [y, m, d] = parts;
-  const today = new Date();
-  let age = today.getFullYear() - y;
-  const monthDiff = today.getMonth() + 1 - m;
-  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < d)) age--;
-  return age >= 0 ? age : null;
-}
-
 const FIELD_TO_COLUMN: Record<string, string> = {
   name: 'name', nameKana: 'name_kana', role: 'role', address: 'address',
-  birthday: 'birthday', age: 'age', enrollmentDate: 'enrollment_date',
+  birthday: 'birthday', enrollmentDate: 'enrollment_date',
   phone: 'phone', mobile: 'mobile', workplace: 'workplace',
   educationLevel: 'education_level', family: 'family', altarStatus: 'altar_status',
   dailyPractice: 'daily_practice', newspaper: 'newspaper',
@@ -167,85 +155,6 @@ function DateField({ label, value, fieldKey, memberId, onSaved, half }: {
           className="absolute inset-0 opacity-0 w-full cursor-pointer"
         />
       </div>
-    </div>
-  );
-}
-
-// ── 年齢ドラムロールピッカー ──
-function AgeField({ value, memberId, onSaved, half }: {
-  value: number | undefined;
-  memberId: string;
-  onSaved: (key: string, value: string) => void;
-  half?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
-  // 開いたとき現在の値までスクロール
-  useEffect(() => {
-    if (open && scrollRef.current && value != null) {
-      const itemH = 44;
-      const scrollTo = Math.max(0, (value - 2) * itemH);
-      scrollRef.current.scrollTop = scrollTo;
-    }
-  }, [open, value]);
-
-  const handleSelect = async (age: number) => {
-    setOpen(false);
-    const column = FIELD_TO_COLUMN.age;
-    if (!column) return;
-    try {
-      await updateMember(memberId, { [column]: age } as Partial<MemberRow>);
-      onSaved('age', String(age));
-    } catch { /* ignore */ }
-  };
-
-  const displayValue = value != null ? `${value}歳` : '';
-
-  return (
-    <div ref={ref} className={`py-2 relative ${half ? '' : 'border-b border-[#F0F0F0]'}`}>
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full text-left cursor-pointer transition-opacity duration-150 hover:opacity-70"
-      >
-        <div className="text-[10px] text-[var(--color-subtext)] mb-0.5">年齢</div>
-        {displayValue
-          ? <span className="text-sm">{displayValue}</span>
-          : <span className="text-sm text-[#CCC] italic">未入力</span>
-        }
-      </button>
-      {open && (
-        <div className="absolute top-full left-0 mt-1 bg-white rounded-xl shadow-lg z-20 w-24 overflow-hidden">
-          <div
-            ref={scrollRef}
-            className="max-h-[220px] overflow-y-auto overscroll-contain"
-            style={{ scrollSnapType: 'y mandatory' }}
-          >
-            {Array.from({ length: 101 }, (_, i) => i).map(age => (
-              <button
-                key={age}
-                onClick={() => handleSelect(age)}
-                style={{ scrollSnapAlign: 'center' }}
-                className={`w-full h-[44px] flex items-center justify-center text-base font-medium
-                  ${value === age ? 'bg-[#F0F0F0] font-bold' : ''}
-                  active:bg-[#E8E8E8] border-b border-[#F5F5F5] last:border-b-0`}
-              >
-                {age}歳
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -399,12 +308,13 @@ function EditableField({ label, value, fieldKey, memberId, link, onSaved, half, 
 export default function MemberInfo({ member, onUpdate, highlightQuery, highlightField }: Props) {
   const [local, setLocal] = useState(member);
 
-  // アコーディオン内のフィールド(workplace/notes/phone/mobile/educationLevel/birthday/age/enrollmentDate)
+  // アコーディオン内のフィールド(workplace/notes/phone/mobile/educationLevel/birthday/enrollmentDate)
   // で検索ヒットしてたら、初期から展開しておく。
   // それ以外(name/nameKana/address/family/role/district) は折りたたみ上部に見えるので閉じたままで OK。
+  // (年齢は読み仮名の横に suffix 表示しかしなくなったためアコーディオン開閉の対象外)
   const ACCORDION_FIELDS = new Set([
     'workplace', 'notes', 'phone', 'mobile', 'educationLevel',
-    'birthday', 'age', 'enrollmentDate',
+    'birthday', 'enrollmentDate',
   ]);
   const initialInfoOpen = !!(highlightField && ACCORDION_FIELDS.has(highlightField));
   const [infoOpen, setInfoOpen] = useState(initialInfoOpen);
@@ -455,7 +365,8 @@ export default function MemberInfo({ member, onUpdate, highlightQuery, highlight
         {/* 常に見える部分（住所まで） */}
         <div className="px-4">
           {F('nameKana', '読み仮名', local.nameKana, {
-            suffix: (() => { const a = calcAgeFromBirthday(local.birthday); return a != null ? `${a}歳` : undefined; })(),
+            // 年齢は生年月日ベースを最優先、無ければ保存済みの age をフォールバックで表示
+            suffix: (() => { const a = resolveAge(local); return a != null ? `${a}歳` : undefined; })(),
           })}
 
           {/* 役職 / 同居 — 横並び（行下のアンダーラインなし） */}
@@ -488,11 +399,11 @@ export default function MemberInfo({ member, onUpdate, highlightQuery, highlight
         {/* 開いた時だけ見える残り */}
         {infoOpen && (
           <div className="px-4">
-            {/* 生年月日 / 年齢 / 入会月日 — ここだけ3列横並び */}
-            <div className="grid grid-cols-3 gap-x-4 border-b border-[#F0F0F0]">
+            {/* 生年月日 / 入会月日 — 2列横並び
+                （年齢は読み仮名の横に表示するため、ここでは扱わない） */}
+            <div className="grid grid-cols-2 gap-x-4 border-b border-[#F0F0F0]">
               <DateField label="生年月日" value={local.birthday} fieldKey="birthday"
                 memberId={local.id} onSaved={handleSaved} half />
-              <AgeField value={local.age} memberId={local.id} onSaved={handleSaved} half />
               <DateField label="入会月日" value={local.enrollmentDate} fieldKey="enrollmentDate"
                 memberId={local.id} onSaved={handleSaved} half />
             </div>

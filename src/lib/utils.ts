@@ -30,6 +30,33 @@ export function today(): string {
 //     番地表記が来たらそこで区切って以降を除去
 //   - 表示はあくまで建物名込みのフル住所を使う（呼び出し側の責務）
 // ──────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
+// 年齢計算
+//   - 生年月日を正として毎年自動で加齢させる（保存済みの age より優先）
+//   - 生年月日が未入力のときだけ、保存済みの age を使う（fallback）
+//   - どちらも無ければ null
+// 生年月日は "1989/7/28" "1989-07-28" どちらも受ける
+// ──────────────────────────────────────────────────────────────
+export function calcAgeFromBirthday(birthday: string | undefined | null): number | null {
+  if (!birthday) return null;
+  const parts = birthday.replace(/\//g, '-').split('-').map(Number);
+  if (parts.length !== 3 || parts.some(isNaN)) return null;
+  const [y, m, d] = parts;
+  const today = new Date();
+  let age = today.getFullYear() - y;
+  const monthDiff = today.getMonth() + 1 - m;
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < d)) age--;
+  return age >= 0 ? age : null;
+}
+
+/** 生年月日ベースの年齢を最優先、無ければ保存済み age、さらに無ければ null */
+export function resolveAge(m: { birthday?: string | null; age?: number | null }): number | null {
+  const fromBirth = calcAgeFromBirthday(m.birthday ?? undefined);
+  if (fromBirth != null) return fromBirth;
+  if (typeof m.age === 'number' && m.age >= 0) return m.age;
+  return null;
+}
+
 export function stripBuildingName(address: string): string {
   const trimmed = address.trim();
   // 1) スペース区切りがあればそこで切る

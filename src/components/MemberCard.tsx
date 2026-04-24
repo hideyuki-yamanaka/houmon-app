@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { ChevronRight, Clock } from 'lucide-react';
 import type { MemberWithVisitInfo } from '../lib/types';
-import { formatDate } from '../lib/utils';
+import { formatDate, resolveAge } from '../lib/utils';
 import MemberPin from './MemberPin';
 
 interface Props {
@@ -13,6 +13,8 @@ interface Props {
 
 export default function MemberCard({ member, onSelect }: Props) {
   const hasVisits = member.totalVisits > 0;
+  // 生年月日があれば毎年自動で加齢、無ければ保存済み age をフォールバック
+  const age = resolveAge(member);
 
   const inner = (
     <div className="ios-card px-3 py-2.5 flex items-center gap-3">
@@ -23,6 +25,9 @@ export default function MemberCard({ member, onSelect }: Props) {
           )}
           <div className="flex items-center gap-1.5">
             <span className="font-bold text-[15px]">{member.name}</span>
+            {age != null && (
+              <span className="text-[11px] font-normal text-[var(--color-subtext)]">({age})</span>
+            )}
             <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0" />
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
