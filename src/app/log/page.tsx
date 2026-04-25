@@ -188,17 +188,9 @@ export default function LogPage() {
     return buckets;
   }, [allVisits]);
 
-  // 連続訪問週数：今週（or 先週）から遡って何週連続で訪問があるか。
-  // 今週がまだ 0 でも、先週以前から遡って数える（土日まだ来てない週末運用を考慮）
-  const streakWeeks = useMemo(() => {
-    let count = 0;
-    for (let i = weekly12.length - 1; i >= 0; i--) {
-      if (weekly12[i].total > 0) count++;
-      else if (i === weekly12.length - 1) continue;
-      else break;
-    }
-    return count;
-  }, [weekly12]);
+  // (旧: 連続週数 streakWeeks は「家庭訪問の回数」カードへの仕様変更で参照されなく
+  //  なったため削除した。再度連続週数を見せたくなったら、単純に
+  //  weekly12 を末尾から走査するだけで再現できる)
 
   // 直近12週の手応え内訳（ステータス別カウント合計）— スタックバーとレジェンドで使う
   const continuityStats = useMemo(() => {
@@ -293,12 +285,12 @@ export default function LogPage() {
             style={{ gap: 'var(--tune-card-gap, 1rem)' }}
           >
 
-            {/* 家庭訪問の継続率カード（案C: 4週刻みアンカー型）
-                - Hero：連続週数（🔥 streak weeks、オレンジ）
-                - 12週ドット：訪問があった週は緑、なしはグレー。今週は黒枠
-                - ドット下に 12週前 / 8週前 / 4週前 / 今週 の4アンカー + 短縮日付
-                - 最下段に手応えスタックバー + レジェンド（12週分合計）
-                - period タブとは独立で、常に直近12週を見せる */}
+            {/* 家庭訪問の回数カード
+                - Hero：これまでの累計訪問回数（全期間 / softDelete 除く）
+                - 補助：うち今週の回数
+                - 12週バー：1週間ごとの訪問回数を縦棒で見せる(数字付き)
+                - 最下段：12週合計のステータス内訳と「会えた率」
+                - period タブとは独立で、常に直近12週 + 累計を見せる */}
             <div
               className="ios-card hover:!opacity-100 md:col-span-2 lg:col-span-2 flex flex-col"
               style={{ padding: 'var(--tune-card-pad, 2.125rem)' }}
@@ -309,41 +301,59 @@ export default function LogPage() {
                 const anchors: Record<number, string> = { 0: '12週前', 4: '8週前', 8: '4週前', 11: '今週' };
                 const { counts, total, metRate } = continuityStats;
 
+                // 累計訪問回数 = allVisits の総数(getAllVisits で deleted_at は既に除外済み)
+                const totalVisitCount = allVisits.length;
+                // 今週の回数 = weekly12 の最終要素
+                const thisWeekCount = weekly12[weekly12.length - 1]?.total ?? 0;
+                // バーの最大値(最低 1 で割り算事故防止)
+                const maxWeekCount = Math.max(1, ...weekly12.map(w => w.total));
+
                 return (
                   <>
-                    {/* ヘッダー：左=タイトル、右=連続週数 Hero */}
+                    {/* ヘッダー：左=タイトル、右=累計回数 Hero */}
                     <div className="flex items-start justify-between mb-3">
                       <div>
-                        <h3 className="text-lg font-bold leading-tight">家庭訪問の継続率</h3>
-                        <p className="text-xs text-[var(--color-subtext)] mt-0.5">直近12週の活動ペース</p>
+                        <h3 className="text-lg font-bold leading-tight">家庭訪問の回数</h3>
+                        <p className="text-xs text-[var(--color-subtext)] mt-0.5">
+                          これまでの累計（うち今週 {thisWeekCount} 回）
+                        </p>
                       </div>
                       <div className="flex items-baseline gap-1">
                         <span
                           className="font-black tabular-nums leading-none text-[#111]"
                           style={{ fontSize: 'var(--tune-hero-size, 4rem)' }}
                         >
-                          {streakWeeks}
+                          {totalVisitCount}
                         </span>
-                        <span className="text-sm font-bold text-[#111]">週連続</span>
+                        <span className="text-sm font-bold text-[#111]">回</span>
                       </div>
                     </div>
 
-                    {/* 12週ドット */}
+                    {/* 12週バー：各週の訪問回数を縦棒で表示。今週のバーだけ黒枠で強調。
+                        高さは「今期間内の最大週」を満タンとして相対表示 */}
                     <div className="mb-3">
-                      <div className="flex items-center gap-1 mb-1.5">
+                      <div className="flex items-end gap-1 mb-1.5" style={{ height: '64px' }}>
                         {weekly12.map((w, i) => {
                           const isCur = i === weekly12.length - 1;
                           const hit = w.total > 0;
+                          // 0 件は最小高さで「枠だけ」見せる、1 件以上は比率
+                          const heightPct = hit ? Math.max(20, (w.total / maxWeekCount) * 100) : 8;
                           return (
-                            <div key={i} className="flex-1">
+                            <div key={i} className="flex-1 flex flex-col items-center justify-end h-full">
+                              {/* 数字 — 訪問あった週のみ */}
+                              {hit && (
+                                <span className="text-[10px] tabular-nums font-bold text-[#111] leading-none mb-0.5">
+                                  {w.total}
+                                </span>
+                              )}
                               <div
-                                className="w-full rounded"
+                                className="w-full rounded-t"
                                 style={{
-                                  aspectRatio: '1',
+                                  height: `${heightPct}%`,
                                   backgroundColor: hit ? '#10B981' : '#F3F4F6',
                                   border: isCur ? '2px solid #111' : 'none',
                                 }}
-                                title={`${w.startStr}〜 ${w.total}人`}
+                                title={`${w.startStr}〜 ${w.total}回`}
                               />
                             </div>
                           );
