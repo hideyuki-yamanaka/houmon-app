@@ -2,14 +2,17 @@ import { Suspense } from 'react';
 import MemberDetailClient from './client';
 import { getAllMemberIds } from '../../../lib/storage';
 
-export const dynamicParams = false;
+// dynamicParams=true で、ビルド後に追加された新規メンバー id でも
+// リクエスト時に SSR レンダーされる。false だと 404 になる(visits 側で
+// 同じバグを踏んだので、ここも保険として true に揃える)。
+export const dynamicParams = true;
 
 export async function generateStaticParams(): Promise<{ id: string }[]> {
   try {
     const ids = await getAllMemberIds();
     return ids.map(id => ({ id }));
   } catch {
-    return [{ id: '_' }];
+    return [];
   }
 }
 
