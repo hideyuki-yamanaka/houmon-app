@@ -319,8 +319,10 @@ export default function LogPage() {
                         </p>
                       </div>
                       <div className="flex items-baseline gap-1">
+                        {/* font-black → font-extrabold で 1 段階軽く、
+                            tracking-tight で 2桁時の "1 5" の隙間を詰める */}
                         <span
-                          className="font-black tabular-nums leading-none text-[#111]"
+                          className="font-extrabold tabular-nums leading-none text-[#111] tracking-tight"
                           style={{ fontSize: 'var(--tune-hero-size, 4rem)' }}
                         >
                           {totalVisitCount}
