@@ -682,8 +682,8 @@ export default function LogPage() {
                 >
                   <div className="flex items-baseline gap-2 mb-2">
                     <div>
-                      <h3 className="text-lg font-bold leading-tight">ランキング</h3>
-                      <p className="text-xs text-[var(--color-subtext)] mt-0.5">訪問回数 TOP5（全期間）</p>
+                      <h3 className="text-lg font-bold leading-tight">訪問した回数が多い人</h3>
+                      <p className="text-xs text-[var(--color-subtext)] mt-0.5">TOP5（全期間）</p>
                     </div>
                   </div>
                   {/* 行の縦 padding はチューナーで可変（地区別カードとの縦幅バランス調整用） */}
