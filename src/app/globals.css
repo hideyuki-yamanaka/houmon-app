@@ -311,6 +311,22 @@ body {
   pointer-events: none;
 }
 
+/* 訪問ログ詳細などで使う読み取り専用ビュー: padding/min-height を消し、
+   フォントもページ全体と揃うようサイズダウン。背景も透明に。 */
+.tiptap-editor.tiptap-viewer {
+  min-height: 0;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  background: transparent;
+}
+.tiptap-editor.tiptap-viewer h1 {
+  font-size: 18px;
+}
+.tiptap-editor.tiptap-viewer h2 {
+  font-size: 16px;
+}
+
 /* ── スワイプ削除 ── */
 .swipe-container {
   overflow: hidden;

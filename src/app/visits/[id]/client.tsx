@@ -9,6 +9,7 @@ import { getVisitById, softDeleteVisit } from '../../../lib/storage';
 import { VISIT_STATUS_CONFIG, RESPONDENT_CONFIG } from '../../../lib/constants';
 import { formatDate } from '../../../lib/utils';
 import type { VisitStatus, Respondent } from '../../../lib/types';
+import TiptapViewer from '../../../components/TiptapViewer';
 
 export default function VisitDetailClient() {
   const params = useParams();
@@ -140,12 +141,29 @@ export default function VisitDetailClient() {
               </div>
             </div>
 
-            {visit.summary && (
-              <div>
-                <div className="text-[10px] text-[var(--color-subtext)] mb-1">メモ</div>
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{visit.summary}</p>
-              </div>
-            )}
+            {/* メモ(TipTap リッチテキスト) — 編集ボタンを押さなくてもここで読める。
+                summary(短い要約)が別途あれば上に併せて表示。
+                どちらも空ならセクション自体を出さない。 */}
+            {(() => {
+              const hasNotes = visit.notes && Object.keys(visit.notes).length > 0;
+              const hasSummary = !!visit.summary;
+              if (!hasNotes && !hasSummary) return null;
+              return (
+                <div>
+                  <div className="text-[10px] text-[var(--color-subtext)] mb-1">メモ</div>
+                  {hasSummary && (
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap mb-2">
+                      {visit.summary}
+                    </p>
+                  )}
+                  {hasNotes && (
+                    <div className="text-sm leading-relaxed">
+                      <TiptapViewer content={visit.notes} />
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {visit.images && visit.images.length > 0 && (
               <div>
