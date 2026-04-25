@@ -139,8 +139,17 @@ export default function DesignTuner() {
     }
   }, [exportText]);
 
-  // 本番ビルドでは描画しない
-  if (process.env.NODE_ENV === 'production') return null;
+  // 表示判定:
+  //   - 開発環境(npm run dev)では常に表示
+  //   - 本番ビルドでも、URL に ?tuner=1 が付いてる時だけ表示する
+  //     (例) https://houmon-app-lilac.vercel.app/log?tuner=1
+  //     → 本番アプリでもユーザー(ヒデさん)だけが裏でデザイン調整できる仕組み。
+  //     ローカル dev サーバーが #practice パスバグで動かない問題への対処も兼ねる。
+  const isDev = process.env.NODE_ENV !== 'production';
+  const isTunerQuery =
+    typeof window !== 'undefined' &&
+    new URLSearchParams(window.location.search).has('tuner');
+  if (!isDev && !isTunerQuery) return null;
 
   // グループごとに DEFS をまとめる（表示順を維持）
   const groups: { name: string; items: TuneDef[] }[] = [];
