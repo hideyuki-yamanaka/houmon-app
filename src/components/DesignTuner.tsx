@@ -16,12 +16,12 @@ type TuneDef = {
   key: string;
   label: string;
   cssVar: string;
-  unit: '' | 'rem' | 'px';
+  unit: '' | 'rem' | 'px' | 'em';
   min: number;
   max: number;
   step: number;
   default: number;
-  group: 'カード共通' | '会えた率' | '地区別' | '推移グラフ' | 'ランキング';
+  group: 'カード共通' | '家庭訪問の回数' | '地区別' | '推移グラフ' | 'ランキング';
 };
 
 // 調整可能なデザイントークン一覧
@@ -30,9 +30,12 @@ const DEFS: TuneDef[] = [
   { key: 'cardGap',        label: 'カード間の隙間',           cssVar: '--tune-card-gap',        unit: 'rem', min: 0.25, max: 2,    step: 0.125,  default: 1,    group: 'カード共通' },
   { key: 'sectionPadTop',  label: 'コンテンツ上余白',         cssVar: '--tune-section-pad-top', unit: 'rem', min: 0,    max: 2,    step: 0.125,  default: 0.75, group: 'カード共通' },
 
-  { key: 'heroSize',       label: 'Heroナンバーのサイズ',     cssVar: '--tune-hero-size',       unit: 'rem', min: 1.5,  max: 6,    step: 0.125,  default: 4,    group: '会えた率' },
-  { key: 'barH',           label: 'スタックバー高さ',         cssVar: '--tune-bar-h',           unit: 'rem', min: 0.25, max: 4,    step: 0.0625, default: 3,    group: '会えた率' },
-  { key: 'legendGapY',     label: 'レジェンド行間',           cssVar: '--tune-legend-gap-y',    unit: 'rem', min: 0,    max: 1.5,  step: 0.0625, default: 0,    group: '会えた率' },
+  { key: 'heroSize',       label: 'Heroナンバーのサイズ',     cssVar: '--tune-hero-size',       unit: 'rem', min: 1.5,  max: 6,    step: 0.125,  default: 4,     group: '家庭訪問の回数' },
+  // letter-spacing(em 単位) — マイナスで詰まる、プラスで広がる。「15」みたいな
+  // 2 桁数字の隙間が広く感じる時にここを動かして調整する。
+  { key: 'heroTracking',   label: 'Heroナンバーの文字間',     cssVar: '--tune-hero-tracking',   unit: 'em',  min: -0.1, max: 0.05, step: 0.005,  default: -0.025, group: '家庭訪問の回数' },
+  { key: 'barH',           label: 'スタックバー高さ',         cssVar: '--tune-bar-h',           unit: 'rem', min: 0.25, max: 4,    step: 0.0625, default: 3,     group: '家庭訪問の回数' },
+  { key: 'legendGapY',     label: 'レジェンド行間',           cssVar: '--tune-legend-gap-y',    unit: 'rem', min: 0,    max: 1.5,  step: 0.0625, default: 0,     group: '家庭訪問の回数' },
 
   { key: 'districtAspect', label: 'タイルの横長さ（幅/高さ）', cssVar: '--tune-district-aspect', unit: '',    min: 1.5,  max: 3.5,  step: 0.1,    default: 2.3,  group: '地区別' },
   { key: 'districtGap',    label: 'タイル間の隙間',           cssVar: '--tune-district-gap',    unit: 'rem', min: 0.25, max: 1,    step: 0.0625, default: 0.5,  group: '地区別' },

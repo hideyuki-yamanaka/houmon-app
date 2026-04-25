@@ -301,31 +301,43 @@ export default function LogPage() {
                 const anchors: Record<number, string> = { 0: '12週前', 4: '8週前', 8: '4週前', 11: '今週' };
                 const { counts, total, metRate } = continuityStats;
 
-                // 累計訪問回数 = allVisits の総数(getAllVisits で deleted_at は既に除外済み)
-                const totalVisitCount = allVisits.length;
-                // 今週の回数 = weekly12 の最終要素
-                const thisWeekCount = weekly12[weekly12.length - 1]?.total ?? 0;
+                // 累計訪問週数 = 訪問が 1 件以上あった「週」の数(月曜始まり、ユニーク)。
+                // 仕様: 同じ週に何人回っても 1 とカウント。1 週 = 1 回。
+                const visitWeekSet = new Set<string>();
+                for (const v of allVisits) visitWeekSet.add(fmtDate(mondayOf(new Date(v.visitedAt))));
+                const totalVisitWeekCount = visitWeekSet.size;
                 // バーの最大値(最低 1 で割り算事故防止)
                 const maxWeekCount = Math.max(1, ...weekly12.map(w => w.total));
+                // 今週も訪問あったか(サブタイトル横の補助表示用)
+                const thisWeekVisited = (weekly12[weekly12.length - 1]?.total ?? 0) > 0;
 
                 return (
                   <>
-                    {/* ヘッダー：左=タイトル、右=累計回数 Hero */}
+                    {/* ヘッダー：左=タイトル、右=累計回数 Hero
+                        ※ ここで「回数」= 訪問のあった週の数(1 週 = 1 回)
+                          → 同じ週に何人回っても 1 として数える */}
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <h3 className="text-lg font-bold leading-tight">家庭訪問の回数</h3>
                         <p className="text-xs text-[var(--color-subtext)] mt-0.5">
-                          これまでの累計（うち今週 {thisWeekCount} 回）
+                          1 週間を 1 回としてカウント
+                          {thisWeekVisited && (
+                            <span className="ml-1 text-[#10B981] font-bold">・今週も訪問済み</span>
+                          )}
                         </p>
                       </div>
                       <div className="flex items-baseline gap-1">
-                        {/* font-black → font-extrabold で 1 段階軽く、
-                            tracking-tight で 2桁時の "1 5" の隙間を詰める */}
+                        {/* font-extrabold(800) + letter-spacing は CSS 変数で
+                            DesignTuner から目視で詰められるようにしてある。
+                            (tracking-tight クラスは外して var を優先) */}
                         <span
-                          className="font-extrabold tabular-nums leading-none text-[#111] tracking-tight"
-                          style={{ fontSize: 'var(--tune-hero-size, 4rem)' }}
+                          className="font-extrabold tabular-nums leading-none text-[#111]"
+                          style={{
+                            fontSize: 'var(--tune-hero-size, 4rem)',
+                            letterSpacing: 'var(--tune-hero-tracking, -0.025em)',
+                          }}
                         >
-                          {totalVisitCount}
+                          {totalVisitWeekCount}
                         </span>
                         <span className="text-sm font-bold text-[#111]">回</span>
                       </div>
