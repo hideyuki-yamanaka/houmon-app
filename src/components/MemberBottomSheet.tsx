@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState, type Ref, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronRight, MapPin, Clock, Footprints, PencilLine } from 'lucide-react';
-import type { MemberWithVisitInfo, Visit } from '../lib/types';
+import { ChevronRight, MapPin, Clock, Footprints, PencilLine, Star } from 'lucide-react';
+import type { MemberWithVisitInfo, Visit, MemberRow } from '../lib/types';
 import { VISIT_STATUS_CONFIG } from '../lib/constants';
 import { formatDate, resolveAge, stripBuildingName } from '../lib/utils';
-import { getVisits } from '../lib/storage';
+import { getVisits, updateMember } from '../lib/storage';
 import SwipeableBottomSheet, { type SheetHandle } from './SwipeableBottomSheet';
 
 interface Props {
@@ -18,6 +18,8 @@ interface Props {
   sheetHandleRef?: Ref<SheetHandle>;
   /** シート上端の外に浮かべる要素（現在地ボタン等） */
   renderAbove?: () => ReactNode;
+  /** メンバー情報がシート内で変更された時の通知(行きたいトグル等) */
+  onMemberUpdate?: (memberId: string, updates: Partial<MemberWithVisitInfo>) => void;
 }
 
 // mini スナップ時の可視高さ。
@@ -41,10 +43,13 @@ function rememberMemberForReturn(memberId: string) {
   try { sessionStorage.setItem(LAST_VIEWED_MEMBER_KEY, memberId); } catch { /* ignore */ }
 }
 
-export default function MemberBottomSheet({ member, onClose, sheetHandleRef, renderAbove: renderAboveProp }: Props) {
+export default function MemberBottomSheet({ member, onClose, sheetHandleRef, renderAbove: renderAboveProp, onMemberUpdate }: Props) {
   const router = useRouter();
   const [visits, setVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(false);
+  // 「行きたい」トグル: optimistic に即座に塗り替え、DB は裏で更新
+  // (失敗時はサイレントに元に戻す)
+  const [savingWant, setSavingWant] = useState(false);
 
   // 閉じるアニメーション中も前のメンバーを表示するため
   const lastMemberRef = useRef<MemberWithVisitInfo | null>(null);
@@ -137,6 +142,43 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                   </div>
                   <ChevronRight size={24} className="text-[var(--color-icon-gray)] shrink-0" />
                 </button>
+                {/* 行きたい釦 + 記録するボタン を右側に並べる */}
+                <div className="flex items-center gap-2 shrink-0">
+                {/* 「行きたい」ブックマーク釦
+                    - 単独丸アウトライン(モック Ⓐ 案)
+                    - active 時は星マークを黄色塗りつぶし
+                    - タップで楽観的に切り替え→裏で DB 更新 */}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (savingWant) return;
+                    const next = !m.wantToVisit;
+                    onMemberUpdate?.(m.id, { wantToVisit: next });
+                    setSavingWant(true);
+                    try {
+                      await updateMember(m.id, { want_to_visit: next } as Partial<MemberRow>);
+                    } catch {
+                      // ロールバック
+                      onMemberUpdate?.(m.id, { wantToVisit: !next });
+                    } finally {
+                      setSavingWant(false);
+                    }
+                  }}
+                  aria-pressed={!!m.wantToVisit}
+                  aria-label={m.wantToVisit ? '行きたいから外す' : '行きたいに追加'}
+                  title={m.wantToVisit ? '行きたいから外す' : '行きたいに追加'}
+                  className={`shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors active:scale-95 ${
+                    m.wantToVisit
+                      ? 'bg-[#FFF8E1] border-[#FBC02D] text-[#F57F17]'
+                      : 'bg-white border-[#D1D5DB] text-[#6B7280]'
+                  } ${savingWant ? 'opacity-70' : ''}`}
+                >
+                  <Star
+                    size={18}
+                    strokeWidth={2.2}
+                    fill={m.wantToVisit ? '#FBC02D' : 'none'}
+                  />
+                </button>
                 <button
                   onClick={() => router.push(`/visits/new?memberId=${m.id}`)}
                   className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#111] text-white text-[13px] font-bold px-3.5 py-2 active:scale-95 transition-transform"
@@ -145,6 +187,7 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                   <PencilLine size={16} strokeWidth={2.2} />
                   記録する
                 </button>
+                </div>
               </div>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)]">

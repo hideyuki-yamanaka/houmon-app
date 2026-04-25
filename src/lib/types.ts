@@ -30,6 +30,8 @@ export interface Member {
   notes?: string;
   info?: string;                     // 「情報」セクション(複数行、鉛筆アイコンで編集モード)
   visitCycleDays: number;
+  /** 「行きたい」ブックマーク。ON にするとマップピンが星マークに変わる */
+  wantToVisit?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -99,6 +101,8 @@ export interface MemberRow {
   visit_cycle_days: number;
   category: string;
   honbu: string | null;
+  /** 「行きたい」ブックマーク(ALTER TABLE で後付けカラム。古い行は NULL ありえる) */
+  want_to_visit: boolean | null;
   created_at: string;
   updated_at: string;
 }

@@ -88,6 +88,8 @@ function toMember(row: MemberRow): Member {
     notes: row.notes ?? undefined,
     info: row.info ?? undefined,
     visitCycleDays: row.visit_cycle_days,
+    // ALTER TABLE 前(want_to_visit カラム未追加)の DB でも壊れず、全員 false 扱いになる
+    wantToVisit: row.want_to_visit ?? false,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

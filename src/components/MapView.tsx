@@ -72,9 +72,11 @@ const GPS_DOT_ICON = L.divIcon({
 // - 訪問済み = 塗りつぶし + 白いドット
 // - 未訪問   = 白地 + 組織色のストローク + 組織色のドット
 // - 未分類   = グレー（MEMBER_PIN_FALLBACK_COLOR）
+// - 行きたいブックマーク中 = 黄色の丸バッジ + 白い星マーク (上の通常ピン色を上書き)
 function createMemberPin(member: MemberWithVisitInfo, isSelected: boolean): L.DivIcon {
   const hasVisited = member.totalVisits > 0;
   const orgColor = getMemberOrgColor(member);
+  const wantToVisit = !!member.wantToVisit;
 
   const pinColor = hasVisited ? orgColor : '#FFFFFF';
   const dotColor = hasVisited ? '#FFFFFF' : orgColor;
@@ -84,6 +86,36 @@ function createMemberPin(member: MemberWithVisitInfo, isSelected: boolean): L.Di
 
   const w = 60;
   const h = 70;
+
+  // 行きたい中 ⇒ 星バッジ。その他 ⇒ 通常の水滴ピン。
+  // SVG の中身だけ切り替え、外枠の DivIcon サイズは同じに保つ
+  // (アンカー/オフセットを変えずに済む)
+  const innerSvg = wantToVisit
+    ? `
+      <svg width="40" height="40" viewBox="0 0 40 40" fill="none" style="
+        transform: scale(${scale});
+        transform-origin: bottom center;
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        overflow: visible;
+        filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));
+      ">
+        <circle cx="20" cy="20" r="18" fill="#FBC02D" stroke="#FFFFFF" stroke-width="2.5"/>
+        <path d="M20 9 L23.09 16.26 L31 17.27 L25 22.71 L26.18 30.5 L20 26.27 L13.82 30.5 L15 22.71 L9 17.27 L16.91 16.26 Z"
+              fill="#FFFFFF" stroke="#FFFFFF" stroke-width="0.8" stroke-linejoin="round"/>
+      </svg>
+    `
+    : `
+      <svg width="28" height="40" viewBox="0 0 28 40" fill="none" style="
+        transform: scale(${scale});
+        transform-origin: bottom center;
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        overflow: visible;
+      ">
+        <path d="M14 0C6.268 0 0 6.268 0 14C0 24.5 14 40 14 40S28 24.5 28 14C28 6.268 21.732 0 14 0Z"
+              fill="${pinColor}" stroke="${strokeColor}" stroke-width="${hasVisited ? 1 : 2}"/>
+        <circle cx="14" cy="13.5" r="5" fill="${dotColor}"/>
+      </svg>
+    `;
 
   const html = `
     <div style="
@@ -95,18 +127,7 @@ function createMemberPin(member: MemberWithVisitInfo, isSelected: boolean): L.Di
       overflow: visible;
       cursor: pointer;
       will-change: transform;
-    ">
-      <svg width="28" height="40" viewBox="0 0 28 40" fill="none" style="
-        transform: scale(${scale});
-        transform-origin: bottom center;
-        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-        overflow: visible;
-      ">
-        <path d="M14 0C6.268 0 0 6.268 0 14C0 24.5 14 40 14 40S28 24.5 28 14C28 6.268 21.732 0 14 0Z"
-              fill="${pinColor}" stroke="${strokeColor}" stroke-width="${hasVisited ? 1 : 2}"/>
-        <circle cx="14" cy="13.5" r="5" fill="${dotColor}"/>
-      </svg>
-    </div>
+    ">${innerSvg}</div>
   `;
 
   return L.divIcon({
@@ -373,11 +394,11 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
       cache.set(m.id, createMemberPin(m, false));
     }
     return cache;
-    // member.id / totalVisits / district 変化でのみ再生成
+    // member.id / totalVisits / district / wantToVisit 変化でのみ再生成
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     geoMembers.length,
-    geoMembers.map(m => `${m.id}:${m.totalVisits}:${m.district}`).join('|'),
+    geoMembers.map(m => `${m.id}:${m.totalVisits}:${m.district}:${m.wantToVisit ? 1 : 0}`).join('|'),
   ]);
 
   const selectedIcon = useMemo(() => {

@@ -279,6 +279,13 @@ export default function HomePage() {
         onClose={() => setSelectedId(null)}
         sheetHandleRef={memberSheetRef}
         renderAbove={renderLocateButton}
+        // 行きたいトグル等で member 状態が変わったら、HomePage が握る配列も
+        // 楽観更新する。これでマップピンの再描画(星マーク化)も即時に走る。
+        onMemberUpdate={(memberId, updates) => {
+          setMembers(prev =>
+            prev.map(m => (m.id === memberId ? { ...m, ...updates } : m)),
+          );
+        }}
       />
     </div>
   );
