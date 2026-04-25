@@ -319,12 +319,11 @@ export default function LogPage() {
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <h3 className="text-lg font-bold leading-tight">家庭訪問の回数</h3>
-                        <p className="text-xs text-[var(--color-subtext)] mt-0.5">
-                          1 週間を 1 回としてカウント
-                          {thisWeekVisited && (
-                            <span className="ml-1 text-[#10B981] font-bold">・今週も訪問済み</span>
-                          )}
-                        </p>
+                        {/* サブタイトル本文(「1 週間を 1 回としてカウント」)はヒデさん要望で削除。
+                            今週訪問あった時だけ、緑の補助表記として「今週も訪問済み」を出す。 */}
+                        {thisWeekVisited && (
+                          <p className="text-xs mt-0.5 text-[#10B981] font-bold">今週も訪問済み</p>
+                        )}
                       </div>
                       <div className="flex items-baseline gap-1">
                         {/* font-extrabold(800) + letter-spacing は CSS 変数で
