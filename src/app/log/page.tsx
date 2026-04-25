@@ -334,7 +334,8 @@ export default function LogPage() {
                           className="font-extrabold tabular-nums leading-none text-[#111]"
                           style={{
                             fontSize: 'var(--tune-hero-size, 4rem)',
-                            letterSpacing: 'var(--tune-hero-tracking, -0.025em)',
+                            // ヒデさん目視で -0.06em に確定(2026-04-25)
+                            letterSpacing: 'var(--tune-hero-tracking, -0.06em)',
                           }}
                         >
                           {totalVisitWeekCount}
@@ -343,12 +344,12 @@ export default function LogPage() {
                       </div>
                     </div>
 
-                    {/* 12週バー：各週の訪問回数を縦棒で表示。今週のバーだけ黒枠で強調。
-                        高さは「今期間内の最大週」を満タンとして相対表示 */}
+                    {/* 12週バー：各週の訪問回数を縦棒で表示。
+                        高さは「今期間内の最大週」を満タンとして相対表示。
+                        (旧: 今週バーに黒枠付けてたが、ヒデさん要望でやめた) */}
                     <div className="mb-3">
                       <div className="flex items-end gap-1 mb-1.5" style={{ height: '64px' }}>
                         {weekly12.map((w, i) => {
-                          const isCur = i === weekly12.length - 1;
                           const hit = w.total > 0;
                           // 0 件は最小高さで「枠だけ」見せる、1 件以上は比率
                           const heightPct = hit ? Math.max(20, (w.total / maxWeekCount) * 100) : 8;
@@ -365,7 +366,6 @@ export default function LogPage() {
                                 style={{
                                   height: `${heightPct}%`,
                                   backgroundColor: hit ? '#10B981' : '#F3F4F6',
-                                  border: isCur ? '2px solid #111' : 'none',
                                 }}
                                 title={`${w.startStr}〜 ${w.total}回`}
                               />
@@ -373,7 +373,8 @@ export default function LogPage() {
                           );
                         })}
                       </div>
-                      {/* アンカーラベル：12週前 / 8週前 / 4週前 / 今週 + 日付 */}
+                      {/* アンカーラベル：12週前 / 8週前 / 4週前 / 今週 + 日付
+                          フォントは 1 段階下げ済み(black→extrabold / bold→semibold) */}
                       <div className="flex items-start gap-1">
                         {weekly12.map((w, i) => {
                           const label = anchors[i];
@@ -383,7 +384,7 @@ export default function LogPage() {
                             <div key={i} className="flex-1 text-center">
                               <div className="flex flex-col items-center">
                                 <span
-                                  className={`text-[10px] leading-none ${isCur ? 'font-black text-[#111]' : 'font-bold text-[var(--color-subtext)]'}`}
+                                  className={`text-[10px] leading-none ${isCur ? 'font-extrabold text-[#111]' : 'font-semibold text-[var(--color-subtext)]'}`}
                                 >
                                   {label}
                                 </span>

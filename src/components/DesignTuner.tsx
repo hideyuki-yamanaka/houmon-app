@@ -33,7 +33,8 @@ const DEFS: TuneDef[] = [
   { key: 'heroSize',       label: 'Heroナンバーのサイズ',     cssVar: '--tune-hero-size',       unit: 'rem', min: 1.5,  max: 6,    step: 0.125,  default: 4,     group: '家庭訪問の回数' },
   // letter-spacing(em 単位) — マイナスで詰まる、プラスで広がる。「15」みたいな
   // 2 桁数字の隙間が広く感じる時にここを動かして調整する。
-  { key: 'heroTracking',   label: 'Heroナンバーの文字間',     cssVar: '--tune-hero-tracking',   unit: 'em',  min: -0.1, max: 0.05, step: 0.005,  default: -0.025, group: '家庭訪問の回数' },
+  // (default はヒデさんの目視確認で -0.06em に決定 / 2026-04-25)
+  { key: 'heroTracking',   label: 'Heroナンバーの文字間',     cssVar: '--tune-hero-tracking',   unit: 'em',  min: -0.1, max: 0.05, step: 0.005,  default: -0.06, group: '家庭訪問の回数' },
   { key: 'barH',           label: 'スタックバー高さ',         cssVar: '--tune-bar-h',           unit: 'rem', min: 0.25, max: 4,    step: 0.0625, default: 3,     group: '家庭訪問の回数' },
   { key: 'legendGapY',     label: 'レジェンド行間',           cssVar: '--tune-legend-gap-y',    unit: 'rem', min: 0,    max: 1.5,  step: 0.0625, default: 0,     group: '家庭訪問の回数' },
 
