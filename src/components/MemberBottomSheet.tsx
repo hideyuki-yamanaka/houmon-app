@@ -71,11 +71,22 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
     return () => clearTimeout(t);
   }, [member?.id]);
 
-  // 訪問ログあり → 240px（訪問ログ見出し＋リスト分の余白あり）
-  // 訪問ログなし → 150px（訪問ログセクション丸ごと非表示でコンパクト）
-  // ※記録するボタンをヘッダー右上に移したので底の余白が不要 → 更に詰めた
+  // peek 高さの内訳(2026-04-26 住所見切れバグ修正で再設計):
+  //   handle 28 + pt 6 + 名前/釦行 ≈40 + mt 4 + chip 行 ≈18
+  //   + (住所あり時) mt 6 + 住所 ≈18
+  //   + (訪問あり時) pt 16 + 見出し 22 + ログ1件 ≈38 + pb 8
+  //   + pb 12
+  //
+  // 住所がある場合は最低でも ~152px 必要。150 だとピッタリ住所が下端に
+  // 来て iOS のセーフエリア込みで「見切れて見える」状態になっていた。
+  // → 住所有無 × 訪問有無の 3 ケースで余裕を持たせて切り分け。
   const hasVisits = (displayMember?.totalVisits ?? 0) > 0;
-  const peekHeight = hasVisits ? 240 : 150;
+  const hasAddress = !!displayMember?.address;
+  const peekHeight = hasVisits
+    ? 260                     // 訪問ログあり: ヘッダー全部 + ログ1件分
+    : hasAddress
+      ? 220                   // 訪問なし + 住所あり: 住所まで完全に見せる
+      : 160;                  // 訪問なし + 住所なし: コンパクト
 
   // ストリートビュー URL（Google Maps web/アプリの Street View モード）
   // シート外の「上端貼り付き」ボタンで使うので、外側で計算しておく
