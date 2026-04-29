@@ -204,26 +204,39 @@ export default function LogPage() {
                 </div>
               </div>
 
-              {/* スパン切替: 12週 / 半年 / 1年 / 全期間 */}
-              <div className="flex gap-1 mb-3">
-                {SPAN_OPTIONS.map(opt => (
-                  <button
-                    key={opt.val}
-                    onClick={() => setSpan(opt.val)}
-                    className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors ${
-                      span === opt.val
-                        ? 'bg-[#111] text-white'
-                        : 'bg-[#F3F4F6] text-[var(--color-subtext)] active:bg-[#E5E7EB]'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+              {/* スパン切替: iOS 風セグメント UI(4 分割)、右寄せ */}
+              <div className="flex justify-end mb-3">
+                <div
+                  role="tablist"
+                  aria-label="期間"
+                  className="inline-flex p-0.5 bg-[#F3F4F6] rounded-lg"
+                >
+                  {SPAN_OPTIONS.map(opt => {
+                    const active = span === opt.val;
+                    return (
+                      <button
+                        key={opt.val}
+                        type="button"
+                        role="tab"
+                        aria-selected={active}
+                        onClick={() => setSpan(opt.val)}
+                        className={`px-3 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                          active
+                            ? 'bg-white text-[#111] shadow-sm'
+                            : 'text-[var(--color-subtext)] active:bg-[#E5E7EB]'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
-              {/* 横棒リスト: 左=ラベル(N週前 + 日付) / 右=太バー + 中に白抜き数字
+              {/* 縦積みリスト: 各行=「ラベル(今週/N週間前 + 日付)」を上、
+                  その下に横棒バー。すべて左揃え。
                   全期間モードは bucket 数が多くなるので訪問あった週だけに絞る */}
-              <div className="space-y-1.5">
+              <div className="space-y-3">
                 {(() => {
                   // weekly は古い→新しい順なので、表示は新しい(今週)を上に逆順
                   const ordered = [...weekly].reverse().map((w, idx) => ({ ...w, agoIdx: idx }));
@@ -232,11 +245,11 @@ export default function LogPage() {
                     const hit = w.total > 0;
                     const widthPct = hit ? Math.max(12, (w.total / maxWeekCount) * 100) : 4;
                     return (
-                      <div key={w.startStr} className="flex items-center gap-2.5">
-                        {/* 左ラベル: 今週 / 先週 / N週間前 + 日付 */}
-                        <div className="w-[84px] shrink-0 flex flex-col items-end leading-tight">
+                      <div key={w.startStr} className="flex flex-col items-stretch">
+                        {/* ラベル(行1): 今週 / 先週 / N週間前 + 日付 (左揃え) */}
+                        <div className="flex items-baseline gap-1.5 mb-1">
                           <span
-                            className={`text-[12px] font-bold ${
+                            className={`text-[12px] font-bold leading-none ${
                               w.agoIdx === 0 ? 'text-[#111]' : 'text-[#6B7280]'
                             }`}
                           >
@@ -246,8 +259,8 @@ export default function LogPage() {
                             {w.start.getMonth() + 1}/{w.start.getDate()}
                           </span>
                         </div>
-                        {/* バー */}
-                        <div className="flex-1 h-5 rounded-md bg-[#F3F4F6] overflow-hidden relative">
+                        {/* バー(行2) */}
+                        <div className="h-5 rounded-md bg-[#F3F4F6] overflow-hidden relative">
                           <div
                             className="h-full rounded-md transition-all flex items-center justify-end px-2"
                             style={{
