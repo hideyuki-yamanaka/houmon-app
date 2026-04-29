@@ -17,14 +17,9 @@ const STATUS_HEX: Record<VisitStatus, string> = {
   moved:           VISIT_STATUS_CONFIG.moved.dot,
 };
 
-// 「家庭訪問の回数」カードのスパン切替
-type Span = 12 | 26 | 52 | -1; // -1 = 全期間
-const SPAN_OPTIONS: { val: Span; label: string }[] = [
-  { val: 12, label: '12週' },
-  { val: 26, label: '半年' },
-  { val: 52, label: '1年' },
-  { val: -1, label: '全期間' },
-];
+// 「家庭訪問の回数」カードは直近 12 週固定で集計する
+// (旧: スパン切替 12週/半年/1年/全期間 を持たせていたが、ヒデさん指示で撤去)
+const WEEK_SPAN = 12;
 
 // 月曜始まり週バケット
 function mondayOf(d: Date): Date {
@@ -58,12 +53,8 @@ export default function LogPage() {
   const [members, setMembers] = useState<MemberWithVisitInfo[]>([]);
   const [allVisits, setAllVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(true);
-  // 「家庭訪問の回数」カードのスパン
-  const [span, setSpan] = useState<Span>(12);
   // 地区セクションのアコーディオン展開状態 — 9件を超えたら畳む
   const [expandDistrict, setExpandDistrict] = useState(false);
-  // 家庭訪問の回数カード: 直近 N 行で畳んで「続きを見る」展開
-  const [expandWeeks, setExpandWeeks] = useState(false);
 
   useEffect(() => {
     Promise.all([getMembersWithVisitInfo(), getAllVisits()])
@@ -85,34 +76,16 @@ export default function LogPage() {
     return { districtStats };
   }, [members, allVisits]);
 
-  // ── スパンに応じた週別バケット ──
-  // span=12 なら直近 12 週、span=26/52 は半年/1年、span=-1 は最初の訪問週から今週まで全部。
+  // ── 直近 12 週分の週別バケット ──
+  // 各週: ステータス別カウント + 合計。
+  // 「家庭訪問の回数」カード(横棒)も「訪問ログ内訳」カードもこのデータで集計する。
   const weekly = useMemo<WeekBucket[]>(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const thisMon = mondayOf(today);
 
-    let weekCount: number;
-    if (span !== -1) {
-      weekCount = span;
-    } else {
-      // 全期間: 一番古い訪問の週から今週までカバーする週数を算出
-      if (allVisits.length === 0) {
-        weekCount = 12; // データ無ければとりあえず 12 週分の空バケット
-      } else {
-        const earliest = allVisits.reduce(
-          (min, v) => (v.visitedAt < min ? v.visitedAt : min),
-          allVisits[0].visitedAt,
-        );
-        const earliestMon = mondayOf(new Date(earliest));
-        const diffMs = thisMon.getTime() - earliestMon.getTime();
-        const diffWk = Math.round(diffMs / (1000 * 60 * 60 * 24 * 7));
-        weekCount = Math.max(1, diffWk + 1);
-      }
-    }
-
     const buckets: WeekBucket[] = [];
-    for (let i = weekCount - 1; i >= 0; i--) {
+    for (let i = WEEK_SPAN - 1; i >= 0; i--) {
       const start = new Date(thisMon);
       start.setDate(thisMon.getDate() - i * 7);
       buckets.push({ start, startStr: fmtDate(start), counts: emptyStatusCounts(), total: 0 });
@@ -123,7 +96,7 @@ export default function LogPage() {
       if (b) { b.counts[v.status]++; b.total++; }
     }
     return buckets;
-  }, [allVisits, span]);
+  }, [allVisits]);
 
   // ── 訪問ログ内訳(スタックバー＋レジェンド)用の統計 ──
   // weekly と同じ範囲で集計、会えた率も計算
@@ -208,109 +181,63 @@ export default function LogPage() {
                 </div>
               </div>
 
-              {/* スパン切替: iOS 風セグメント UI(4 分割)、右寄せ */}
-              <div className="flex justify-end mb-3">
-                <div
-                  role="tablist"
-                  aria-label="期間"
-                  className="inline-flex p-0.5 bg-[#F3F4F6] rounded-lg"
-                >
-                  {SPAN_OPTIONS.map(opt => {
-                    const active = span === opt.val;
-                    return (
-                      <button
-                        key={opt.val}
-                        type="button"
-                        role="tab"
-                        aria-selected={active}
-                        onClick={() => setSpan(opt.val)}
-                        className={`px-3 py-1 rounded-md text-[11px] font-semibold transition-all ${
-                          active
-                            ? 'bg-white text-[#111] shadow-sm'
-                            : 'text-[var(--color-subtext)] active:bg-[#E5E7EB]'
-                        }`}
-                      >
-                        {opt.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
               {/* 縦積みリスト: 各行=「ラベル(今週/N週間前 + 日付)」を上、
-                  その下に横棒バー。すべて左揃え。
-                  全期間モードは bucket 数が多くなるので訪問あった週だけに絞る。
-                  地区別カードと同じく直近 N 行で畳み、超過分は「続きを見る」展開。 */}
-              {(() => {
-                // weekly は古い→新しい順なので、表示は新しい(今週)を上に逆順
-                const ordered = [...weekly].reverse().map((w, idx) => ({ ...w, agoIdx: idx }));
-                const allDisplay = span === -1 ? ordered.filter(w => w.total > 0) : ordered;
-                const VISIBLE_LIMIT = 5; // 直近 5 行(=約1ヶ月分)まで先に見せる
-                const visible = expandWeeks ? allDisplay : allDisplay.slice(0, VISIBLE_LIMIT);
-                const hasMore = allDisplay.length > VISIBLE_LIMIT;
-                return (
-                  <>
-                    <div className="space-y-3">
-                      {visible.map(w => {
-                        const hit = w.total > 0;
-                        const widthPct = hit ? Math.max(12, (w.total / maxWeekCount) * 100) : 4;
-                        return (
-                          <div key={w.startStr} className="flex flex-col items-stretch">
-                            {/* ラベル(行1): 今週 / 先週 / N週間前 + 日付 (左揃え) */}
-                            <div className="flex items-baseline gap-1.5 mb-1">
-                              <span
-                                className={`text-[12px] font-bold leading-none ${
-                                  w.agoIdx === 0 ? 'text-[#111]' : 'text-[#6B7280]'
-                                }`}
-                              >
-                                {weekJaLabel(w.agoIdx)}
-                              </span>
-                              <span className="text-[10px] tabular-nums text-[#9CA3AF]">
-                                {w.start.getMonth() + 1}/{w.start.getDate()}
-                              </span>
-                            </div>
-                            {/* バー(行2) */}
-                            <div className="h-5 rounded-md bg-[#F3F4F6] overflow-hidden relative">
-                              <div
-                                className="h-full rounded-md transition-all flex items-center justify-end px-2"
-                                style={{
-                                  width: `${widthPct}%`,
-                                  background: hit ? '#10B981' : '#F3F4F6',
-                                }}
-                              >
-                                {hit && (
-                                  <span className="text-[11px] font-bold tabular-nums text-white">
-                                    {w.total}
-                                  </span>
-                                )}
-                              </div>
-                              {!hit && (
-                                <span className="absolute inset-y-0 left-2 flex items-center text-[11px] tabular-nums text-[#9CA3AF]">
-                                  0
+                  その下に横棒バー、すべて左揃え。
+                  約 5 行ぶんの高さで畳み、超過分はカード内で縦スクロール。
+                  (旧: スパン切替・続きを見る を持っていたが、ヒデさん指示で撤去) */}
+              <div
+                className="overflow-y-auto pr-1"
+                style={{ maxHeight: '260px' }}
+              >
+                <div className="space-y-3">
+                  {(() => {
+                    // weekly は古い→新しい順なので、表示は新しい(今週)を上に逆順
+                    const ordered = [...weekly].reverse().map((w, idx) => ({ ...w, agoIdx: idx }));
+                    return ordered.map(w => {
+                      const hit = w.total > 0;
+                      const widthPct = hit ? Math.max(12, (w.total / maxWeekCount) * 100) : 4;
+                      return (
+                        <div key={w.startStr} className="flex flex-col items-stretch">
+                          {/* ラベル(行1): 今週 / 先週 / N週間前 + 日付 (左揃え) */}
+                          <div className="flex items-baseline gap-1.5 mb-1">
+                            <span
+                              className={`text-[12px] font-bold leading-none ${
+                                w.agoIdx === 0 ? 'text-[#111]' : 'text-[#6B7280]'
+                              }`}
+                            >
+                              {weekJaLabel(w.agoIdx)}
+                            </span>
+                            <span className="text-[10px] tabular-nums text-[#9CA3AF]">
+                              {w.start.getMonth() + 1}/{w.start.getDate()}
+                            </span>
+                          </div>
+                          {/* バー(行2) */}
+                          <div className="h-5 rounded-md bg-[#F3F4F6] overflow-hidden relative">
+                            <div
+                              className="h-full rounded-md transition-all flex items-center justify-end px-2"
+                              style={{
+                                width: `${widthPct}%`,
+                                background: hit ? '#10B981' : '#F3F4F6',
+                              }}
+                            >
+                              {hit && (
+                                <span className="text-[11px] font-bold tabular-nums text-white">
+                                  {w.total}
                                 </span>
                               )}
                             </div>
+                            {!hit && (
+                              <span className="absolute inset-y-0 left-2 flex items-center text-[11px] tabular-nums text-[#9CA3AF]">
+                                0
+                              </span>
+                            )}
                           </div>
-                        );
-                      })}
-                      {span === -1 && allDisplay.length === 0 && (
-                        <p className="text-sm text-[var(--color-subtext)] py-4 text-center">訪問記録がまだありません</p>
-                      )}
-                    </div>
-                    {hasMore && (
-                      <div className="flex justify-center mt-3">
-                        <button
-                          onClick={() => setExpandWeeks(v => !v)}
-                          aria-expanded={expandWeeks}
-                          className="px-4 py-1.5 rounded-full border border-[#D1D5DB] text-[11px] text-[#6B7280] bg-white active:opacity-60 transition-opacity"
-                        >
-                          {expandWeeks ? '閉じる' : `続きを見る (+${allDisplay.length - VISIBLE_LIMIT})`}
-                        </button>
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
             </div>
 
             {/* ────────────── 訪問ログ内訳 ────────────── */}
@@ -322,13 +249,20 @@ export default function LogPage() {
               className="ios-card hover:!opacity-100 md:col-span-2 lg:col-span-2 flex flex-col"
               style={{ padding: 'var(--tune-card-pad, 2.125rem)' }}
             >
-              {/* ヘッダー */}
+              {/* ヘッダー
+                  - 左 = タイトル + サブ「直近12週分」(セクション説明 7 字以内)
+                  - 右 = 「会えた確率」(小、23 の左に下揃え) + Hero 「23」 + 「%」
+                  ヒデさん指示(2026-04-26): サブの旧文言「会えた確率」は Hero 横に移動 */}
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <h3 className="text-lg font-bold leading-tight">訪問ログ内訳</h3>
-                  <p className="text-xs mt-0.5 text-[var(--color-subtext)] font-medium">会えた確率</p>
+                  <p className="text-xs mt-0.5 text-[var(--color-subtext)] font-medium">直近12週分</p>
                 </div>
-                <div className="flex items-baseline gap-1">
+                <div className="flex items-baseline gap-1.5">
+                  {/* 「会えた確率」を 23 の左、ベースライン揃え(下揃え)で配置 */}
+                  <span className="text-[11px] font-medium text-[var(--color-subtext)] whitespace-nowrap">
+                    会えた確率
+                  </span>
                   <span
                     className="font-extrabold tabular-nums leading-none text-[#111]"
                     style={{
