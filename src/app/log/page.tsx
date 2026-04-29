@@ -18,11 +18,12 @@ const PERIODS: { key: PeriodKey; label: string; days: number | null }[] = [
 
 // ステータスごとのドーナツ色（constants の bg クラスだと SVG に塗れないので hex を定義）
 const STATUS_HEX: Record<VisitStatus, string> = {
-  met: '#10B981',
-  absent: '#6B7280',
-  refused: '#EF4444',
+  met_self:        '#10B981', // 緑(濃) — 本人に会えたが一番嬉しい
+  met_family:      '#34D399', // 緑(薄)
+  absent:          '#6B7280',
+  refused:         '#EF4444',
   unknown_address: '#F59E0B',
-  moved: '#8B5CF6',
+  moved:           '#8B5CF6',
 };
 
 // 週の始まりを月曜に揃える（土日=週末として扱う）
@@ -37,7 +38,7 @@ function mondayOf(d: Date): Date {
 }
 function fmtDate(d: Date) { return d.toISOString().slice(0, 10); }
 function emptyStatusCounts(): Record<VisitStatus, number> {
-  return { met: 0, absent: 0, refused: 0, unknown_address: 0, moved: 0 };
+  return { met_self: 0, met_family: 0, absent: 0, refused: 0, unknown_address: 0, moved: 0 };
 }
 
 type WeekBucket = {
@@ -199,7 +200,10 @@ export default function LogPage() {
       for (const s of Object.keys(counts) as VisitStatus[]) counts[s] += w.counts[s];
     }
     const total = (Object.values(counts) as number[]).reduce((a, b) => a + b, 0);
-    const metRate = total > 0 ? Math.round((counts.met / total) * 100) : 0;
+    // 「会えた率」= 本人に会えた + 家族に会えた を合計したもの。
+    // (旧仕様の met 1本だった頃と意味的に揃える)
+    const metCount = counts.met_self + counts.met_family;
+    const metRate = total > 0 ? Math.round((metCount / total) * 100) : 0;
     return { counts, total, metRate };
   }, [weekly12]);
 
@@ -296,7 +300,7 @@ export default function LogPage() {
               style={{ padding: 'var(--tune-card-pad, 2.125rem)' }}
             >
               {(() => {
-                const order: VisitStatus[] = ['met', 'absent', 'refused', 'unknown_address', 'moved'];
+                const order: VisitStatus[] = ['met_self', 'met_family', 'absent', 'refused', 'unknown_address', 'moved'];
                 // 4アンカー：index → ラベル
                 const anchors: Record<number, string> = { 0: '12週前', 4: '8週前', 8: '4週前', 11: '今週' };
                 const { counts, total, metRate } = continuityStats;

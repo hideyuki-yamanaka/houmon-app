@@ -163,12 +163,15 @@ export const YOUNG_HONBU_KEYS = ORG_HIERARCHY
   .parents.map(p => p.key);
 
 // ── 訪問カテゴリ ──
+// 2026-04-26: 旧 met を met_self(本人に会えた) / met_family(家族に会えた) に分割。
+// 並び順=表示順序: 嬉しい順(本人 > 家族 > 不在 > 拒否 > 住所不明 > 転居)
 export const VISIT_STATUS_CONFIG: Record<VisitStatus, { label: string; color: string; bg: string }> = {
-  met:             { label: '会えた',     color: 'text-green-700',  bg: 'bg-green-100' },
-  absent:          { label: '不在',       color: 'text-gray-700',   bg: 'bg-gray-100' },
-  refused:         { label: '拒否',       color: 'text-red-700',    bg: 'bg-red-100' },
-  unknown_address: { label: '住所不明',   color: 'text-amber-700',  bg: 'bg-amber-100' },
-  moved:           { label: '転居',       color: 'text-purple-700', bg: 'bg-purple-100' },
+  met_self:        { label: '本人に会えた', color: 'text-green-700',  bg: 'bg-green-100' },
+  met_family:      { label: '家族に会えた', color: 'text-emerald-700',bg: 'bg-emerald-50' },
+  absent:          { label: '不在',         color: 'text-gray-700',   bg: 'bg-gray-100' },
+  refused:         { label: '拒否',         color: 'text-red-700',    bg: 'bg-red-100' },
+  unknown_address: { label: '住所不明',     color: 'text-amber-700',  bg: 'bg-amber-100' },
+  moved:           { label: '転居',         color: 'text-purple-700', bg: 'bg-purple-100' },
 };
 
 // ── 対応者 ──

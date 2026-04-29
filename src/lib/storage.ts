@@ -254,7 +254,7 @@ export async function getVisitsByMonth(year: number, month: number): Promise<Vis
 export async function createVisit(
   memberId: string,
   visitedAt: string,
-  status: VisitStatus = 'met',
+  status: VisitStatus = 'met_self',
 ): Promise<Visit> {
   const id = nanoid(12);
   const now = new Date().toISOString();

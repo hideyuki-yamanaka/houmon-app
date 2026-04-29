@@ -5,6 +5,7 @@ import { LocateFixed, Search, X, Layers } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import type { MemberWithVisitInfo, Visit } from '../lib/types';
 import { getMembersWithVisitInfo, getAllVisits } from '../lib/storage';
+import { supabase, isMockMode } from '../lib/supabase';
 import { searchMembers } from '../lib/search';
 import MemberBottomSheet from '../components/MemberBottomSheet';
 import MembersListSheet, { applyAllFilters, type AppliedFilters } from '../components/MembersListSheet';
@@ -116,6 +117,33 @@ export default function HomePage() {
       .then(([m, v]) => { setMembers(m); setAllVisits(v); })
       .catch(() => {})
       .finally(() => setLoading(false));
+  }, []);
+
+  // ─── iPhone / iPad シームレス同期: Supabase Realtime 購読 ───
+  // visits / members どちらかが変わったら debounce 付きで全件再フェッチ。
+  // 片方の端末で記録/編集 → もう片方が即時反映される(自動リロード不要)。
+  // テーブルが Supabase 側で Realtime publication に登録されている前提
+  // (sql/2026-04-26-status-split-and-realtime.sql で ALTER PUBLICATION 済)。
+  useEffect(() => {
+    if (isMockMode) return; // .env 未設定のローカル mock 時は購読しない
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleRefetch = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        Promise.all([getMembersWithVisitInfo(), getAllVisits()])
+          .then(([m, v]) => { setMembers(m); setAllVisits(v); })
+          .catch(() => {});
+      }, 500);
+    };
+    const channel = supabase
+      .channel('houmon-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'visits' }, scheduleRefetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'members' }, scheduleRefetch)
+      .subscribe();
+    return () => {
+      if (timer) clearTimeout(timer);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // 起動時に自動で現在地を取得してマップを移動（パーミッション済みなら無音で実行）

@@ -37,7 +37,15 @@ export interface Member {
 }
 
 // ── 訪問カテゴリ ──
-export type VisitStatus = 'met' | 'absent' | 'refused' | 'unknown_address' | 'moved';
+// 2026-04-26: 旧 'met' を 'met_self'(本人に会えた)/'met_family'(家族に会えた)に
+// 分割。SQL マイグレーション(2026-04-26-split-met-status.sql)で既存ログも仕分け済。
+export type VisitStatus =
+  | 'met_self'
+  | 'met_family'
+  | 'absent'
+  | 'refused'
+  | 'unknown_address'
+  | 'moved';
 
 // ── 対応者 ──
 export type Respondent = 'father' | 'mother' | 'wife' | 'son' | 'sibling';

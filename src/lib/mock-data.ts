@@ -82,12 +82,12 @@ export const MOCK_MEMBERS: Member[] = [
 
 export const MOCK_VISITS: Visit[] = [
   {
-    id: 'visit-001', memberId: 'member-001', visitedAt: '2026-03-28', status: 'met',
+    id: 'visit-001', memberId: 'member-001', visitedAt: '2026-03-28', status: 'met_self',
     respondent: 'wife', summary: '元気そうでした。来月の地区座談会について相談。',
     createdAt: now, updatedAt: now,
   },
   {
-    id: 'visit-002', memberId: 'member-001', visitedAt: '2026-03-10', status: 'met',
+    id: 'visit-002', memberId: 'member-001', visitedAt: '2026-03-10', status: 'met_self',
     respondent: 'wife', summary: '新聞の感想を聞けた。',
     createdAt: now, updatedAt: now,
   },
@@ -97,22 +97,22 @@ export const MOCK_VISITS: Visit[] = [
     createdAt: now, updatedAt: now,
   },
   {
-    id: 'visit-004', memberId: 'member-002', visitedAt: '2026-03-25', status: 'met',
+    id: 'visit-004', memberId: 'member-002', visitedAt: '2026-03-25', status: 'met_self',
     respondent: 'son', summary: '息子さんが対応。お元気とのこと。',
     createdAt: now, updatedAt: now,
   },
   {
-    id: 'visit-005', memberId: 'member-004', visitedAt: '2026-04-02', status: 'met',
+    id: 'visit-005', memberId: 'member-004', visitedAt: '2026-04-02', status: 'met_self',
     respondent: 'wife', summary: '対話実践の様子を聞けた。前向きな様子。',
     createdAt: now, updatedAt: now,
   },
   {
-    id: 'visit-006', memberId: 'member-006', visitedAt: '2026-03-20', status: 'met',
+    id: 'visit-006', memberId: 'member-006', visitedAt: '2026-03-20', status: 'met_self',
     respondent: 'wife',
     createdAt: now, updatedAt: now,
   },
   {
-    id: 'visit-007', memberId: 'member-008', visitedAt: '2026-04-01', status: 'met',
+    id: 'visit-007', memberId: 'member-008', visitedAt: '2026-04-01', status: 'met_self',
     respondent: 'wife', summary: '地区の活動状況について情報共有。',
     createdAt: now, updatedAt: now,
   },

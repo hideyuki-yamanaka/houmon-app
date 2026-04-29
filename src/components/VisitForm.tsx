@@ -22,7 +22,7 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
   const router = useRouter();
   const [visitId, setVisitId] = useState<string | null>(existingVisit?.id ?? null);
   const [date, setDate] = useState(existingVisit?.visitedAt ?? initialDate ?? today());
-  const [status, setStatus] = useState<VisitStatus>(existingVisit?.status ?? 'met');
+  const [status, setStatus] = useState<VisitStatus>(existingVisit?.status ?? 'met_self');
   const [respondent, setRespondent] = useState<Respondent | undefined>(existingVisit?.respondent);
   const [notes, setNotes] = useState<Record<string, unknown> | undefined>(existingVisit?.notes);
   const [summary, setSummary] = useState(existingVisit?.summary ?? '');
