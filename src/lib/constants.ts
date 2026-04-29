@@ -163,15 +163,26 @@ export const YOUNG_HONBU_KEYS = ORG_HIERARCHY
   .parents.map(p => p.key);
 
 // ── 訪問カテゴリ ──
-// 2026-04-26: 旧 met を met_self(本人に会えた) / met_family(家族に会えた) に分割。
-// 並び順=表示順序: 嬉しい順(本人 > 家族 > 不在 > 拒否 > 住所不明 > 転居)
-export const VISIT_STATUS_CONFIG: Record<VisitStatus, { label: string; color: string; bg: string }> = {
-  met_self:        { label: '本人に会えた', color: 'text-green-700',  bg: 'bg-green-100' },
-  met_family:      { label: '家族に会えた', color: 'text-emerald-700',bg: 'bg-emerald-50' },
-  absent:          { label: '不在',         color: 'text-gray-700',   bg: 'bg-gray-100' },
-  refused:         { label: '拒否',         color: 'text-red-700',    bg: 'bg-red-100' },
-  unknown_address: { label: '住所不明',     color: 'text-amber-700',  bg: 'bg-amber-100' },
-  moved:           { label: '転居',         color: 'text-purple-700', bg: 'bg-purple-100' },
+// 2026-04-26: 旧 met を met_self/met_family に分割 → 同 26 日にカラーシステムを
+// アウトライン型(白背景+色枠+色文字+色ドット)に再構築。視認性を優先し、
+// 「本人に会えた」「家族に会えた」は同じ緑で統一する(ヒデさん指示)。
+//
+// 各値は hex で持つ:
+//   border : チップの枠線色
+//   text   : チップの文字色
+//   dot    : チップ左の小ドット & マップピン色 等で再利用
+export const VISIT_STATUS_CONFIG: Record<VisitStatus, {
+  label: string;
+  border: string;
+  text: string;
+  dot: string;
+}> = {
+  met_self:        { label: '本人に会えた', border: '#10B981', text: '#047857', dot: '#10B981' },
+  met_family:      { label: '家族に会えた', border: '#10B981', text: '#047857', dot: '#10B981' },
+  absent:          { label: '不在',         border: '#9CA3AF', text: '#4B5563', dot: '#6B7280' },
+  refused:         { label: '拒否',         border: '#EF4444', text: '#B91C1C', dot: '#EF4444' },
+  unknown_address: { label: '住所不明',     border: '#F59E0B', text: '#B45309', dot: '#F59E0B' },
+  moved:           { label: '転居',         border: '#8B5CF6', text: '#6D28D9', dot: '#8B5CF6' },
 };
 
 // ── 対応者 ──

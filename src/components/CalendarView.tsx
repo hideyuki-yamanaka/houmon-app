@@ -4,8 +4,8 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import type { Visit } from '../lib/types';
 import { getAllVisits, getVisitsByDate } from '../lib/storage';
-import { VISIT_STATUS_CONFIG } from '../lib/constants';
 import CalendarGrid from './CalendarGrid';
+import StatusChip from './StatusChip';
 
 export default function CalendarView() {
   const now = new Date();
@@ -64,17 +64,12 @@ export default function CalendarView() {
         ) : (
           <div className="space-y-2">
             {dayVisits.map(v => {
-              const statusConfig = VISIT_STATUS_CONFIG[v.status];
               return (
                 <Link key={v.id} href={`/visits/${v.id}`} className="block">
                   <div className="ios-card px-3 py-3.5">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-[15px]">{v.memberName}</span>
-                      {statusConfig && (
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${statusConfig.bg} ${statusConfig.color}`}>
-                          {statusConfig.label}
-                        </span>
-                      )}
+                      <StatusChip status={v.status} size="sm" />
                     </div>
                     {v.summary && (
                       <p className="text-xs text-[var(--color-subtext)] mt-0.5 line-clamp-1">{v.summary}</p>

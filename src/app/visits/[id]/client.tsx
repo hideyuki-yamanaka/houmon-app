@@ -6,10 +6,11 @@ import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import type { Visit } from '../../../lib/types';
 import { getVisitById, softDeleteVisit } from '../../../lib/storage';
-import { VISIT_STATUS_CONFIG, RESPONDENT_CONFIG } from '../../../lib/constants';
+import { RESPONDENT_CONFIG } from '../../../lib/constants';
 import { formatDate } from '../../../lib/utils';
 import type { VisitStatus, Respondent } from '../../../lib/types';
 import TiptapViewer from '../../../components/TiptapViewer';
+import StatusChip from '../../../components/StatusChip';
 
 export default function VisitDetailClient() {
   const params = useParams();
@@ -79,7 +80,6 @@ export default function VisitDetailClient() {
     );
   }
 
-  const statusConfig = VISIT_STATUS_CONFIG[visit.status as VisitStatus];
   // 対応者: 配列を「父・母」みたいに連結。型外('other'等)は「その他」にフォールバック。
   const respondentLabel = (visit.respondents ?? [])
     .map(r => RESPONDENT_CONFIG[r as Respondent]?.label ?? 'その他')
@@ -126,13 +126,7 @@ export default function VisitDetailClient() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <div className="text-[10px] text-[var(--color-subtext)] mb-1">カテゴリ</div>
-                {statusConfig ? (
-                  <span className={`inline-flex text-xs px-2.5 py-1 rounded-full font-medium ${statusConfig.bg} ${statusConfig.color}`}>
-                    {statusConfig.label}
-                  </span>
-                ) : (
-                  <span className="text-sm text-[var(--color-subtext)]">—</span>
-                )}
+                <StatusChip status={visit.status as VisitStatus} />
               </div>
               <div>
                 <div className="text-[10px] text-[var(--color-subtext)] mb-1">対応者</div>

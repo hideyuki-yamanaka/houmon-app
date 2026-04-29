@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import type { Visit } from '../lib/types';
-import { VISIT_STATUS_CONFIG, RESPONDENT_CONFIG } from '../lib/constants';
+import { RESPONDENT_CONFIG } from '../lib/constants';
 import { formatDate } from '../lib/utils';
 import type { Respondent } from '../lib/types';
 import { ChevronRight } from 'lucide-react';
 import Highlight from './Highlight';
+import StatusChip from './StatusChip';
 
 interface Props {
   visit: Visit;
@@ -23,7 +24,6 @@ function joinRespondentLabels(rs?: Respondent[]): string {
 }
 
 export default function VisitCard({ visit, highlightQuery }: Props) {
-  const statusConfig = VISIT_STATUS_CONFIG[visit.status];
   const respondentLabel = joinRespondentLabels(visit.respondents);
 
   return (
@@ -32,9 +32,7 @@ export default function VisitCard({ visit, highlightQuery }: Props) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-[15px] font-bold">{formatDate(visit.visitedAt, 'yyyy年M月d日')}</span>
-            <span className={`text-sm px-2.5 py-0.5 rounded-full ${statusConfig.bg} ${statusConfig.color}`}>
-              {statusConfig.label}
-            </span>
+            <StatusChip status={visit.status} />
             {respondentLabel && (
               <span className="text-sm px-2.5 py-0.5 rounded-full bg-gray-100 text-[var(--color-subtext)]">
                 {respondentLabel}

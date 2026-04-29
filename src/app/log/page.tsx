@@ -6,14 +6,15 @@ import type { MemberWithVisitInfo, Visit, VisitStatus } from '../../lib/types';
 import { getMembersWithVisitInfo, getAllVisits } from '../../lib/storage';
 import { VISIT_STATUS_CONFIG, DISTRICT_COLORS } from '../../lib/constants';
 
-// ステータスごとのドーナツ色（constants の bg クラスだと SVG に塗れないので hex を定義）
+// ステータスごとのカラー(SVG/inline style 用)。VISIT_STATUS_CONFIG.dot に揃えてある。
+// ヒデさん指示(2026-04-26): 「本人に会えた」「家族に会えた」は同色で扱う。
 const STATUS_HEX: Record<VisitStatus, string> = {
-  met_self:        '#10B981', // 緑(濃) — 本人に会えたが一番嬉しい
-  met_family:      '#34D399', // 緑(薄)
-  absent:          '#6B7280',
-  refused:         '#EF4444',
-  unknown_address: '#F59E0B',
-  moved:           '#8B5CF6',
+  met_self:        VISIT_STATUS_CONFIG.met_self.dot,
+  met_family:      VISIT_STATUS_CONFIG.met_family.dot,
+  absent:          VISIT_STATUS_CONFIG.absent.dot,
+  refused:         VISIT_STATUS_CONFIG.refused.dot,
+  unknown_address: VISIT_STATUS_CONFIG.unknown_address.dot,
+  moved:           VISIT_STATUS_CONFIG.moved.dot,
 };
 
 // 「家庭訪問の回数」カードのスパン切替

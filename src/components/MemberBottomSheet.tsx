@@ -5,10 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, MapPin, Clock, Footprints, PencilLine, Star } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit, MemberRow } from '../lib/types';
-import { VISIT_STATUS_CONFIG } from '../lib/constants';
 import { formatDate, resolveAge, stripBuildingName } from '../lib/utils';
 import { getVisits, updateMember } from '../lib/storage';
 import SwipeableBottomSheet, { type SheetHandle } from './SwipeableBottomSheet';
+import StatusChip from './StatusChip';
 
 interface Props {
   member: MemberWithVisitInfo | null;
@@ -249,7 +249,6 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                 ) : (
                   <div className="space-y-2">
                     {visits.map(v => {
-                      const sc = VISIT_STATUS_CONFIG[v.status];
                       return (
                         <Link
                           key={v.id}
@@ -261,11 +260,7 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                             <span className="text-sm font-medium shrink-0">
                               {formatDate(v.visitedAt, 'yyyy年M月d日')}
                             </span>
-                            {sc && (
-                              <span className={`text-[11px] px-2 py-0.5 rounded-full shrink-0 ${sc.bg} ${sc.color}`}>
-                                {sc.label}
-                              </span>
-                            )}
+                            <StatusChip status={v.status} size="sm" />
                             {v.summary && (
                               <span className="text-xs text-[var(--color-subtext)] truncate">
                                 {v.summary}
