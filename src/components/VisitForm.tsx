@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ChevronLeft, Check, Loader2, Camera, X, User, Calendar } from 'lucide-react';
-import Link from 'next/link';
+import { ChevronLeft, Check, Loader2, Camera, X, Calendar } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Member, Visit, VisitStatus, Respondent } from '../lib/types';
 import { VISIT_STATUS_CONFIG, RESPONDENT_CONFIG } from '../lib/constants';
@@ -252,27 +251,18 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
       <div className="flex-1 overflow-y-auto pb-8">
         <div className="max-w-[1366px] mx-auto px-4 pt-4 space-y-6">
 
-          {/* 日付 + 情報を見る */}
-          <div className="flex items-end gap-3">
-            <div>
-              <label className="text-sm font-semibold text-[var(--color-subtext)] block mb-2">日付</label>
-              <div className="inline-flex items-center gap-1.5 bg-white rounded-[10px] h-[44px] px-3">
-                <input
-                  type="date"
-                  value={date}
-                  onChange={e => handleDateChange(e.target.value)}
-                  className="bg-transparent outline-none text-[17px] text-[var(--color-text)] [&::-webkit-calendar-picker-indicator]:hidden"
-                />
-                <Calendar size={18} className="text-[var(--color-icon-gray)] shrink-0" />
-              </div>
+          {/* 日付 (旧: 横に「情報を見る」リンクがあったがヒデさん要望で削除) */}
+          <div>
+            <label className="text-sm font-semibold text-[var(--color-subtext)] block mb-2">日付</label>
+            <div className="inline-flex items-center gap-1.5 bg-white rounded-[10px] h-[44px] px-3">
+              <input
+                type="date"
+                value={date}
+                onChange={e => handleDateChange(e.target.value)}
+                className="bg-transparent outline-none text-[17px] text-[var(--color-text)] [&::-webkit-calendar-picker-indicator]:hidden"
+              />
+              <Calendar size={18} className="text-[var(--color-icon-gray)] shrink-0" />
             </div>
-            <Link
-              href={`/members/${member.id}`}
-              className="flex items-center gap-1 text-sm text-[var(--color-primary)] whitespace-nowrap shrink-0 h-[44px] bg-white rounded-[10px] px-3"
-            >
-              <User size={16} />
-              情報を見る
-            </Link>
           </div>
 
           {/* カテゴリ & 対応者 — PC: 2カラム / スマホ: 縦積み */}
