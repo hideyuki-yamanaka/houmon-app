@@ -130,8 +130,9 @@ export default function LogPage() {
       for (const s of Object.keys(counts) as VisitStatus[]) counts[s] += w.counts[s];
     }
     const total = (Object.values(counts) as number[]).reduce((a, b) => a + b, 0);
-    // 「会えた確率」= (本人に会えた + 家族に会えた) / 総訪問件数
-    const metCount = counts.met_self + counts.met_family;
+    // 「会えた確率」= (本人 + 家族 + 拒否) / 総訪問件数
+    // ヒデさん指示(2026-04-26): 拒否も「人は出てきた」=会えた扱いに含める
+    const metCount = counts.met_self + counts.met_family + counts.refused;
     const metRate = total > 0 ? Math.round((metCount / total) * 100) : 0;
     return { counts, total, metRate };
   }, [weekly]);
@@ -329,20 +330,22 @@ export default function LogPage() {
                   const total = breakdownStats.total;
                   const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
                   // 4 ブロックの定義(色は各カテゴリ系統色に揃える)
+                  // ヒデさん指示(2026-04-26): 拒否は「会えた」に含める。
+                  // → 「会えてない」 = 不在のみ になるので、ブロック名も「不在」に統一
                   const blocks = [
                     {
                       key: 'met',
                       label: '会えた',
-                      count: c.met_self + c.met_family,
-                      sub: `本人 ${c.met_self} / 家族 ${c.met_family}`,
+                      count: c.met_self + c.met_family + c.refused,
+                      sub: `本人 ${c.met_self} / 家族 ${c.met_family} / 拒否 ${c.refused}`,
                       fg: '#10B981',
                       bg: '#ECFDF5',
                     },
                     {
-                      key: 'notMet',
-                      label: '会えてない',
-                      count: c.absent + c.refused,
-                      sub: `不在 ${c.absent} / 拒否 ${c.refused}`,
+                      key: 'absent',
+                      label: '不在',
+                      count: c.absent,
+                      sub: `${c.absent} 件`,
                       fg: '#6B7280',
                       bg: '#F3F4F6',
                     },
