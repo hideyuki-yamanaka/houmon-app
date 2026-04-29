@@ -319,63 +319,119 @@ export default function LogPage() {
                 </div>
               </div>
 
-              {/* 中身: スタックバー + レジェンド (旧コードを移植) */}
+              {/* 中身: スタックバー(視覚的内訳) + 4 ブロック(会えた / 会えてない / 住所不明 / 転居)
+                  各ブロック: メイン=パーセント、サブ=件数(または内訳件数)。 */}
               <div className="mt-auto">
                 {breakdownStats.total === 0 ? (
                   <p className="text-sm text-[var(--color-subtext)] py-4 text-center">訪問記録がまだありません</p>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[11px] text-[var(--color-subtext)]">カテゴリ別の割合</span>
-                      <span className="text-[12px] font-bold">
-                        全 {breakdownStats.total} 件
-                      </span>
-                    </div>
-                    {/* スタックバー */}
-                    <div
-                      className="flex rounded-full overflow-hidden bg-[#F3F4F6]"
-                      style={{ height: 'var(--tune-bar-h, 3rem)' }}
-                    >
-                      {statusOrder.map(status => {
-                        const c = breakdownStats.counts[status];
-                        if (c === 0) return null;
-                        const pct = (c / breakdownStats.total) * 100;
-                        return (
+                ) : (() => {
+                  const c = breakdownStats.counts;
+                  const total = breakdownStats.total;
+                  const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
+                  // 4 ブロックの定義(色は各カテゴリ系統色に揃える)
+                  const blocks = [
+                    {
+                      key: 'met',
+                      label: '会えた',
+                      count: c.met_self + c.met_family,
+                      sub: `本人 ${c.met_self} / 家族 ${c.met_family}`,
+                      fg: '#10B981',
+                      bg: '#ECFDF5',
+                    },
+                    {
+                      key: 'notMet',
+                      label: '会えてない',
+                      count: c.absent + c.refused,
+                      sub: `不在 ${c.absent} / 拒否 ${c.refused}`,
+                      fg: '#6B7280',
+                      bg: '#F3F4F6',
+                    },
+                    {
+                      key: 'unknown',
+                      label: '住所不明',
+                      count: c.unknown_address,
+                      sub: `${c.unknown_address} 件`,
+                      fg: '#F59E0B',
+                      bg: '#FFFBEB',
+                    },
+                    {
+                      key: 'moved',
+                      label: '転居',
+                      count: c.moved,
+                      sub: `${c.moved} 件`,
+                      fg: '#8B5CF6',
+                      bg: '#F5F3FF',
+                    },
+                  ];
+                  return (
+                    <>
+                      {/* スタックバー(視覚的内訳) */}
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[11px] text-[var(--color-subtext)]">カテゴリ別の割合</span>
+                        <span className="text-[12px] font-bold">全 {total} 件</span>
+                      </div>
+                      <div
+                        className="flex rounded-full overflow-hidden bg-[#F3F4F6] mb-3"
+                        style={{ height: '0.875rem' }}
+                      >
+                        {statusOrder.map(status => {
+                          const cc = c[status];
+                          if (cc === 0) return null;
+                          const pp = (cc / total) * 100;
+                          return (
+                            <div
+                              key={status}
+                              className="h-full transition-[width] duration-500"
+                              style={{ width: `${pp}%`, backgroundColor: STATUS_HEX[status] }}
+                              title={`${VISIT_STATUS_CONFIG[status].label}: ${cc}件`}
+                            />
+                          );
+                        })}
+                      </div>
+
+                      {/* 4 ブロック (2x2 グリッド) */}
+                      <div className="grid grid-cols-2 gap-2">
+                        {blocks.map(b => (
                           <div
-                            key={status}
-                            className="h-full transition-[width] duration-500"
-                            style={{ width: `${pct}%`, backgroundColor: STATUS_HEX[status] }}
-                            title={`${VISIT_STATUS_CONFIG[status].label}: ${c}件`}
-                          />
-                        );
-                      })}
-                    </div>
-                    {/* レジェンド */}
-                    <div
-                      className="pt-4 grid grid-cols-2 sm:grid-cols-3 gap-x-4"
-                      style={{ rowGap: 'var(--tune-legend-gap-y, 0rem)' }}
-                    >
-                      {statusOrder.map(status => {
-                        const c = breakdownStats.counts[status];
-                        const hex = STATUS_HEX[status];
-                        return (
-                          <div key={status} className="flex items-center gap-2 min-w-0">
-                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: hex }} />
-                            <span className="text-[13px] truncate flex-1 text-[var(--color-subtext)]">
-                              {VISIT_STATUS_CONFIG[status].label}
-                            </span>
-                            <span
-                              className="text-base font-black tabular-nums"
-                              style={{ color: c > 0 ? '#111' : '#D1D5DB' }}
+                            key={b.key}
+                            className="rounded-xl p-3"
+                            style={{ backgroundColor: b.bg }}
+                          >
+                            <div
+                              className="text-[11px] font-bold"
+                              style={{ color: b.fg }}
                             >
-                              {c}
-                            </span>
+                              {b.label}
+                            </div>
+                            {/* メイン = パーセント (大きめ) */}
+                            <div className="flex items-baseline gap-1 mt-0.5">
+                              <span
+                                className="font-extrabold tabular-nums leading-none"
+                                style={{
+                                  color: b.fg,
+                                  fontSize: '1.875rem',
+                                  letterSpacing: '-0.04em',
+                                }}
+                              >
+                                {pct(b.count)}
+                              </span>
+                              <span className="text-[12px] font-bold" style={{ color: b.fg }}>
+                                %
+                              </span>
+                            </div>
+                            {/* サブ = 件数 / 内訳 */}
+                            <div
+                              className="text-[10px] mt-1"
+                              style={{ color: b.fg, opacity: 0.85 }}
+                            >
+                              {b.sub}
+                            </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
+                        ))}
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
 
