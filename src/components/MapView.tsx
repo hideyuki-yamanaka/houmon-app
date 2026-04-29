@@ -357,21 +357,39 @@ function MapDragHandler({ onDrag }: { onDrag?: () => void }) {
 export default function MapView({ members, selectedMemberId, onMemberSelect, onMapClick, onUserMapDrag, layerMode = 'standard' }: MapViewProps) {
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
 
-  // マウント時にサイレントに現在地を取りに行って、GPS 青ドットを最初から表示する。
-  // watchPosition でユーザー移動にも追従。権限拒否やタイムアウト時は黙って何もしない
-  // （ユーザーが locate ボタンを押した時だけエラーメッセージを出す方針）。
+  // マウント時、「既に許可済み」のときだけ watchPosition で青ドット表示する。
+  // 許可未取得(prompt/denied) の場合は起動時に勝手にダイアログを出さず、
+  // ユーザーが locate ボタンを押した時だけ prompt が出るようにする。
+  // (毎回起動時に許可を求められる体験を避けるため・ヒデさん要望 2026-04-26)
   useEffect(() => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) return;
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        setCurrentLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-      },
-      () => {
-        /* サイレントに失敗。マーカーは出さない。 */
-      },
-      { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 },
-    );
-    return () => navigator.geolocation.clearWatch(watchId);
+
+    let watchId: number | null = null;
+    const startWatch = () => {
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          setCurrentLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        },
+        () => { /* サイレントに失敗 */ },
+        { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 },
+      );
+    };
+
+    if ('permissions' in navigator && navigator.permissions?.query) {
+      navigator.permissions
+        .query({ name: 'geolocation' as PermissionName })
+        .then(result => {
+          if (result.state === 'granted') startWatch();
+          // 'prompt' / 'denied' は何もしない(ダイアログを出さない)
+          // 後からユーザーが OS 設定で許可状態を変えたら、次回起動時に有効化される
+        })
+        .catch(() => { /* Permissions API 失敗時もダイアログ抑制側へ倒す */ });
+    }
+    // Permissions API 未対応の古いブラウザは安全側で何もしない
+
+    return () => {
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    };
   }, []);
 
   const geoMembers = useMemo(

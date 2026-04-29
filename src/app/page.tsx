@@ -146,22 +146,41 @@ export default function HomePage() {
     };
   }, []);
 
-  // 起動時に自動で現在地を取得してマップを移動（パーミッション済みなら無音で実行）
+  // 起動時に自動で現在地を取得 — 「既に許可済み」のときだけ実行する。
+  //   - Permissions API が使える環境(Safari16+, Chrome 等)で state が 'granted' なら静かに実行
+  //   - 'prompt' / 'denied' / Permissions API 未対応のレガシー環境では起動時に呼ばない
+  //     (毎回の許可ダイアログを抑制。ユーザーが「現在地ボタン」を押した時だけ prompt が出る)
   const autoLocatedRef = useRef(false);
   useEffect(() => {
     if (autoLocatedRef.current) return;
     autoLocatedRef.current = true;
     if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const container = mapWrapRef.current?.querySelector('.leaflet-container');
-        container?.dispatchEvent(
-          new CustomEvent('locate-me', { detail: { lat: pos.coords.latitude, lng: pos.coords.longitude } })
-        );
-      },
-      () => { /* パーミッション未許可なら静かに無視 */ },
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
-    );
+
+    const runSilent = () => {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const container = mapWrapRef.current?.querySelector('.leaflet-container');
+          container?.dispatchEvent(
+            new CustomEvent('locate-me', { detail: { lat: pos.coords.latitude, lng: pos.coords.longitude } })
+          );
+        },
+        () => { /* サイレントに失敗 */ },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 }
+      );
+    };
+
+    // Permissions API があればチェックして granted のときだけ位置取得
+    if ('permissions' in navigator && navigator.permissions?.query) {
+      navigator.permissions
+        .query({ name: 'geolocation' as PermissionName })
+        .then(result => {
+          if (result.state === 'granted') runSilent();
+          // 'prompt' / 'denied' は起動時にダイアログを出さない
+        })
+        .catch(() => { /* Permissions API がコケたら何もしない(ダイアログ出ないように) */ });
+    }
+    // Permissions API 未対応のブラウザでも安全側に倒す: 起動時の自動取得はせず、
+    // ユーザーが現在地ボタンを押した時だけ prompt 出す
   }, []);
 
   const selectedMember = useMemo(
