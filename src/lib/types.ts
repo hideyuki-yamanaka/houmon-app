@@ -56,7 +56,9 @@ export interface Visit {
   memberId: string;
   visitedAt: string; // YYYY-MM-DD
   status: VisitStatus;
-  respondent?: Respondent;
+  /** 対応者(複数可)。父+母 など同時に対応してくれた場合に複数入る。
+   *  2026-04-26 に旧 single respondent から配列化(SQL マイグ済)。 */
+  respondents?: Respondent[];
   notes?: Record<string, unknown>; // Tiptap JSON
   summary?: string;
   keywords?: string[];
@@ -120,7 +122,10 @@ export interface VisitRow {
   member_id: string;
   visited_at: string;
   status: string;
+  /** 旧: 単一対応者。後方互換のため当面残す(新規書き込みは respondents に行う)。 */
   respondent: string | null;
+  /** 新: 対応者配列(2026-04-26 から)。Postgres TEXT[]。 */
+  respondents: string[] | null;
   notes: Record<string, unknown> | null;
   summary: string | null;
   keywords: string[] | null;

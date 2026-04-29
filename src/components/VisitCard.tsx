@@ -14,9 +14,17 @@ interface Props {
   highlightQuery?: string;
 }
 
+/** 対応者配列を 「父・母」 みたいに連結。型外の値('other'等)は「その他」にフォールバック */
+function joinRespondentLabels(rs?: Respondent[]): string {
+  if (!rs || rs.length === 0) return '';
+  return rs
+    .map(r => RESPONDENT_CONFIG[r as Respondent]?.label ?? 'その他')
+    .join('・');
+}
+
 export default function VisitCard({ visit, highlightQuery }: Props) {
   const statusConfig = VISIT_STATUS_CONFIG[visit.status];
-  const respondentConfig = visit.respondent ? RESPONDENT_CONFIG[visit.respondent as Respondent] : null;
+  const respondentLabel = joinRespondentLabels(visit.respondents);
 
   return (
     <Link href={`/visits/${visit.id}`} className="block">
@@ -27,9 +35,9 @@ export default function VisitCard({ visit, highlightQuery }: Props) {
             <span className={`text-sm px-2.5 py-0.5 rounded-full ${statusConfig.bg} ${statusConfig.color}`}>
               {statusConfig.label}
             </span>
-            {respondentConfig && (
+            {respondentLabel && (
               <span className="text-sm px-2.5 py-0.5 rounded-full bg-gray-100 text-[var(--color-subtext)]">
-                {respondentConfig.label}
+                {respondentLabel}
               </span>
             )}
           </div>

@@ -80,7 +80,10 @@ export default function VisitDetailClient() {
   }
 
   const statusConfig = VISIT_STATUS_CONFIG[visit.status as VisitStatus];
-  const respondentConfig = visit.respondent ? RESPONDENT_CONFIG[visit.respondent as Respondent] : null;
+  // 対応者: 配列を「父・母」みたいに連結。型外('other'等)は「その他」にフォールバック。
+  const respondentLabel = (visit.respondents ?? [])
+    .map(r => RESPONDENT_CONFIG[r as Respondent]?.label ?? 'その他')
+    .join('・');
 
   return (
     <div className="h-full flex flex-col bg-[var(--color-bg)]">
@@ -133,8 +136,8 @@ export default function VisitDetailClient() {
               </div>
               <div>
                 <div className="text-[10px] text-[var(--color-subtext)] mb-1">対応者</div>
-                {respondentConfig ? (
-                  <span className="text-sm font-medium">{respondentConfig.label}</span>
+                {respondentLabel ? (
+                  <span className="text-sm font-medium">{respondentLabel}</span>
                 ) : (
                   <span className="text-sm text-[var(--color-subtext)]">—</span>
                 )}

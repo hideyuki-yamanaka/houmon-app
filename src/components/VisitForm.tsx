@@ -22,7 +22,8 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
   const [visitId, setVisitId] = useState<string | null>(existingVisit?.id ?? null);
   const [date, setDate] = useState(existingVisit?.visitedAt ?? initialDate ?? today());
   const [status, setStatus] = useState<VisitStatus>(existingVisit?.status ?? 'met_self');
-  const [respondent, setRespondent] = useState<Respondent | undefined>(existingVisit?.respondent);
+  // 対応者(複数選択可) — 旧 single 'respondent' から配列に変更(2026-04-26)
+  const [respondents, setRespondents] = useState<Respondent[]>(existingVisit?.respondents ?? []);
   const [notes, setNotes] = useState<Record<string, unknown> | undefined>(existingVisit?.notes);
   const [summary, setSummary] = useState(existingVisit?.summary ?? '');
   const [saveState, setSaveState] = useState<SaveState>('idle');
@@ -57,7 +58,7 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
         const extraUpdates: Record<string, unknown> = { ...updates };
         delete extraUpdates.status;
         delete extraUpdates.visited_at;
-        if (respondent && extraUpdates.respondent === undefined) extraUpdates.respondent = respondent;
+        if (respondents.length > 0 && extraUpdates.respondents === undefined) extraUpdates.respondents = respondents;
         if (notes && extraUpdates.notes === undefined) extraUpdates.notes = notes;
         if (summary && extraUpdates.summary === undefined) extraUpdates.summary = summary;
         if (Object.keys(extraUpdates).length > 0) {
@@ -79,7 +80,7 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
     } catch {
       setSaveState('error');
     }
-  }, [visitId, member.id, date, status, respondent, notes, summary]);
+  }, [visitId, member.id, date, status, respondents, notes, summary]);
 
   // 手動保存ボタン: デバウンスをキャンセルして即保存
   const handleManualSave = useCallback(() => {
@@ -88,13 +89,13 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
       status,
       visited_at: date,
     };
-    if (respondent) updates.respondent = respondent;
+    if (respondents.length > 0) updates.respondents = respondents;
     if (notes) updates.notes = notes;
     if (summary) updates.summary = summary;
     if (images.length > 0) updates.images = images;
     manualSaveRef.current = true; // このセーブは手動 → 完了トースト出す対象
     save(updates);
-  }, [save, status, date, respondent, notes, summary, images]);
+  }, [save, status, date, respondents, notes, summary, images]);
 
   // saveState が 'saved' になったタイミングで、手動保存起因ならトースト表示
   useEffect(() => {
@@ -130,9 +131,14 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
   };
 
   // 対応者変更 → 即保存
-  const handleRespondentChange = (newRespondent: Respondent) => {
-    setRespondent(newRespondent);
-    debouncedSave({ respondent: newRespondent }, true);
+  // タップで on/off。現状の配列に含まれてれば外す、なければ追加。
+  const handleRespondentToggle = (key: Respondent) => {
+    const next = respondents.includes(key)
+      ? respondents.filter(r => r !== key)
+      : [...respondents, key];
+    setRespondents(next);
+    // 空配列の時は明示的に null を送って DB の値もクリアする
+    debouncedSave({ respondents: next.length > 0 ? next : null }, true);
   };
 
   // 日付変更 → 即保存
@@ -288,8 +294,9 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
                 {(Object.entries(RESPONDENT_CONFIG) as [Respondent, typeof RESPONDENT_CONFIG[Respondent]][]).map(([key, config]) => (
                   <button
                     key={key}
-                    onClick={() => handleRespondentChange(key)}
-                    className={`chip ${respondent === key ? 'selected' : ''}`}
+                    onClick={() => handleRespondentToggle(key)}
+                    className={`chip ${respondents.includes(key) ? 'selected' : ''}`}
+                    aria-pressed={respondents.includes(key)}
                   >
                     {config.label}
                   </button>

@@ -47,7 +47,9 @@ function applyMockUpdates(current: Visit, updates: Partial<VisitRow>): Visit {
   const next: Visit = { ...current };
   if (updates.visited_at !== undefined) next.visitedAt = updates.visited_at;
   if (updates.status !== undefined) next.status = updates.status as VisitStatus;
-  if (updates.respondent !== undefined) next.respondent = (updates.respondent as Respondent | null) ?? undefined;
+  if (updates.respondents !== undefined) {
+    next.respondents = (updates.respondents as Respondent[] | null) ?? undefined;
+  }
   if (updates.notes !== undefined) next.notes = (updates.notes as Record<string, unknown> | null) ?? undefined;
   if (updates.summary !== undefined) next.summary = updates.summary ?? undefined;
   if (updates.keywords !== undefined) next.keywords = (updates.keywords as string[] | null) ?? undefined;
@@ -96,12 +98,20 @@ function toMember(row: MemberRow): Member {
 }
 
 function toVisit(row: VisitRow): Visit {
+  // 対応者: respondents(配列) を最優先、無ければ旧 respondent(単一値)を 1 要素配列化
+  const respondents: Respondent[] | undefined = (() => {
+    if (Array.isArray(row.respondents) && row.respondents.length > 0) {
+      return row.respondents as Respondent[];
+    }
+    if (row.respondent) return [row.respondent as Respondent];
+    return undefined;
+  })();
   return {
     id: row.id,
     memberId: row.member_id,
     visitedAt: row.visited_at,
     status: row.status as VisitStatus,
-    respondent: (row.respondent as Respondent) ?? undefined,
+    respondents,
     notes: row.notes ?? undefined,
     summary: row.summary ?? undefined,
     keywords: row.keywords ?? undefined,
@@ -264,6 +274,7 @@ export async function createVisit(
     visited_at: visitedAt,
     status,
     respondent: null,
+    respondents: null,
     notes: null,
     summary: null,
     keywords: null,
