@@ -290,9 +290,11 @@ export default function LogPage() {
                       // 訪問あった週だけクリック可能。0 件週は非インタラクティブな div のまま。
                       // (Safari iOS で disabled button が稀にレイアウト崩れる前歴あり、
                       //  クリッカブルじゃないものは div で出す方が安全)
+                      // ⚠ button は w-full を明示しないとデフォで shrink-to-fit になり
+                      //   バーが中身幅(数字分)まで縮んでしまう(2026-05-02 ヒデさん指摘で修正)
                       if (!hit) {
                         return (
-                          <div key={w.startStr} className="flex flex-col items-stretch">
+                          <div key={w.startStr} className="w-full flex flex-col items-stretch">
                             {inner}
                           </div>
                         );
@@ -307,7 +309,7 @@ export default function LogPage() {
                             agoIdx: w.agoIdx,
                           })}
                           aria-label={`${weekJaLabel(w.agoIdx)} ${w.total} 件の訪問メンバーを見る`}
-                          className="flex flex-col items-stretch text-left rounded-md cursor-pointer active:opacity-60 transition-opacity"
+                          className="w-full block text-left rounded-md cursor-pointer active:opacity-60 transition-opacity"
                         >
                           {inner}
                         </button>
