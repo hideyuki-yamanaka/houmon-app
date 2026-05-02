@@ -2,9 +2,20 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { MemberWithVisitInfo, Visit, VisitStatus } from '../../lib/types';
 import { getMembersWithVisitInfo, getAllVisits } from '../../lib/storage';
 import { VISIT_STATUS_CONFIG, DISTRICT_COLORS } from '../../lib/constants';
+import MembersListBottomSheet from '../../components/MembersListBottomSheet';
+
+// ─── ダッシュボードのドリルダウン用 シート種別 ───
+//   week     : 家庭訪問の回数 棒グラフタップ → その週に訪問したメンバー一覧
+//   status   : 訪問ログ内訳 ブロックタップ → そのカテゴリで記録された対象メンバー一覧
+//   district : 地区別タイルタップ → その地区のメンバー一覧
+type SheetSpec =
+  | { kind: 'week'; weekStartStr: string; agoIdx: number }
+  | { kind: 'status'; statuses: VisitStatus[]; label: string }
+  | { kind: 'district'; district: string };
 
 // ステータスごとのカラー(SVG/inline style 用)。VISIT_STATUS_CONFIG.dot に揃えてある。
 // ヒデさん指示(2026-04-26): 「本人に会えた」「家族に会えた」は同色で扱う。
@@ -55,6 +66,9 @@ export default function LogPage() {
   const [loading, setLoading] = useState(true);
   // 地区セクションのアコーディオン展開状態 — 9件を超えたら畳む
   const [expandDistrict, setExpandDistrict] = useState(false);
+  // 各UIタップ時に開く メンバー一覧ボトムシート
+  const [sheetSpec, setSheetSpec] = useState<SheetSpec | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     Promise.all([getMembersWithVisitInfo(), getAllVisits()])
@@ -130,6 +144,51 @@ export default function LogPage() {
   // 訪問ログ内訳のスタックバー順
   const statusOrder: VisitStatus[] = ['met_self', 'met_family', 'absent', 'refused', 'unknown_address', 'moved'];
 
+  // ── ボトムシート用: タイトルと該当メンバーを spec から動的に算出 ──
+  const sheetData = useMemo(() => {
+    if (!sheetSpec) return { title: null as string | null, members: [] as MemberWithVisitInfo[] };
+    const memberById = new Map(members.map(m => [m.id, m]));
+
+    if (sheetSpec.kind === 'week') {
+      // 該当週(月曜始まり)に訪問記録のあるユニークメンバー
+      const ids = new Set<string>();
+      for (const v of allVisits) {
+        const vMon = fmtDate(mondayOf(new Date(v.visitedAt)));
+        if (vMon === sheetSpec.weekStartStr) ids.add(v.memberId);
+      }
+      const list = [...ids].map(id => memberById.get(id)).filter(Boolean) as MemberWithVisitInfo[];
+      return {
+        title: `${weekJaLabel(sheetSpec.agoIdx)}に訪問したメンバー`,
+        members: list,
+      };
+    }
+
+    if (sheetSpec.kind === 'status') {
+      // 直近12週内で当該ステータスの記録がある ユニークメンバー
+      const set = new Set<VisitStatus>(sheetSpec.statuses);
+      const cutoff = weekly[0]?.startStr ?? '';
+      const ids = new Set<string>();
+      for (const v of allVisits) {
+        if (!set.has(v.status)) continue;
+        if (cutoff && v.visitedAt < cutoff) continue;
+        ids.add(v.memberId);
+      }
+      const list = [...ids].map(id => memberById.get(id)).filter(Boolean) as MemberWithVisitInfo[];
+      return {
+        title: `${sheetSpec.label}のメンバー`,
+        members: list,
+      };
+    }
+
+    // district
+    const list = members.filter(m => m.district === sheetSpec.district);
+    const short = sheetSpec.district.replace(/豊岡部|光陽部|豊岡中央支部/g, '');
+    return {
+      title: `${short}地区のメンバー`,
+      members: list,
+    };
+  }, [sheetSpec, members, allVisits, weekly]);
+
   return (
     <div className="absolute inset-0 flex flex-col bg-[var(--color-bg)]">
       <div className="ios-nav px-4 py-3">
@@ -196,8 +255,27 @@ export default function LogPage() {
                     return ordered.map(w => {
                       const hit = w.total > 0;
                       const widthPct = hit ? Math.max(12, (w.total / maxWeekCount) * 100) : 4;
+                      // 訪問あった週だけクリック可能(0 件週は無効化)
+                      const clickable = hit;
                       return (
-                        <div key={w.startStr} className="flex flex-col items-stretch">
+                        <button
+                          key={w.startStr}
+                          type="button"
+                          disabled={!clickable}
+                          onClick={() => clickable && setSheetSpec({
+                            kind: 'week',
+                            weekStartStr: w.startStr,
+                            agoIdx: w.agoIdx,
+                          })}
+                          className={`w-full flex flex-col items-stretch text-left rounded-md transition-opacity ${
+                            clickable ? 'cursor-pointer active:opacity-60' : 'cursor-default'
+                          }`}
+                          aria-label={
+                            clickable
+                              ? `${weekJaLabel(w.agoIdx)} ${w.total} 件の訪問メンバーを見る`
+                              : `${weekJaLabel(w.agoIdx)} 訪問なし`
+                          }
+                        >
                           {/* ラベル(行1): 今週 / 先週 / N週間前 + 日付 (左揃え) */}
                           <div className="flex items-baseline gap-1.5 mb-1">
                             <span
@@ -232,7 +310,7 @@ export default function LogPage() {
                               </span>
                             )}
                           </div>
-                        </div>
+                        </button>
                       );
                     });
                   })()}
@@ -288,7 +366,11 @@ export default function LogPage() {
                   // 4 ブロックの定義(色は各カテゴリ系統色に揃える)
                   // ヒデさん指示(2026-04-26): 拒否は「会えた」に含める。
                   // → 「会えてない」 = 不在のみ になるので、ブロック名も「不在」に統一
-                  const blocks = [
+                  // タップで「該当メンバー一覧」シートが開く(statuses はそのカテゴリに含む VisitStatus 群)
+                  const blocks: {
+                    key: string; label: string; count: number; sub: string;
+                    fg: string; bg: string; statuses: VisitStatus[];
+                  }[] = [
                     {
                       key: 'met',
                       label: '会えた',
@@ -296,6 +378,7 @@ export default function LogPage() {
                       sub: `本人 ${c.met_self} / 家族 ${c.met_family} / 拒否 ${c.refused}`,
                       fg: '#10B981',
                       bg: '#ECFDF5',
+                      statuses: ['met_self', 'met_family', 'refused'],
                     },
                     {
                       key: 'absent',
@@ -304,6 +387,7 @@ export default function LogPage() {
                       sub: `${c.absent} 件`,
                       fg: '#6B7280',
                       bg: '#F3F4F6',
+                      statuses: ['absent'],
                     },
                     {
                       key: 'unknown',
@@ -312,6 +396,7 @@ export default function LogPage() {
                       sub: `${c.unknown_address} 件`,
                       fg: '#F59E0B',
                       bg: '#FFFBEB',
+                      statuses: ['unknown_address'],
                     },
                     {
                       key: 'moved',
@@ -320,6 +405,7 @@ export default function LogPage() {
                       sub: `${c.moved} 件`,
                       fg: '#8B5CF6',
                       bg: '#F5F3FF',
+                      statuses: ['moved'],
                     },
                   ];
                   return (
@@ -348,45 +434,62 @@ export default function LogPage() {
                         })}
                       </div>
 
-                      {/* 4 ブロック (2x2 グリッド) */}
+                      {/* 4 ブロック (2x2 グリッド) — タップで該当メンバー一覧シート */}
                       <div className="grid grid-cols-2 gap-2">
-                        {blocks.map(b => (
-                          <div
-                            key={b.key}
-                            className="rounded-xl p-3"
-                            style={{ backgroundColor: b.bg }}
-                          >
-                            <div
-                              className="text-[11px] font-bold"
-                              style={{ color: b.fg }}
+                        {blocks.map(b => {
+                          const clickable = b.count > 0;
+                          return (
+                            <button
+                              key={b.key}
+                              type="button"
+                              disabled={!clickable}
+                              onClick={() => clickable && setSheetSpec({
+                                kind: 'status',
+                                statuses: b.statuses,
+                                label: b.label,
+                              })}
+                              className={`rounded-xl p-3 text-left transition-opacity ${
+                                clickable ? 'cursor-pointer active:opacity-70' : 'cursor-default'
+                              }`}
+                              style={{ backgroundColor: b.bg }}
+                              aria-label={
+                                clickable
+                                  ? `${b.label}のメンバー ${b.count}件を見る`
+                                  : `${b.label}は0件`
+                              }
                             >
-                              {b.label}
-                            </div>
-                            {/* メイン = パーセント (大きめ) */}
-                            <div className="flex items-baseline gap-1 mt-0.5">
-                              <span
-                                className="font-extrabold tabular-nums leading-none"
-                                style={{
-                                  color: b.fg,
-                                  fontSize: '1.875rem',
-                                  letterSpacing: '-0.04em',
-                                }}
+                              <div
+                                className="text-[11px] font-bold"
+                                style={{ color: b.fg }}
                               >
-                                {pct(b.count)}
-                              </span>
-                              <span className="text-[12px] font-bold" style={{ color: b.fg }}>
-                                %
-                              </span>
-                            </div>
-                            {/* サブ = 件数 / 内訳 */}
-                            <div
-                              className="text-[10px] mt-1"
-                              style={{ color: b.fg, opacity: 0.85 }}
-                            >
-                              {b.sub}
-                            </div>
-                          </div>
-                        ))}
+                                {b.label}
+                              </div>
+                              {/* メイン = パーセント (大きめ) */}
+                              <div className="flex items-baseline gap-1 mt-0.5">
+                                <span
+                                  className="font-extrabold tabular-nums leading-none"
+                                  style={{
+                                    color: b.fg,
+                                    fontSize: '1.875rem',
+                                    letterSpacing: '-0.04em',
+                                  }}
+                                >
+                                  {pct(b.count)}
+                                </span>
+                                <span className="text-[12px] font-bold" style={{ color: b.fg }}>
+                                  %
+                                </span>
+                              </div>
+                              {/* サブ = 件数 / 内訳 */}
+                              <div
+                                className="text-[10px] mt-1"
+                                style={{ color: b.fg, opacity: 0.85 }}
+                              >
+                                {b.sub}
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
                     </>
                   );
@@ -419,10 +522,13 @@ export default function LogPage() {
                       const hex = DISTRICT_COLORS[district]?.hex ?? '#6B7280';
                       const short = district.replace(/豊岡部|光陽部|豊岡中央支部/g, '');
                       return (
-                        <div
+                        <button
                           key={district}
-                          className="rounded-xl px-3 py-2.5 flex flex-col justify-between bg-[#F7F7F8] border border-[#EBEBEB]"
+                          type="button"
+                          onClick={() => setSheetSpec({ kind: 'district', district })}
+                          className="rounded-xl px-3 py-2.5 flex flex-col justify-between bg-[#F7F7F8] border border-[#EBEBEB] text-left active:opacity-70 transition-opacity"
                           style={{ aspectRatio: 'var(--tune-district-aspect, 2.3)' }}
+                          aria-label={`${short}地区のメンバー ${data.total}人 を見る`}
                         >
                           <div className="flex items-center gap-1.5 min-w-0">
                             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: hex }} />
@@ -439,7 +545,7 @@ export default function LogPage() {
                               / {data.total}人
                             </span>
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -526,6 +632,20 @@ export default function LogPage() {
           </div>
         </div>
       </div>
+
+      {/* ダッシュボードからの ドリルダウン用 メンバー一覧シート
+          週バー / 訪問ログ内訳ブロック / 地区タイル のいずれをタップしても、
+          spec を渡してこの 1 つのシートに集約する。
+          メンバータップでメンバー詳細ページへ。 */}
+      <MembersListBottomSheet
+        title={sheetData.title}
+        members={sheetData.members}
+        onSelectMember={(id) => {
+          setSheetSpec(null);
+          router.push(`/members/${id}`);
+        }}
+        onClose={() => setSheetSpec(null)}
+      />
     </div>
   );
 }
