@@ -347,13 +347,18 @@ export default function SwipeableBottomSheet({ open, onClose, peekHeight, miniHe
       }}
     >
       {/* シートの外・上側に浮かぶスロット（例: ストリートビューボタン）
-          シートと同じ transform に乗るのでスワイプに追従する */}
+          シートと同じ transform に乗るのでスワイプに追従する。
+          ヒデさん指示 (2026-05-04): 透明度だけのフェードは「お化けが消える」感
+          が出るので、scale-down + fade を組み合わせて パッと縮みながら消える
+          自然な動きにする (220ms)。 */}
       {renderAbove && (
         <div
-          className="absolute left-4 right-4 flex items-end justify-between transition-opacity duration-300"
+          className="absolute left-4 right-4 flex items-end justify-between transition-all duration-200 ease-out"
           style={{
             bottom: 'calc(100% + 12px)',
             opacity: snap === 'full' ? 0 : 1,
+            transform: snap === 'full' ? 'scale(0.6)' : 'scale(1)',
+            transformOrigin: 'bottom right',
             pointerEvents: snap === 'full' ? 'none' : 'auto',
           }}
         >
