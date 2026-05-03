@@ -20,8 +20,16 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     if (loading) return;
     if (user) {
-      // セッション確立 → ホームへ
-      router.replace('/');
+      // セッション確立 → next URL があればそこ、無ければ /
+      let next = '/';
+      try {
+        const stored = sessionStorage.getItem('houmon:auth_next');
+        if (stored) next = stored;
+        sessionStorage.removeItem('houmon:auth_next');
+      } catch {
+        /* ignore */
+      }
+      router.replace(next);
     } else {
       // セッション無し(リンク切れ等) → ログイン画面へ
       router.replace('/login');

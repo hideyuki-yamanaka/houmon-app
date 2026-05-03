@@ -45,17 +45,50 @@ function LoginPageInner() {
   const [error, setError] = useState<string | null>(null);
 
   // 既にログイン済みなら / (or next URL) へ戻す
+  // ※ next は URL クエリ or sessionStorage('houmon:auth_next') どちらでも拾う。
+  //   後者は マジックリンク経由(/auth/callback) 用に保存しておく。
   useEffect(() => {
     if (authLoading || !user) return;
-    const next = params?.get('next') ?? '/';
+    const queryNext = params?.get('next');
+    let storedNext: string | null = null;
+    try {
+      storedNext = sessionStorage.getItem('houmon:auth_next');
+    } catch {
+      /* ignore */
+    }
+    const next = queryNext ?? storedNext ?? '/';
+    try {
+      sessionStorage.removeItem('houmon:auth_next');
+    } catch {
+      /* ignore */
+    }
     router.replace(next);
   }, [authLoading, user, router, params]);
+
+  // /login?next=/invite/xxx で来たときは sessionStorage にも保存して、
+  // マジックリンク経由で /auth/callback に戻った時にも引き継げるようにする。
+  useEffect(() => {
+    const queryNext = params?.get('next');
+    if (!queryNext) return;
+    try {
+      sessionStorage.setItem('houmon:auth_next', queryNext);
+    } catch {
+      /* ignore */
+    }
+  }, [params]);
 
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
     setError(null);
     setBusy(true);
+    // 送信前に next URL を sessionStorage に保存(マジックリンクで戻る時用)
+    try {
+      const queryNext = params?.get('next');
+      if (queryNext) sessionStorage.setItem('houmon:auth_next', queryNext);
+    } catch {
+      /* ignore */
+    }
     const res = await signInWithEmailOtp(email.trim());
     setBusy(false);
     if (res.error) {
