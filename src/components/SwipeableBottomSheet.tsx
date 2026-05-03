@@ -42,6 +42,13 @@ interface Props {
    * 省略時は 100。
    */
   topGap?: number | string;
+  /**
+   * 開いた時の初期スナップ位置。デフォルトは 'peek'。
+   * 'full' を指定すると、開く瞬間に full までアニメーションで一気に上がる。
+   * (例: メンバー一覧シートを 全展開してた状態で カードタップ → 個人シートも
+   *  full で開きたい、というケース)
+   */
+  initialSnap?: 'peek' | 'full';
 }
 
 const TAB_H = 48;
@@ -77,7 +84,7 @@ const SHEET_TRANSITION = `transform ${SHEET_DURATION_MS}ms ${SHEET_EASE}`;
 //      React state や ref キャッシュに頼らない。DOM が唯一の source of truth。
 // ──────────────────────────────────────────────────────────────
 
-export default function SwipeableBottomSheet({ open, onClose, peekHeight, miniHeight, zIndex = 40, children, renderAbove, closable = true, topGap = DEFAULT_TOP_GAP, handleRef }: Props) {
+export default function SwipeableBottomSheet({ open, onClose, peekHeight, miniHeight, zIndex = 40, children, renderAbove, closable = true, topGap = DEFAULT_TOP_GAP, handleRef, initialSnap = 'peek' }: Props) {
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const dragHandleRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -173,16 +180,16 @@ export default function SwipeableBottomSheet({ open, onClose, peekHeight, miniHe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // マウント後、一度だけ peek へアニメ
+  // マウント後、一度だけ initialSnap (デフォルト 'peek') へアニメ
   useEffect(() => {
     if (!visible) return;
     // setTimeout(0) で次のマクロタスクへ。paint を 1 frame 走らせてから transition を適用。
     const id = window.setTimeout(() => {
-      applyY(getSnapY('peek'), true);
-      setSnap('peek');
+      applyY(getSnapY(initialSnap), true);
+      setSnap(initialSnap);
     }, 0);
     return () => window.clearTimeout(id);
-  }, [visible, applyY, getSnapY, setSnap]);
+  }, [visible, applyY, getSnapY, setSnap, initialSnap]);
 
   // resize 対応: React 再レンダーは一切しない。DOM を直接更新して現在 snap を再適用。
   useEffect(() => {

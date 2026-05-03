@@ -20,6 +20,9 @@ interface Props {
   renderAbove?: () => ReactNode;
   /** メンバー情報がシート内で変更された時の通知(行きたいトグル等) */
   onMemberUpdate?: (memberId: string, updates: Partial<MemberWithVisitInfo>) => void;
+  /** true の時は full snap で開く (カードタップ時用)。デフォルト false=peek。
+   *  リスト全展開状態からカードタップ → 詳細シートも全展開で開きたいケース。 */
+  openAtFull?: boolean;
 }
 
 // mini スナップ時の可視高さ。
@@ -45,7 +48,7 @@ function rememberMemberForReturn(memberId: string) {
   try { sessionStorage.setItem(LAST_VIEWED_MEMBER_KEY, memberId); } catch { /* ignore */ }
 }
 
-export default function MemberBottomSheet({ member, onClose, sheetHandleRef, renderAbove: renderAboveProp, onMemberUpdate }: Props) {
+export default function MemberBottomSheet({ member, onClose, sheetHandleRef, renderAbove: renderAboveProp, onMemberUpdate, openAtFull = false }: Props) {
   const router = useRouter();
   const [visits, setVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -105,6 +108,7 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
       miniHeight={MINI_HEIGHT}
       handleRef={sheetHandleRef}
       zIndex={40}
+      initialSnap={openAtFull ? 'full' : 'peek'}
       renderAbove={
         (streetViewUrl || renderAboveProp)
           ? () => (

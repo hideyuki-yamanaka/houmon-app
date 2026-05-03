@@ -34,6 +34,9 @@ export default function HomePage() {
       return id;
     } catch { return null; }
   });
+  // タップ起点: 'pin' (マップピン) → MemberBottomSheet を peek で開く (地図見える)
+  //              'card' (リストのカード) → 既にリスト全画面状態だったので full で開く
+  const [memberSheetOrigin, setMemberSheetOrigin] = useState<'pin' | 'card'>('pin');
   const [loading, setLoading] = useState(true);
   const [locating, setLocating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -245,7 +248,7 @@ export default function HomePage() {
         <MapView
           members={filteredMembers}
           selectedMemberId={selectedId}
-          onMemberSelect={(id) => setSelectedId(id)}
+          onMemberSelect={(id) => { setMemberSheetOrigin('pin'); setSelectedId(id); }}
           onMapClick={() => {
             // マップタップは「選択解除・検索閉じる」のみ。
             // シート自体はタップでは下げない（ユーザー要望: ドラッグで下がる仕様）。
@@ -335,7 +338,7 @@ export default function HomePage() {
         visitsByMember={visitsByMember}
         open={!selectedId}
         onClose={() => { /* closable=false なので呼ばれない */ }}
-        onSelectMember={(id) => setSelectedId(id)}
+        onSelectMember={(id) => { setMemberSheetOrigin('card'); setSelectedId(id); }}
         filter={filter}
         periodFilter={periodFilter}
         categoryFilter={categoryFilter}
@@ -344,12 +347,14 @@ export default function HomePage() {
         renderAbove={renderLocateButton}
       />
 
-      {/* メンバー詳細ボトムシート（ピン/カードタップで上に重なる） */}
+      {/* メンバー詳細ボトムシート（ピン/カードタップで上に重なる）。
+          カードタップ起点なら full で開く、ピンタップ起点なら peek で開く。 */}
       <MemberBottomSheet
         member={selectedMember}
         onClose={() => setSelectedId(null)}
         sheetHandleRef={memberSheetRef}
         renderAbove={renderLocateButton}
+        openAtFull={memberSheetOrigin === 'card'}
         // 行きたいトグル等で member 状態が変わったら、HomePage が握る配列も
         // 楽観更新する。これでマップピンの再描画(星マーク化)も即時に走る。
         onMemberUpdate={(memberId, updates) => {
