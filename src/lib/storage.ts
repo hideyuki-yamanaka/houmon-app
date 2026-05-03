@@ -292,12 +292,19 @@ export async function createVisit(
   }
   // マルチユーザー化(2026-05-03): user_id を現在のログインユーザーから自動セット。
   // RLS の WITH CHECK が auth.uid() = user_id を要求するので、ここで埋めとかんと INSERT が拒否される。
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('未ログイン状態では訪問記録を作成できません');
-  const rowWithUser = { ...row, user_id: user.id };
-  const { error } = await supabase.from('visits').insert(rowWithUser);
+  // 移行中(NEXT_PUBLIC_AUTH_ENABLED!='1')は user_id 無しでも INSERT できる。
+  const authEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === '1';
+  if (authEnabled) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('未ログイン状態では訪問記録を作成できません');
+    const rowWithUser = { ...row, user_id: user.id };
+    const { error } = await supabase.from('visits').insert(rowWithUser);
+    if (error) throw error;
+    return toVisit(rowWithUser);
+  }
+  const { error } = await supabase.from('visits').insert(row);
   if (error) throw error;
-  return toVisit(rowWithUser);
+  return toVisit(row);
 }
 
 export async function updateVisit(id: string, updates: Partial<VisitRow>): Promise<void> {
