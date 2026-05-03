@@ -113,6 +113,9 @@ export interface MemberRow {
   honbu: string | null;
   /** 「行きたい」ブックマーク(ALTER TABLE で後付けカラム。古い行は NULL ありえる) */
   want_to_visit: boolean | null;
+  /** マルチユーザー化(2026-05-03)。所有者の auth.users.id。
+   *  既存行は移行直後だけ NULL ありえる(移行 SQL 後に NOT NULL 化する) */
+  user_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -120,6 +123,8 @@ export interface MemberRow {
 export interface VisitRow {
   id: string;
   member_id: string;
+  /** マルチユーザー化(2026-05-03)。所有者の auth.users.id。 */
+  user_id?: string | null;
   visited_at: string;
   status: string;
   /** 旧: 単一対応者。後方互換のため当面残す(新規書き込みは respondents に行う)。 */

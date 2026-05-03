@@ -290,9 +290,14 @@ export async function createVisit(
     persistMockVisits();
     return v;
   }
-  const { error } = await supabase.from('visits').insert(row);
+  // マルチユーザー化(2026-05-03): user_id を現在のログインユーザーから自動セット。
+  // RLS の WITH CHECK が auth.uid() = user_id を要求するので、ここで埋めとかんと INSERT が拒否される。
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未ログイン状態では訪問記録を作成できません');
+  const rowWithUser = { ...row, user_id: user.id };
+  const { error } = await supabase.from('visits').insert(rowWithUser);
   if (error) throw error;
-  return toVisit(row);
+  return toVisit(rowWithUser);
 }
 
 export async function updateVisit(id: string, updates: Partial<VisitRow>): Promise<void> {

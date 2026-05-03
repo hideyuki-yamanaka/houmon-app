@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import BottomTabBar from "../components/BottomTabBar";
+import AuthShell from "../components/AuthShell";
 import DesignTuner from "../components/DesignTuner";
 
 export const metadata: Metadata = {
@@ -40,9 +40,8 @@ export default function RootLayout({
     <html lang="ja" className="h-full">
       <body className="h-full bg-[var(--color-bg)]">
         <div className="h-full max-w-[1366px] mx-auto pb-[calc(60px+env(safe-area-inset-bottom))] relative">
-          {children}
+          <AuthShell>{children}</AuthShell>
         </div>
-        <BottomTabBar />
         {/* 開発環境専用のデザイン調整パネル。本番ビルドでは描画されない */}
         <DesignTuner />
       </body>
