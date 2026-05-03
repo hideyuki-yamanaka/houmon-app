@@ -10,7 +10,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Bell, BellOff, Loader2, AlertCircle } from 'lucide-react';
+import { ChevronLeft, Bell, BellOff, Loader2, AlertCircle, Users, ChevronRight } from 'lucide-react';
 import {
   getPushSubscriptionStatus,
   subscribeToPush,
@@ -126,6 +126,27 @@ export default function SettingsPage() {
         <p className="text-[11px] text-gray-400 px-2">
           通知の配信機能は順次追加予定や (現在は購読登録のみ)
         </p>
+
+        {/* 共有・招待セクション */}
+        <section className="bg-white rounded-2xl shadow-sm border border-black/5 overflow-hidden">
+          <div className="px-4 py-3 border-b border-black/5">
+            <h2 className="text-[13px] font-semibold text-gray-500">共有</h2>
+          </div>
+
+          <Link
+            href="/settings/sharing"
+            className="flex items-center gap-3 px-4 py-4 active:bg-gray-50"
+          >
+            <Users size={20} className="text-[var(--color-primary)] shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-[15px] font-medium text-gray-900">共有・招待</div>
+              <div className="text-[12px] text-gray-500 mt-0.5">
+                家族と訪問記録を共有したり、招待リンクを発行
+              </div>
+            </div>
+            <ChevronRight size={18} className="text-gray-400 shrink-0" />
+          </Link>
+        </section>
       </main>
     </div>
   );
