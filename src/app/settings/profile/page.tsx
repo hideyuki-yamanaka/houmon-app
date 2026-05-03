@@ -4,17 +4,22 @@
 // /settings/profile — 自分の表示名 設定画面
 //
 // 訪問ログの「誰が記入したか」表示で使う display_name を編集する。
-// 共有機能で他のメンバーから見える名前なので、ハンドル名/苗字 等を
-// 自由に入れられる。色は user_id から自動算出 (ユーザー操作不要)。
+//
+// ヒデさん指示 (2026-05-03 v3):
+//   - 色分けは廃止 (アイコンと文字はグレースケール)
+//   - 5 文字制限を厳格化 (バッジが崩れんように)
+//   - 「苗字を入力してください」ガイドを明確に
 // ──────────────────────────────────────────────────────────────
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Loader2, Check, AlertCircle, User as UserIcon } from 'lucide-react';
-import { getMyProfile, updateMyDisplayName, colorForUser, initialOf } from '../../../lib/profile';
+import { ChevronLeft, Loader2, Check, AlertCircle } from 'lucide-react';
+import { getMyProfile, updateMyDisplayName, DISPLAY_NAME_MAX } from '../../../lib/profile';
 import { useAuthUser } from '../../../lib/auth';
 import { useSwipeBack } from '../../../lib/useSwipeBack';
+import PersonIcon from '../../../components/PersonIcon';
+import { tapHaptic } from '../../../lib/haptics';
 
 export default function ProfileSettingsPage() {
   const router = useRouter();
@@ -35,8 +40,8 @@ export default function ProfileSettingsPage() {
       setDisplayName(p.display_name);
       setOriginalName(p.display_name);
     } else {
-      // profile 行が無い (trigger 失敗等) → メアド左を初期値に
-      const fallback = user?.email?.split('@')[0] ?? '';
+      // profile 行が無い場合: メアド左を初期値に (5 文字に切り詰め)
+      const fallback = (user?.email?.split('@')[0] ?? '').slice(0, DISPLAY_NAME_MAX);
       setDisplayName(fallback);
       setOriginalName('');
     }
@@ -60,6 +65,7 @@ export default function ProfileSettingsPage() {
     if (saving) return;
     setError(null);
     setSaving(true);
+    tapHaptic();
     const res = await updateMyDisplayName(displayName);
     setSaving(false);
     if (!res.ok) {
@@ -71,15 +77,15 @@ export default function ProfileSettingsPage() {
   };
 
   const dirty = displayName.trim() !== originalName && displayName.trim().length > 0;
-  const color = colorForUser(user?.id);
+  const previewName = displayName.trim() || '—';
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)]">
-      {/* ヘッダ */}
       <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-black/5">
         <div className="max-w-[640px] mx-auto flex items-center px-2 py-2">
           <Link
             href="/settings"
+            onClick={() => tapHaptic()}
             className="flex items-center gap-1 text-[15px] text-[var(--color-primary)] active:opacity-60 px-2 py-1"
           >
             <ChevronLeft size={20} />
@@ -90,40 +96,33 @@ export default function ProfileSettingsPage() {
       </header>
 
       <main className="max-w-[640px] mx-auto px-4 py-4 space-y-4">
-        {/* プレビューカード */}
+        {/* プレビューカード — 訪問ログでこう見える、を再現 */}
         <section className="bg-white rounded-2xl shadow-sm border border-black/5 overflow-hidden">
           <div className="px-4 py-3 border-b border-black/5">
-            <h2 className="text-[13px] font-semibold text-gray-500">プレビュー</h2>
+            <h2 className="text-[13px] font-semibold text-gray-500">訪問ログでの表示</h2>
           </div>
-          <div className="px-4 py-5 flex items-center gap-3">
-            <div
-              className="w-12 h-12 rounded-full flex items-center justify-center text-[18px] font-bold shrink-0"
-              style={{ background: color.bg, color: color.text }}
-              aria-hidden="true"
-            >
-              {initialOf(displayName || '?')}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[15px] font-bold truncate">
-                {displayName.trim() || '名前を入力してください'}
+          <div className="px-4 py-5">
+            <div className="ios-card p-4 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[15px] font-bold">2026年4月25日</span>
+                  <span className="ml-auto inline-flex items-center gap-0.5 text-[12px] text-gray-900 font-bold whitespace-nowrap">
+                    <PersonIcon size={13} />
+                    {previewName}
+                  </span>
+                </div>
+                <p className="text-sm text-[var(--color-subtext)] mt-1.5 line-clamp-2">
+                  訪問ログのプレビュー（イメージ）
+                </p>
               </div>
-              <div className="text-[11px] text-gray-500 mt-0.5">
-                訪問ログにこの名前で表示されます
-              </div>
             </div>
-            <span
-              className="px-2 py-0.5 rounded-full text-[11px] font-bold shrink-0"
-              style={{ background: color.bg, color: color.text }}
-            >
-              {displayName.trim() || '—'}
-            </span>
           </div>
         </section>
 
         {/* 編集フォーム */}
         <section className="bg-white rounded-2xl shadow-sm border border-black/5 overflow-hidden">
           <div className="px-4 py-3 border-b border-black/5">
-            <h2 className="text-[13px] font-semibold text-gray-500">表示名</h2>
+            <h2 className="text-[13px] font-semibold text-gray-500">表示名 (苗字)</h2>
           </div>
 
           <form onSubmit={handleSave} className="px-4 py-4 space-y-3">
@@ -134,24 +133,31 @@ export default function ProfileSettingsPage() {
               </div>
             ) : (
               <>
+                <p className="text-[12px] text-gray-700 leading-relaxed">
+                  <strong>苗字を入力してください</strong>（例: ヒデ / 山中 / ヤマナカ）。
+                </p>
+
                 <div className="relative">
-                  <UserIcon
-                    size={18}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-icon-gray)]"
-                  />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <PersonIcon size={16} />
+                  </span>
                   <input
                     type="text"
                     value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="例: ヒデ / 山中"
-                    maxLength={30}
+                    onChange={(e) => setDisplayName(e.target.value.slice(0, DISPLAY_NAME_MAX))}
+                    placeholder="ヤマナカ"
+                    maxLength={DISPLAY_NAME_MAX}
                     required
-                    className="w-full h-11 rounded-[10px] border border-[#E5E7EB] pl-10 pr-3 text-[15px] outline-none focus:border-[var(--color-primary)]"
+                    autoComplete="off"
+                    className="w-full h-11 rounded-[10px] border border-[#E5E7EB] pl-10 pr-14 text-[15px] outline-none focus:border-[var(--color-primary)]"
                   />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-gray-400 tabular-nums">
+                    {displayName.length} / {DISPLAY_NAME_MAX}
+                  </span>
                 </div>
 
                 <p className="text-[11px] text-gray-500 leading-relaxed">
-                  共有してる家族や同僚から見える名前やで。30文字以内で。
+                  ⚠️ <strong>{DISPLAY_NAME_MAX} 文字以内</strong>で入れてな。バッジに収まる長さに統一するためや。
                 </p>
 
                 {error && (
@@ -182,14 +188,6 @@ export default function ProfileSettingsPage() {
               </>
             )}
           </form>
-        </section>
-
-        {/* 補助情報 */}
-        <section className="bg-[#F9FAFB] rounded-2xl px-4 py-3 border border-black/5">
-          <div className="text-[12px] text-gray-600 leading-relaxed">
-            💡 <strong>色は自動で決まる</strong>から変えられへん。<br />
-            同じユーザーは いつ見ても同じ色で表示されるで。
-          </div>
         </section>
       </main>
     </div>

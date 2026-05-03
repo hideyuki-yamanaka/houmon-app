@@ -95,12 +95,17 @@ export async function getMyProfile(): Promise<Profile | null> {
 }
 
 /** 自分の display_name を更新 (upsert)。
- *  trigger で profile 行は作られてるはずやけど、ない場合は INSERT になるよう upsert。 */
+ *  trigger で profile 行は作られてるはずやけど、ない場合は INSERT になるよう upsert。
+ *  ヒデさん指示 (2026-05-03): 訪問ログのバッジに表示するので 5 文字以内に厳格化。 */
+export const DISPLAY_NAME_MAX = 5;
+
 export async function updateMyDisplayName(displayName: string): Promise<{ ok: boolean; error?: string }> {
   if (isMockMode) return { ok: false, error: 'mock mode: 更新は無効化されてます' };
   const trimmed = displayName.trim();
   if (!trimmed) return { ok: false, error: '名前を入力してな' };
-  if (trimmed.length > 30) return { ok: false, error: '30 文字以内で入力してな' };
+  if (trimmed.length > DISPLAY_NAME_MAX) {
+    return { ok: false, error: `${DISPLAY_NAME_MAX} 文字以内で入力してな` };
+  }
 
   const { data: sess } = await supabase.auth.getUser();
   const me = sess.user;

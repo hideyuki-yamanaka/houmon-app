@@ -11,9 +11,10 @@ import { formatDate } from '../../../lib/utils';
 import type { VisitStatus, Respondent } from '../../../lib/types';
 import TiptapViewer from '../../../components/TiptapViewer';
 import StatusChip from '../../../components/StatusChip';
-import { VisitAuthorChip, AuthorStripeCard } from '../../../components/VisitAuthorChip';
+import { VisitAuthorChip } from '../../../components/VisitAuthorChip';
 import { useTeamProfiles } from '../../../lib/useTeamProfiles';
 import { useSwipeBack } from '../../../lib/useSwipeBack';
+import { tapHaptic } from '../../../lib/haptics';
 
 export default function VisitDetailClient() {
   const params = useParams();
@@ -97,7 +98,7 @@ export default function VisitDetailClient() {
   return (
     <div className="h-full flex flex-col bg-[var(--color-bg)]">
       <nav className="ios-nav flex items-center px-4 py-3 gap-2">
-        <button onClick={() => router.back()} className="flex items-center gap-1 text-[var(--color-primary)] shrink-0">
+        <button onClick={() => { tapHaptic(); router.back(); }} className="flex items-center gap-1 text-[var(--color-primary)] shrink-0">
           <ChevronLeft size={24} />
           <span className="text-sm">戻る</span>
         </button>
@@ -107,7 +108,7 @@ export default function VisitDetailClient() {
 
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[1366px] mx-auto px-4 py-4 space-y-4">
-          <Link href={`/members/${visit.memberId}`} className="block">
+          <Link href={`/members/${visit.memberId}`} onClick={() => tapHaptic()} className="block">
             <div className="ios-card px-4 py-3 flex items-center gap-2 active:bg-[#F5F5F5] transition-colors">
               <span className="font-bold text-[15px]">{visit.memberName}</span>
               <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0" />
@@ -121,7 +122,7 @@ export default function VisitDetailClient() {
           {(() => {
             const author = lookupAuthor(visit.createdBy);
             return (
-          <AuthorStripeCard author={author} className="p-4 space-y-4 hover:!opacity-100">
+          <div className="ios-card p-4 space-y-4 hover:!opacity-100">
             <div className="flex items-center">
               <div className="flex-1">
                 <div className="text-[10px] text-[var(--color-subtext)] mb-1 flex items-center gap-1.5">
@@ -132,6 +133,7 @@ export default function VisitDetailClient() {
               </div>
               <Link
                 href={`/visits/new?memberId=${visit.memberId}&visitId=${visit.id}`}
+                onClick={() => tapHaptic()}
                 className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 transition-colors shrink-0"
               >
                 <Pencil size={18} className="text-gray-500" />
@@ -194,7 +196,7 @@ export default function VisitDetailClient() {
                 </div>
               </div>
             )}
-          </AuthorStripeCard>
+          </div>
             );
           })()}
 

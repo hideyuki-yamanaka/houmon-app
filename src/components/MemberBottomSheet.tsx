@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState, type Ref, type ReactNode } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, MapPin, Clock, Footprints, PencilLine, Star } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit, MemberRow } from '../lib/types';
 import { formatDate, resolveAge, stripBuildingName } from '../lib/utils';
 import { getVisits, updateMember } from '../lib/storage';
 import SwipeableBottomSheet, { type SheetHandle } from './SwipeableBottomSheet';
-import StatusChip from './StatusChip';
+import VisitCard from './VisitCard';
+import { tapHaptic } from '../lib/haptics';
 
 interface Props {
   member: MemberWithVisitInfo | null;
@@ -137,7 +137,7 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
             <div className="px-4 pt-1.5 pb-3">
               <div className="flex items-start justify-between gap-3">
                 <button
-                  onClick={() => { rememberMemberForReturn(m.id); router.push(`/members/${m.id}`); }}
+                  onClick={() => { tapHaptic(); rememberMemberForReturn(m.id); router.push(`/members/${m.id}`); }}
                   className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
                 >
                   <div className="min-w-0">
@@ -165,6 +165,7 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                   type="button"
                   onClick={async () => {
                     if (savingWant) return;
+                    tapHaptic();
                     const next = !m.wantToVisit;
                     onMemberUpdate?.(m.id, { wantToVisit: next });
                     setSavingWant(true);
@@ -193,7 +194,7 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                   />
                 </button>
                 <button
-                  onClick={() => router.push(`/visits/new?memberId=${m.id}`)}
+                  onClick={() => { tapHaptic(); router.push(`/visits/new?memberId=${m.id}`); }}
                   className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#111] text-white text-[13px] font-bold px-3.5 py-2 active:scale-95 transition-transform"
                   aria-label="訪問を記録する"
                 >
@@ -240,39 +241,25 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
             </div>
 
             {/* 訪問ログ: 訪問実績がある場合のみセクション丸ごと表示
-                blank state (totalVisits === 0) のときは見出しも非表示にして余白を詰める */}
+                blank state (totalVisits === 0) のときは見出しも非表示にして余白を詰める。
+                ヒデさん指示 (2026-05-03): メンバー詳細ページと同じ VisitCard で統一。
+                作者バッジ・ハプティクス・遷移は VisitCard 側で完結。 */}
             {m.totalVisits > 0 && (
-              <div className="px-4 pt-4 pb-2">
+              <div
+                className="px-4 pt-4 pb-2"
+                onClickCapture={() => rememberMemberForReturn(m.id)}
+              >
                 <h3 className="text-sm font-semibold text-[var(--color-subtext)] mb-2">訪問ログ</h3>
                 {loading ? (
                   <p className="text-sm text-[var(--color-subtext)]">読み込み中...</p>
                 ) : (
                   <div className="space-y-2">
-                    {visits.map(v => {
-                      return (
-                        <Link
-                          key={v.id}
-                          href={`/visits/${v.id}`}
-                          onClick={() => rememberMemberForReturn(m.id)}
-                          className="block w-full text-left"
-                        >
-                          <div className="px-3 py-2.5 rounded-lg bg-[#F5F5F5] active:bg-[#EBEBEB] transition-colors flex items-center gap-2">
-                            <span className="text-sm font-medium shrink-0">
-                              {formatDate(v.visitedAt, 'yyyy年M月d日')}
-                            </span>
-                            <StatusChip status={v.status} size="sm" />
-                            {v.summary && (
-                              <span className="text-xs text-[var(--color-subtext)] truncate">
-                                {v.summary}
-                              </span>
-                            )}
-                          </div>
-                        </Link>
-                      );
-                    })}
+                    {visits.map(v => (
+                      <VisitCard key={v.id} visit={v} />
+                    ))}
                     {m.totalVisits > 5 && (
                       <button
-                        onClick={() => { rememberMemberForReturn(m.id); router.push(`/members/${m.id}`); }}
+                        onClick={() => { tapHaptic(); rememberMemberForReturn(m.id); router.push(`/members/${m.id}`); }}
                         className="text-sm text-[var(--color-primary)] font-medium flex items-center gap-1"
                       >
                         もっと見る <ChevronRight size={16} />

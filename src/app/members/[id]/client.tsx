@@ -10,6 +10,7 @@ import MemberInfo from '../../../components/MemberInfo';
 import InfoSection from '../../../components/InfoSection';
 import VisitCard from '../../../components/VisitCard';
 import { useSwipeBack } from '../../../lib/useSwipeBack';
+import { tapHaptic } from '../../../lib/haptics';
 
 /**
  * 検索ヒットから飛んで来た時に、指定セクションにスクロール＋一瞬フラッシュする。
@@ -128,7 +129,7 @@ export default function MemberDetailClient() {
   return (
     <div className="h-full flex flex-col bg-[var(--color-bg)]">
       <nav className="ios-nav flex items-center px-4 py-3 gap-2">
-        <button onClick={() => { if (window.history.length > 1) router.back(); else router.push('/members'); }} className="flex items-center gap-1 text-[var(--color-primary)] shrink-0">
+        <button onClick={() => { tapHaptic(); if (window.history.length > 1) router.back(); else router.push('/members'); }} className="flex items-center gap-1 text-[var(--color-primary)] shrink-0">
           <ChevronLeft size={24} />
           <span className="text-sm">戻る</span>
         </button>
@@ -183,6 +184,7 @@ export default function MemberDetailClient() {
 
       <Link
         href={`/visits/new?memberId=${member.id}`}
+        onClick={() => tapHaptic()}
         className="fixed right-5 bottom-[calc(80px+env(safe-area-inset-bottom))] z-30 w-14 h-14 rounded-full bg-[#111] text-white flex items-center justify-center shadow-lg active:scale-95 transition-transform"
       >
         <Plus size={24} />

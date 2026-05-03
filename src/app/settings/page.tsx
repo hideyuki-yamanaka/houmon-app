@@ -18,6 +18,7 @@ import {
   type PushStatus,
 } from '../../lib/push';
 import { useSwipeBack } from '../../lib/useSwipeBack';
+import { tapHaptic } from '../../lib/haptics';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -63,6 +64,7 @@ export default function SettingsPage() {
         <div className="max-w-[640px] mx-auto flex items-center px-2 py-2">
           <Link
             href="/"
+            onClick={() => tapHaptic()}
             className="flex items-center gap-1 text-[15px] text-[var(--color-primary)] active:opacity-60 px-2 py-1"
           >
             <ChevronLeft size={20} />
@@ -135,6 +137,7 @@ export default function SettingsPage() {
 
           <Link
             href="/settings/profile"
+            onClick={() => tapHaptic()}
             className="flex items-center gap-3 px-4 py-4 active:bg-gray-50 border-b border-black/5"
           >
             <UserIcon size={20} className="text-[var(--color-primary)] shrink-0" />
@@ -149,6 +152,7 @@ export default function SettingsPage() {
 
           <Link
             href="/settings/sharing"
+            onClick={() => tapHaptic()}
             className="flex items-center gap-3 px-4 py-4 active:bg-gray-50"
           >
             <Users size={20} className="text-[var(--color-primary)] shrink-0" />
