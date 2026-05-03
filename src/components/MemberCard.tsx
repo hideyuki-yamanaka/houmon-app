@@ -7,6 +7,9 @@ import type { MemberWithVisitInfo, Visit } from '../lib/types';
 import { extractMemoText, formatDate, resolveAge } from '../lib/utils';
 import MemberPin from './MemberPin';
 import StatusChip from './StatusChip';
+import { VisitAuthorChip } from './VisitAuthorChip';
+import { useTeamProfiles } from '../lib/useTeamProfiles';
+import { tapHaptic } from '../lib/haptics';
 
 interface Props {
   member: MemberWithVisitInfo;
@@ -18,9 +21,16 @@ interface Props {
 }
 
 // ── 訪問ログ横カルーセル(B 案: スクロールバー無し + 1/N 右端) ──
+//
+// ヒデさん指示 (2026-05-03 v3 改訂):
+//   - 1段目に 日付 → 名前タグ → ステータス の順 で並べる
+//   - スライドタップで /visits/[id] に遷移 (横スクロール中は ブラウザが click を抑制)
+//   - Haptics 付き
 function VisitsCarousel({ visits }: { visits: Visit[] }) {
   const ref = useRef<HTMLDivElement>(null);
   const [idx, setIdx] = useState(0);
+  const { lookup } = useTeamProfiles();
+
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -47,10 +57,13 @@ function VisitsCarousel({ visits }: { visits: Visit[] }) {
       >
         {visits.map((v, i) => {
           const memo = extractMemoText(v);
+          const author = lookup(v.createdBy);
           return (
-            <div
+            <Link
               key={v.id}
-              className="shrink-0 w-full"
+              href={`/visits/${v.id}`}
+              onClick={() => tapHaptic()}
+              className="shrink-0 w-full block active:bg-[#E8E8EB] transition-colors"
               style={{
                 scrollSnapAlign: 'start',
                 paddingTop: 12,
@@ -59,12 +72,13 @@ function VisitsCarousel({ visits }: { visits: Visit[] }) {
                 paddingRight: 16,
               }}
             >
-              {/* 上段: 日付 + チップ ─ 数字 (1/N) 両端揃え */}
+              {/* 上段: 日付 + 名前 + ステータス  ─  右端に 1/N */}
               <div className="flex items-center justify-between gap-2 mb-1">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-[12px] font-bold tabular-nums shrink-0">
                     {formatDate(v.visitedAt, 'yyyy年M月d日')}
                   </span>
+                  {author.userId && <VisitAuthorChip author={author} />}
                   <StatusChip status={v.status} size="sm" />
                 </div>
                 {visits.length > 1 && (
@@ -82,7 +96,7 @@ function VisitsCarousel({ visits }: { visits: Visit[] }) {
                   {memo}
                 </p>
               )}
-            </div>
+            </Link>
           );
         })}
       </div>
