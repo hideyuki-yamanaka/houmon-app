@@ -102,8 +102,9 @@ function LoginPageInner() {
   const handleVerifyCode = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleaned = code.replace(/\D/g, '');
-    if (cleaned.length !== 6) {
-      setError('6 桁の数字を入力してな');
+    // Supabase の OTP 長は 6〜10 桁で設定可能。受信した長さに柔軟対応。
+    if (cleaned.length < 6 || cleaned.length > 10) {
+      setError('6〜10 桁の数字を入力してな');
       return;
     }
     setError(null);
@@ -165,7 +166,7 @@ function LoginPageInner() {
               )}
             </button>
             <p className="mt-3 text-[11px] text-[var(--color-subtext)] text-center leading-relaxed">
-              メールで 6 桁のログインコードを送ります。<br />
+              メールでログインコードを送ります。<br />
               次の画面で入力してください。
             </p>
           </form>
@@ -179,13 +180,13 @@ function LoginPageInner() {
             <h2 className="text-base font-bold text-center mb-1">メールを送信しました</h2>
             <p className="text-[13px] text-[var(--color-subtext)] text-center leading-relaxed mb-5">
               <span className="font-bold text-[#111]">{email}</span> 宛に<br />
-              <strong>6 桁のコード</strong>を送ったで。<br />
+              <strong>ログインコード</strong>を送ったで。<br />
               下の欄に入力してログインしてな。
             </p>
 
             <form onSubmit={handleVerifyCode}>
               <label className="text-sm font-semibold text-[var(--color-subtext)] block mb-2">
-                6 桁コード
+                ログインコード
               </label>
               <div className="relative">
                 <KeyRound size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-icon-gray)]" />
@@ -194,18 +195,18 @@ function LoginPageInner() {
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   pattern="[0-9]*"
-                  maxLength={6}
+                  maxLength={10}
                   required
                   value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 10))}
                   placeholder="123456"
-                  className="w-full h-12 rounded-[10px] border border-[#E5E7EB] pl-10 pr-3 text-[20px] tracking-[0.4em] text-center outline-none focus:border-[var(--color-primary)]"
+                  className="w-full h-12 rounded-[10px] border border-[#E5E7EB] pl-10 pr-3 text-[20px] tracking-[0.3em] text-center outline-none focus:border-[var(--color-primary)]"
                 />
               </div>
               {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
               <button
                 type="submit"
-                disabled={busy || code.length !== 6}
+                disabled={busy || code.length < 6}
                 className="w-full mt-4 h-11 rounded-full bg-[#111] text-white text-[14px] font-bold inline-flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95 transition-transform"
               >
                 {busy ? (
