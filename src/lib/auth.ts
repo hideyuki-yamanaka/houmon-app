@@ -16,20 +16,45 @@ import { useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { isMockMode, supabase } from './supabase';
 
-/** マジックリンクをメールアドレスに送信。
- *  redirectTo はメール内リンクをクリックした後に戻ってくる URL(/auth/callback)。 */
-export async function signInWithMagicLink(email: string): Promise<{ error?: string }> {
+/** メールにログインリンク + 6 桁コードを送る。
+ *  - Safari で開ける人は メール内のリンクをタップでログイン
+ *  - PWA 等でリンクが使えない人は メール内の 6 桁コードを アプリで入力してログイン
+ *  redirectTo はメール内リンクをクリックした後に戻ってくる URL(/auth/callback)。
+ *  ※ Supabase メールテンプレートに `{{ .Token }}` を含めておく必要あり。 */
+export async function signInWithEmailOtp(email: string): Promise<{ error?: string }> {
   if (isMockMode) return { error: 'mock mode: 認証は無効化されています' };
   const redirectTo = typeof window !== 'undefined'
     ? `${window.location.origin}/auth/callback`
     : undefined;
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: redirectTo },
+    options: {
+      emailRedirectTo: redirectTo,
+      shouldCreateUser: true,
+    },
   });
   if (error) return { error: error.message };
   return {};
 }
+
+/** メールに届いた 6 桁コードで認証。
+ *  iOS PWA で マジックリンクが使えない時の フォールバック。 */
+export async function verifyEmailOtp(
+  email: string,
+  token: string,
+): Promise<{ error?: string }> {
+  if (isMockMode) return { error: 'mock mode: 認証は無効化されています' };
+  const { error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: 'email',
+  });
+  if (error) return { error: error.message };
+  return {};
+}
+
+/** @deprecated signInWithEmailOtp に統一。後方互換のため残す。 */
+export const signInWithMagicLink = signInWithEmailOtp;
 
 /** 現在のセッションを破棄してログアウト */
 export async function signOut(): Promise<void> {
