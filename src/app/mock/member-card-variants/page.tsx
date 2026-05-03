@@ -204,11 +204,13 @@ function Arrows({ count, active, onJump }: { count: number; active: number; onJu
 //   variant ごとに見た目を switch
 // ──────────────────────────────────────────────────────────────
 type Variant =
+  | 'adopted'  // 採用候補: D3 + D4 + コンパクト
   | 'D1' | 'D2' | 'D3' | 'D4' | 'D5'
   | 'D6' | 'D7' | 'D8' | 'D9' | 'D10'
   | 'baseline'; // 比較用: 現状(横スワイプ無し)
 
 const VARIANTS: { key: Variant; label: string; desc: string }[] = [
+  { key: 'adopted', label: '★ 採用候補', desc: 'D3(外枠なし) + D4(右上 1/3) + 縦コンパクト。ドット無し' },
   { key: 'D1',  label: 'D1 標準ドット',  desc: 'メンバー白 + ログ薄グレー、フル幅、下にドット' },
   { key: 'D2',  label: 'D2 反転配色',    desc: 'メンバーグレー + ログ白、ドット下' },
   { key: 'D3',  label: 'D3 外枠なしフラット', desc: 'カード自体の外枠を撤去、ベース背景に直置き' },
@@ -221,6 +223,51 @@ const VARIANTS: { key: Variant; label: string; desc: string }[] = [
   { key: 'D10', label: 'D10 統合カード',   desc: 'メンバー & ログを 1 枚の大カードに統合(区切り線のみ)' },
   { key: 'baseline', label: '現状', desc: '訪問ログ無し(現状の MemberCard)' },
 ];
+
+// ====================== ★ 採用候補: D3 + D4 + コンパクト ======================
+// - 外枠の白ベタ塗りなし(シート背景に直置き、行間の薄ボーダーで仕切るだけ)
+// - インジケーターは右上の小さな数字 1/3 のみ(ドット無し)
+// - 縦パディングを詰めてコンパクトに
+function Adopted({ m }: { m: SampleMember }) {
+  const { ref, idx } = useCarouselIndex(m.visits.length);
+  return (
+    <div className="border-b border-[#E5E7EB] pb-1.5">
+      {/* メンバーヘッダー(コンパクト: py-1.5) */}
+      <div className="px-3 py-1.5 flex items-center gap-3">
+        <span className="w-6 h-9 shrink-0 inline-flex items-center justify-center"><PinSvg/></span>
+        <div className="flex-1 min-w-0">
+          <span className="text-[10px] text-[#6B7280] block leading-tight">{m.kana}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-[14px] leading-tight">{m.name}</span>
+            <span className="text-[11px] text-[#9CA3AF]">({m.age})</span>
+          </div>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#6B7280]">{m.district}</span>
+            <span className="text-[11px] text-[#6B7280]">{m.visits.length > 0 ? `${m.visits.length} 回訪問` : '未訪問'}</span>
+          </div>
+        </div>
+      </div>
+      {/* ログセクション(外枠なし、シート背景にグレーボックスを直接乗せる) */}
+      {m.visits.length === 0 ? null : (
+        <div className="bg-[#F2F2F4] rounded-lg mx-3 mt-1 relative">
+          <div ref={ref} className="flex overflow-x-auto" style={{ scrollSnapType: 'x mandatory' }}>
+            {m.visits.map(v => (
+              <div key={v.id} className="shrink-0 w-full px-2.5 py-1.5 pr-12" style={{ scrollSnapAlign: 'start' }}>
+                <LogContent v={v}/>
+              </div>
+            ))}
+          </div>
+          {/* 右上に小さく N / 全件(ドット無し) */}
+          {m.visits.length > 1 && (
+            <span className="absolute top-1.5 right-1.5 text-[10px] tabular-nums text-[#6B7280] bg-white/85 px-1.5 py-0.5 rounded-full leading-none">
+              {idx + 1} / {m.visits.length}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ====================== D1: 標準ドット ======================
 function D1({ m }: { m: SampleMember }) {
@@ -506,6 +553,7 @@ function Baseline({ m }: { m: SampleMember }) {
 
 function renderCard(variant: Variant, m: SampleMember) {
   switch (variant) {
+    case 'adopted': return <Adopted m={m}/>;
     case 'D1':  return <D1 m={m}/>;
     case 'D2':  return <D2 m={m}/>;
     case 'D3':  return <D3 m={m}/>;
@@ -538,10 +586,10 @@ function FakeMapBg() {
 }
 
 export default function MemberCardVariantsPage() {
-  const [variant, setVariant] = useState<Variant>('D1');
+  const [variant, setVariant] = useState<Variant>('adopted');
 
-  // D3 はカードに外枠が無いので、シート内の背景を利用するため bg をそのまま使う
-  const sheetBg = variant === 'D3' ? '#FFFFFF' : '#FFFFFF';
+  // D3 / 採用候補 はカードに外枠が無いので、シート内の背景を利用するため bg をそのまま使う
+  const sheetBg = '#FFFFFF';
 
   return (
     <div className="min-h-screen bg-[#F5F5F7] pb-20">
