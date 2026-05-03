@@ -131,8 +131,25 @@ export default function LogPage() {
   //   ここを早期リターン後に置くと初回(loading=true)では呼ばれず、データ取得後に
   //   突然 hooks の数が増えて「Rendered more hooks than during the previous render」
   //   が起きる(2026-05-02 Safari でクラッシュした真犯人)。
-  const sheetData = useMemo<{ title: string | null; members: MemberWithVisitInfo[] }>(() => {
-    if (!sheetSpec) return { title: null, members: [] };
+  const sheetData = useMemo<{
+    title: string | null;
+    members: MemberWithVisitInfo[];
+    visitsByMember: Map<string, Visit[]>;
+  }>(() => {
+    // 共通: メンバー単位の訪問ログ Map(新しい順)。シート内の MemberCard withLogs に渡す
+    const buildVbm = (ms: MemberWithVisitInfo[]): Map<string, Visit[]> => {
+      const wanted = new Set(ms.map(m => m.id));
+      const map = new Map<string, Visit[]>();
+      for (const v of allVisits) {
+        if (!wanted.has(v.memberId)) continue;
+        const arr = map.get(v.memberId);
+        if (arr) arr.push(v);
+        else map.set(v.memberId, [v]);
+      }
+      return map;
+    };
+
+    if (!sheetSpec) return { title: null, members: [], visitsByMember: new Map() };
     const memberById = new Map<string, MemberWithVisitInfo>(members.map(m => [m.id, m]));
 
     if (sheetSpec.kind === 'week') {
@@ -145,6 +162,7 @@ export default function LogPage() {
       return {
         title: `${weekJaLabel(sheetSpec.agoIdx)}に訪問したメンバー`,
         members: list,
+        visitsByMember: buildVbm(list),
       };
     }
 
@@ -158,13 +176,21 @@ export default function LogPage() {
         ids.add(v.memberId);
       }
       const list = [...ids].map(id => memberById.get(id)).filter(Boolean) as MemberWithVisitInfo[];
-      return { title: `${sheetSpec.label}のメンバー`, members: list };
+      return {
+        title: `${sheetSpec.label}のメンバー`,
+        members: list,
+        visitsByMember: buildVbm(list),
+      };
     }
 
     // district
     const list = members.filter(m => m.district === sheetSpec.district);
     const short = sheetSpec.district.replace(/豊岡部|光陽部|豊岡中央支部/g, '');
-    return { title: `${short}地区のメンバー`, members: list };
+    return {
+      title: `${short}地区のメンバー`,
+      members: list,
+      visitsByMember: buildVbm(list),
+    };
   }, [sheetSpec, members, allVisits, weekly]);
 
   if (loading) {
@@ -650,6 +676,7 @@ export default function LogPage() {
       <MembersListBottomSheet
         title={sheetData.title}
         members={sheetData.members}
+        visitsByMember={sheetData.visitsByMember}
         onSelectMember={(id) => {
           setSheetSpec(null);
           router.push(`/members/${id}`);

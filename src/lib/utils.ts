@@ -24,6 +24,30 @@ export function today(): string {
 }
 
 // ──────────────────────────────────────────────────────────────
+// 訪問ログのメモを「ひと続きの平文」として取り出す。
+// 旧 summary(plain text) と 新 notes(TipTap JSON) の両方に対応:
+//   1) summary に値があれば優先(古いログ向け)
+//   2) なければ notes の TipTap JSON を再帰でテキスト抽出
+//   3) どちらも空なら ''
+// メモ 2 行省略表示(line-clamp-2)などプレビュー用途に使う。
+// ──────────────────────────────────────────────────────────────
+function tiptapToPlain(node: unknown): string {
+  if (!node || typeof node !== 'object') return '';
+  const n = node as { text?: unknown; content?: unknown };
+  if (typeof n.text === 'string') return n.text;
+  if (Array.isArray(n.content)) {
+    return n.content.map(tiptapToPlain).filter(Boolean).join('\n');
+  }
+  return '';
+}
+
+export function extractMemoText(visit: { summary?: string; notes?: Record<string, unknown> | unknown }): string {
+  if (visit.summary && visit.summary.trim()) return visit.summary;
+  if (visit.notes) return tiptapToPlain(visit.notes).trim();
+  return '';
+}
+
+// ──────────────────────────────────────────────────────────────
 // 住所から建物名を除いた部分を返す（Googleマップの位置ずれ対策）
 //   - 半角/全角スペース以降はすべて建物名とみなして除去
 //   - スペースが無くても、末尾に「N丁目N-N」「N番地N」「N号」等の

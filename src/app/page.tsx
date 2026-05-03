@@ -206,6 +206,18 @@ export default function HomePage() {
     return applyAllFilters(members, { filter, periodFilter, categoryFilter });
   }, [members, filter, periodFilter, categoryFilter]);
 
+  // メンバー単位の訪問ログ Map。各シートで MemberCard withLogs に渡すため作る。
+  // allVisits は既に visited_at desc(新しい順)で取得済 → そのまま push で OK。
+  const visitsByMember = useMemo<Map<string, Visit[]>>(() => {
+    const map = new Map<string, Visit[]>();
+    for (const v of allVisits) {
+      const arr = map.get(v.memberId);
+      if (arr) arr.push(v);
+      else map.set(v.memberId, [v]);
+    }
+    return map;
+  }, [allVisits]);
+
   // 検索ヒット(横断検索: 名前/ふりがな/地区/住所/職場/家族/情報/備考/訪問ログsummary)
   // 1メンバー内で複数フィールドマッチした場合、1ヒット=1エントリで返る(P1 密リスト方式)。
   const searchHits = useMemo(() => {
@@ -309,6 +321,7 @@ export default function HomePage() {
           - ユーザーがマップをドラッグしたら mini スナップへ自動で下がる */}
       <MembersListSheet
         members={members}
+        visitsByMember={visitsByMember}
         open={!selectedId}
         onClose={() => { /* closable=false なので呼ばれない */ }}
         onSelectMember={(id) => setSelectedId(id)}

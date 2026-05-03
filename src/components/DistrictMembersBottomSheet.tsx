@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import type { MemberWithVisitInfo } from '../lib/types';
+import type { MemberWithVisitInfo, Visit } from '../lib/types';
 import MemberCard from './MemberCard';
 import SwipeableBottomSheet from './SwipeableBottomSheet';
 
@@ -10,11 +10,12 @@ interface Props {
   districtShort: string | null; // 「香城」等。null→非表示
   title?: string;               // 省略時は `${districtShort}地区`。「ヤング」等の独自タイトル用
   members: MemberWithVisitInfo[];
+  visitsByMember?: Map<string, Visit[]>;
   onSelectMember: (id: string) => void;
   onClose: () => void;
 }
 
-export default function DistrictMembersBottomSheet({ districtShort, title, members, onSelectMember, onClose }: Props) {
+export default function DistrictMembersBottomSheet({ districtShort, title, members, visitsByMember, onSelectMember, onClose }: Props) {
   // 閉じるアニメーション中も前の地区名を表示するため
   const lastDistrictRef = useRef<string | null>(null);
   const lastMembersRef = useRef<MemberWithVisitInfo[]>([]);
@@ -65,7 +66,13 @@ export default function DistrictMembersBottomSheet({ districtShort, title, membe
                 <p className="text-sm text-[var(--color-subtext)] text-center py-4">メンバーがいません</p>
               ) : (
                 sorted.map(m => (
-                  <MemberCard key={m.id} member={m} onSelect={onSelectMember} />
+                  <MemberCard
+                    key={m.id}
+                    member={m}
+                    onSelect={onSelectMember}
+                    withLogs
+                    visits={visitsByMember?.get(m.id) ?? []}
+                  />
                 ))
               )}
             </div>

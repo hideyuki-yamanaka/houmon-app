@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useCallback, type Ref, type ReactNode } from 'react';
 import { SlidersHorizontal } from 'lucide-react';
-import type { MemberWithVisitInfo } from '../lib/types';
+import type { MemberWithVisitInfo, Visit } from '../lib/types';
 import MemberCard from './MemberCard';
 import { type FilterSelection, matchFilter, EMPTY_FILTER } from './DistrictFilter';
 import SwipeableBottomSheet, { type SheetHandle } from './SwipeableBottomSheet';
@@ -35,6 +35,8 @@ function getKanaGroup(kana: string | undefined): string {
 
 interface Props {
   members: MemberWithVisitInfo[];
+  /** メンバー単位の訪問ログ Map(新しい順)。各メンバーカードに withLogs で渡す */
+  visitsByMember?: Map<string, Visit[]>;
   /** シートを開くかどうか（ホームでは常に true） */
   open: boolean;
   /** ジェスチャーで閉じられた時 */
@@ -95,6 +97,7 @@ const MINI_HEIGHT = 80;
 
 export default function MembersListSheet({
   members,
+  visitsByMember,
   open,
   onClose,
   onSelectMember,
@@ -228,7 +231,13 @@ export default function MembersListSheet({
                       </div>
                       <div className="space-y-0">
                         {group.members.map((m) => (
-                          <MemberCard key={m.id} member={m} onSelect={onSelectMember} />
+                          <MemberCard
+                            key={m.id}
+                            member={m}
+                            onSelect={onSelectMember}
+                            withLogs
+                            visits={visitsByMember?.get(m.id) ?? []}
+                          />
                         ))}
                       </div>
                     </div>

@@ -15,7 +15,7 @@
 
 import { useRef } from 'react';
 import { X } from 'lucide-react';
-import type { MemberWithVisitInfo } from '../lib/types';
+import type { MemberWithVisitInfo, Visit } from '../lib/types';
 import MemberCard from './MemberCard';
 import SwipeableBottomSheet from './SwipeableBottomSheet';
 
@@ -25,12 +25,14 @@ interface Props {
   /** 件数を「N 人」と添えたい時用。省略可 */
   countLabel?: string;
   members: MemberWithVisitInfo[];
+  /** メンバー単位の訪問ログ Map。MemberCard withLogs に渡される。 */
+  visitsByMember?: Map<string, Visit[]>;
   onSelectMember: (id: string) => void;
   onClose: () => void;
 }
 
 export default function MembersListBottomSheet({
-  title, countLabel, members, onSelectMember, onClose,
+  title, countLabel, members, visitsByMember, onSelectMember, onClose,
 }: Props) {
   // 閉じるアニメ中も前回の中身を表示するためにキャッシュ
   const lastTitleRef = useRef<string | null>(null);
@@ -85,7 +87,13 @@ export default function MembersListBottomSheet({
                 </p>
               ) : (
                 sorted.map(m => (
-                  <MemberCard key={m.id} member={m} onSelect={onSelectMember} />
+                  <MemberCard
+                    key={m.id}
+                    member={m}
+                    onSelect={onSelectMember}
+                    withLogs
+                    visits={visitsByMember?.get(m.id) ?? []}
+                  />
                 ))
               )}
             </div>
