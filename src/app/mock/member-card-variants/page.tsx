@@ -247,12 +247,21 @@ function Adopted({ m }: { m: SampleMember }) {
           </div>
         </div>
       </div>
-      {/* ログセクション(外枠なし、シート背景にグレーボックスを直接乗せる) */}
+      {/* ログセクション(外枠なし、シート背景にグレーボックスを直接乗せる)
+          グレーボックスの上下 padding は CSS 変数で動的調整(下のスライダー UI から) */}
       {m.visits.length === 0 ? null : (
         <div className="bg-[#F2F2F4] rounded-lg mx-3 mt-1 relative">
           <div ref={ref} className="flex overflow-x-auto" style={{ scrollSnapType: 'x mandatory' }}>
             {m.visits.map(v => (
-              <div key={v.id} className="shrink-0 w-full px-2.5 py-1.5 pr-12" style={{ scrollSnapAlign: 'start' }}>
+              <div
+                key={v.id}
+                className="shrink-0 w-full px-2.5 pr-12"
+                style={{
+                  scrollSnapAlign: 'start',
+                  paddingTop: 'var(--mock-grey-pt, 6px)',
+                  paddingBottom: 'var(--mock-grey-pb, 6px)',
+                }}
+              >
                 <LogContent v={v}/>
               </div>
             ))}
@@ -585,8 +594,35 @@ function FakeMapBg() {
   );
 }
 
+// localStorage キー(padding 調整値の保存用)
+const PAD_STORAGE = 'mock-member-card-pad-v1';
+
 export default function MemberCardVariantsPage() {
   const [variant, setVariant] = useState<Variant>('adopted');
+
+  // ── 採用候補のグレーセクション 上下 padding 調整スライダー ──
+  // localStorage に保存して、リロード後も値を維持
+  const [padTop, setPadTop] = useState<number>(6);
+  const [padBot, setPadBot] = useState<number>(6);
+  // 初回マウント: localStorage から復元
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(PAD_STORAGE);
+      if (raw) {
+        const v = JSON.parse(raw);
+        if (typeof v.top === 'number') setPadTop(v.top);
+        if (typeof v.bot === 'number') setPadBot(v.bot);
+      }
+    } catch { /* ignore */ }
+  }, []);
+  // padTop / padBot が変わったら CSS 変数 + localStorage 同期
+  useEffect(() => {
+    document.documentElement.style.setProperty('--mock-grey-pt', `${padTop}px`);
+    document.documentElement.style.setProperty('--mock-grey-pb', `${padBot}px`);
+    try {
+      window.localStorage.setItem(PAD_STORAGE, JSON.stringify({ top: padTop, bot: padBot }));
+    } catch { /* ignore */ }
+  }, [padTop, padBot]);
 
   // D3 / 採用候補 はカードに外枠が無いので、シート内の背景を利用するため bg をそのまま使う
   const sheetBg = '#FFFFFF';
@@ -631,6 +667,58 @@ export default function MemberCardVariantsPage() {
           {VARIANTS.find(v => v.key === variant)?.desc}
         </p>
       </section>
+
+      {/* グレーセクション padding 調整ツール — 採用候補のときだけ表示 */}
+      {variant === 'adopted' && (
+        <section className="px-4 pt-2 pb-2">
+          <div className="rounded-xl bg-white border border-[#E5E7EB] px-3 py-2.5">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] font-bold text-[#111]">グレーセクションの上下パディング</span>
+              <button
+                type="button"
+                onClick={() => { setPadTop(6); setPadBot(6); }}
+                className="text-[10px] text-[#6B7280] active:opacity-60"
+                title="既定値(6/6)に戻す"
+              >
+                リセット
+              </button>
+            </div>
+            {/* 上 */}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] text-[#6B7280] w-7 shrink-0">上</span>
+              <input
+                type="range"
+                min={0}
+                max={24}
+                step={1}
+                value={padTop}
+                onChange={(e) => setPadTop(Number(e.target.value))}
+                className="flex-1 accent-[#111]"
+                aria-label="上パディング"
+              />
+              <span className="text-[10px] tabular-nums w-10 text-right text-[#374151]">{padTop} px</span>
+            </div>
+            {/* 下 */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-[#6B7280] w-7 shrink-0">下</span>
+              <input
+                type="range"
+                min={0}
+                max={24}
+                step={1}
+                value={padBot}
+                onChange={(e) => setPadBot(Number(e.target.value))}
+                className="flex-1 accent-[#111]"
+                aria-label="下パディング"
+              />
+              <span className="text-[10px] tabular-nums w-10 text-right text-[#374151]">{padBot} px</span>
+            </div>
+            <p className="text-[10px] text-[#9CA3AF] mt-1.5 leading-tight">
+              スライダーをいじると下のプレビューに即反映。値は端末に保存される(リロード後も有効)。
+            </p>
+          </div>
+        </section>
+      )}
 
       {/* 実画面風プレビュー */}
       <section className="px-3 pt-4">
