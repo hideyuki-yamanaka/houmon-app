@@ -13,6 +13,7 @@ import type { ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import AuthGuard from './AuthGuard';
 import BottomTabBar from './BottomTabBar';
+import InstallBanner from './InstallBanner';
 
 const HIDE_TABBAR_PATHS = ['/login', '/auth/callback'];
 
@@ -25,6 +26,7 @@ export default function AuthShell({ children }: { children: ReactNode }) {
     <AuthGuard>
       {children}
       {!hideTabBar && <BottomTabBar />}
+      {!hideTabBar && <InstallBanner />}
     </AuthGuard>
   );
 }
