@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { LocateFixed, Search, X, Layers } from 'lucide-react';
+import { LocateFixed, Search, X, Layers, Settings } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import type { MemberWithVisitInfo, Visit } from '../lib/types';
 import { getMembersWithVisitInfo, getAllVisits } from '../lib/storage';
 import { supabase, isMockMode } from '../lib/supabase';
@@ -22,6 +23,7 @@ const MapView = dynamic(() => import('../components/MapView'), { ssr: false });
 const LAST_VIEWED_MEMBER_KEY = 'houmon_lastViewedMemberId';
 
 export default function HomePage() {
+  const router = useRouter();
   const [members, setMembers] = useState<MemberWithVisitInfo[]>([]);
   const [allVisits, setAllVisits] = useState<Visit[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(() => {
@@ -299,8 +301,17 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* レイヤー切替ボタンだけ右端に（フィルターはシート内に移動済み） */}
-        <div className="mt-2 px-3 pointer-events-auto flex items-center justify-end">
+        {/* 右端アクション: 設定(歯車) + レイヤー切替（フィルターはシート内に移動済み） */}
+        <div className="mt-2 px-3 pointer-events-auto flex items-center justify-end gap-2">
+          {/* 歯車アイコン: 設定画面へ */}
+          <button
+            type="button"
+            onClick={() => router.push('/settings')}
+            aria-label="設定"
+            className="shrink-0 w-11 h-11 rounded-full bg-white shadow-[0_2px_6px_rgba(0,0,0,0.15)] flex items-center justify-center active:scale-95 transition-transform"
+          >
+            <Settings size={20} className="text-[#5F6368]" strokeWidth={2} />
+          </button>
           <button
             type="button"
             onClick={() => setLayerMode(m => (m === 'standard' ? 'satellite' : 'standard'))}
