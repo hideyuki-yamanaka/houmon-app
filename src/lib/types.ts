@@ -64,6 +64,9 @@ export interface Visit {
   keywords?: string[];
   images?: string[];
   deletedAt?: string;
+  /** この訪問記録を実際に書いた人 (auth.users.id)。
+   *  共有機能の「誰が記入」表示用。古いデータでは undefined ありえる。 */
+  createdBy?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -149,6 +152,9 @@ export interface VisitRow {
   member_id: string;
   /** マルチユーザー化(2026-05-03)。所有者の auth.users.id。 */
   user_id?: string | null;
+  /** 訪問記録を実際に書いた人 (=auth.uid())。共有 UI で「誰が記入」表示に使う。
+   *  既存行は user_id をバックフィル済(オーナー本人と見なす)。 */
+  created_by?: string | null;
   visited_at: string;
   status: string;
   /** 旧: 単一対応者。後方互換のため当面残す(新規書き込みは respondents に行う)。 */

@@ -11,6 +11,8 @@ import { formatDate } from '../../../lib/utils';
 import type { VisitStatus, Respondent } from '../../../lib/types';
 import TiptapViewer from '../../../components/TiptapViewer';
 import StatusChip from '../../../components/StatusChip';
+import { VisitAuthorChip, AuthorStripeCard } from '../../../components/VisitAuthorChip';
+import { useTeamProfiles } from '../../../lib/useTeamProfiles';
 import { useSwipeBack } from '../../../lib/useSwipeBack';
 
 export default function VisitDetailClient() {
@@ -22,6 +24,9 @@ export default function VisitDetailClient() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  // 共有機能: 「誰が記入したか」を表示するための プロフィールマップ
+  const { lookup: lookupAuthor } = useTeamProfiles();
 
   // iOS 風 「左端から右にスワイプで戻る」
   useSwipeBack(() => router.back());
@@ -113,10 +118,16 @@ export default function VisitDetailClient() {
             </div>
           </Link>
 
-          <div className="ios-card p-4 space-y-4 hover:!opacity-100">
+          {(() => {
+            const author = lookupAuthor(visit.createdBy);
+            return (
+          <AuthorStripeCard author={author} className="p-4 space-y-4 hover:!opacity-100">
             <div className="flex items-center">
               <div className="flex-1">
-                <div className="text-[10px] text-[var(--color-subtext)] mb-1">日付</div>
+                <div className="text-[10px] text-[var(--color-subtext)] mb-1 flex items-center gap-1.5">
+                  <span>日付</span>
+                  {author.userId && <VisitAuthorChip author={author} />}
+                </div>
                 <div className="text-sm font-medium">{formatDate(visit.visitedAt, 'yyyy年M月d日')}</div>
               </div>
               <Link
@@ -183,7 +194,9 @@ export default function VisitDetailClient() {
                 </div>
               </div>
             )}
-          </div>
+          </AuthorStripeCard>
+            );
+          })()}
 
           <div className="flex justify-end !-mt-2">
             <button

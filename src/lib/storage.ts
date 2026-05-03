@@ -117,6 +117,7 @@ function toVisit(row: VisitRow): Visit {
     keywords: row.keywords ?? undefined,
     images: row.images ?? undefined,
     deletedAt: row.deleted_at ?? undefined,
+    createdBy: row.created_by ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -292,12 +293,14 @@ export async function createVisit(
   }
   // マルチユーザー化(2026-05-03): user_id を現在のログインユーザーから自動セット。
   // RLS の WITH CHECK が auth.uid() = user_id を要求するので、ここで埋めとかんと INSERT が拒否される。
+  // 同時に created_by に "実際にこの記録を書いた人" として auth.uid() を入れる。
+  // (共有機能で「誰が記入」を表示するため。user_id とは将来的に分離する可能性あり)
   // 移行中(NEXT_PUBLIC_AUTH_ENABLED!='1')は user_id 無しでも INSERT できる。
   const authEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === '1';
   if (authEnabled) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('未ログイン状態では訪問記録を作成できません');
-    const rowWithUser = { ...row, user_id: user.id };
+    const rowWithUser = { ...row, user_id: user.id, created_by: user.id };
     const { error } = await supabase.from('visits').insert(rowWithUser);
     if (error) throw error;
     return toVisit(rowWithUser);
