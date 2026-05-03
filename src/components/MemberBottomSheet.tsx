@@ -109,6 +109,9 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
       handleRef={sheetHandleRef}
       zIndex={40}
       initialSnap={openAtFull ? 'full' : 'peek'}
+      // full のとき safe-area-inset-top の すぐ下まで上がる (検索バー越え 目一杯)。
+      // MembersListSheet と同じ topGap で 統一感を出す。 (2026-05-04 ヒデさん指示)
+      topGap="env(safe-area-inset-top)"
       renderAbove={
         (streetViewUrl || renderAboveProp)
           ? () => (
