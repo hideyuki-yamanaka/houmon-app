@@ -19,7 +19,9 @@ import { isMockMode } from '../lib/supabase';
 import { useAuthUser } from '../lib/auth';
 
 // 認証不要のパス(ホワイトリスト)
-const PUBLIC_PATHS = ['/login', '/auth/callback'];
+//   /invite/[token] は 中で 「未ログインなら /login?next=... に飛ばす」 を
+//   独自に行うため、 AuthGuard 側では素通しさせる。
+const PUBLIC_PATHS = ['/login', '/auth/callback', '/invite'];
 
 // マルチユーザー化 移行中の緊急スイッチ。
 // Vercel の env で NEXT_PUBLIC_AUTH_ENABLED=1 にした時だけ認証ガードが効く。
