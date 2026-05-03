@@ -4,13 +4,14 @@
 // /login — メアド + 6 桁コード方式のログイン画面
 //
 // 1. メアド入力 → 「コードを送信」
-// 2. メール届く(リンク + 6 桁コード)
-// 3a. リンク踏める環境(Safari/PC) → 自動で /auth/callback → /
-// 3b. PWA 等リンク踏めない環境 → アプリで 6 桁コード入力 → ログイン
+// 2. メール届く → 6 桁コードを アプリに入力 → ログイン
 //
-// iOS の standalone PWA は Safari と完全独立した storage を持つため、
-// マジックリンクだけでは PWA 内ログインを完結できない。コード入力モードが
-// PWA 用のフォールバック。
+// 設計方針:
+//   iOS PWA は Safari と独立した storage を持つので、メール内マジックリンクを
+//   タップしても 別 storage(Safari)にしかセッションが入らず、PWA 側は永久に
+//   未ログインのまま。「リンク or コード どちらでも」の二択 UX は混乱の元
+//   なので、UI は「アプリで 6 桁コードを入力」一本に統一する。
+//   /auth/callback は誤ってリンクを踏んだ Safari ユーザー向けの保険として残す。
 // ──────────────────────────────────────────────────────────────
 
 import { Suspense, useEffect, useState } from 'react';
@@ -164,8 +165,8 @@ function LoginPageInner() {
               )}
             </button>
             <p className="mt-3 text-[11px] text-[var(--color-subtext)] text-center leading-relaxed">
-              メールに 6 桁のコードと ログインリンクを送ります。<br />
-              どちらか好きな方でログインできます。
+              メールで 6 桁のログインコードを送ります。<br />
+              次の画面で入力してください。
             </p>
           </form>
         )}
@@ -178,8 +179,8 @@ function LoginPageInner() {
             <h2 className="text-base font-bold text-center mb-1">メールを送信しました</h2>
             <p className="text-[13px] text-[var(--color-subtext)] text-center leading-relaxed mb-5">
               <span className="font-bold text-[#111]">{email}</span> 宛に<br />
-              ログイン用のメールを送ったで。<br />
-              下の欄に <strong>6 桁のコード</strong>を入れるか、メール内のリンクをタップしてな。
+              <strong>6 桁のコード</strong>を送ったで。<br />
+              下の欄に入力してログインしてな。
             </p>
 
             <form onSubmit={handleVerifyCode}>
