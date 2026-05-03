@@ -15,6 +15,7 @@
 import { useEffect, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { isMockMode, supabase } from './supabase';
+import { getOwnerDisplayNames } from './sharing';
 
 /** メールにログインリンク + 6 桁コードを送る。
  *  - Safari で開ける人は メール内のリンクをタップでログイン
@@ -92,4 +93,90 @@ export function useAuthUser(): { user: User | null; loading: boolean } {
   }, []);
 
   return { user, loading };
+}
+
+// ──────────────────────────────────────────────────────────────
+// useOwnerContext — 自分が「オーナー本人」か「招待された人」かの判定
+//
+//   - team_memberships に自分が member_id で乗っていれば 招待された人
+//     (= ownerId に他人の id が入る、自分のデータを持っていない可能性)
+//   - 乗ってなければ オーナー (= 自分用にデータを持っている人)
+//
+//   招待された人の場合、ownerName を get_owner_display_names RPC で解決して
+//   バナー等で表示する用に返す。
+//
+// 戻り値:
+//   { isOwner: boolean, ownerName: string | null, ownerId: string | null,
+//     loading: boolean }
+//
+//   ※ 自分も他人のデータも両方見られるケース(将来的に自分の data + 誰かの data)
+//      は考えていない。当面 1 オーナー = ヒデさん の前提で OK。
+// ──────────────────────────────────────────────────────────────
+export function useOwnerContext(): {
+  isOwner: boolean;
+  ownerName: string | null;
+  ownerId: string | null;
+  loading: boolean;
+} {
+  const { user, loading: userLoading } = useAuthUser();
+  const [isOwner, setIsOwner] = useState(true);
+  const [ownerName, setOwnerName] = useState<string | null>(null);
+  const [ownerId, setOwnerId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (userLoading) return;
+    if (!user) {
+      setIsOwner(true);
+      setOwnerName(null);
+      setOwnerId(null);
+      setLoading(false);
+      return;
+    }
+    if (isMockMode) {
+      setIsOwner(true);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      // 自分が member_id として team_memberships に乗っているか確認
+      const { data: tmRows, error } = await supabase
+        .from('team_memberships')
+        .select('owner_id')
+        .eq('member_id', user.id)
+        .limit(1);
+      if (cancelled) return;
+      if (error) {
+        console.error('[useOwnerContext] team_memberships query failed', error);
+        setIsOwner(true);
+        setLoading(false);
+        return;
+      }
+      const ownerRow = (tmRows ?? [])[0];
+      if (!ownerRow) {
+        // 招待されていない → 自分がオーナー
+        setIsOwner(true);
+        setOwnerName(null);
+        setOwnerId(user.id);
+        setLoading(false);
+        return;
+      }
+      // 招待された人 → オーナー名を解決
+      setIsOwner(false);
+      setOwnerId(ownerRow.owner_id);
+      const names = await getOwnerDisplayNames();
+      if (cancelled) return;
+      const found = names.find(n => n.owner_id === ownerRow.owner_id);
+      setOwnerName(found?.display_name ?? null);
+      setLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, userLoading]);
+
+  return { isOwner, ownerName, ownerId, loading };
 }
