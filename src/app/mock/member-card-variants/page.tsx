@@ -204,13 +204,15 @@ function Arrows({ count, active, onJump }: { count: number; active: number; onJu
 //   variant ごとに見た目を switch
 // ──────────────────────────────────────────────────────────────
 type Variant =
-  | 'adopted'  // 採用候補: D3 + D4 + コンパクト
+  | 'adopted'   // 採用候補A: 上12 / 下16 + 数字右端 + スクロールバー有
+  | 'adopted_b' // 採用候補B: 上下12px + スクロールバー無し
   | 'D1' | 'D2' | 'D3' | 'D4' | 'D5'
   | 'D6' | 'D7' | 'D8' | 'D9' | 'D10'
   | 'baseline'; // 比較用: 現状(横スワイプ無し)
 
 const VARIANTS: { key: Variant; label: string; desc: string }[] = [
-  { key: 'adopted', label: '★ 採用候補', desc: 'D3(外枠なし) + D4(右上 1/3) + 縦コンパクト。ドット無し' },
+  { key: 'adopted',   label: '★ 採用候補A', desc: '上12 / 下16 + 数字右端。スクロールバー有(調整スライダー付き)' },
+  { key: 'adopted_b', label: '★ 採用候補B', desc: '上下 12px(均等) + スクロールバー非表示版' },
   { key: 'D1',  label: 'D1 標準ドット',  desc: 'メンバー白 + ログ薄グレー、フル幅、下にドット' },
   { key: 'D2',  label: 'D2 反転配色',    desc: 'メンバーグレー + ログ白、ドット下' },
   { key: 'D3',  label: 'D3 外枠なしフラット', desc: 'カード自体の外枠を撤去、ベース背景に直置き' },
@@ -279,6 +281,73 @@ function Adopted({ m }: { m: SampleMember }) {
                   )}
                 </div>
                 {/* 下段: メモ 2 行 */}
+                <p className="text-[11px] text-[#374151] leading-snug line-clamp-2">{v.memo}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ====================== ★ 採用候補B: 上下 12px + スクロールバー無し ======================
+// adopted (A) と違いは:
+//   - padding 上下とも 12px 固定 (調整スライダー無し、均等)
+//   - 横スクロールバー(下に出るあのスライダーの棒)を CSS で非表示化
+function AdoptedB({ m }: { m: SampleMember }) {
+  const { ref } = useCarouselIndex(m.visits.length);
+  return (
+    <div className="border-b border-[#E5E7EB] pb-1.5">
+      {/* メンバーヘッダー(コンパクト) */}
+      <div className="px-3 py-1.5 flex items-center gap-3">
+        <span className="w-6 h-9 shrink-0 inline-flex items-center justify-center"><PinSvg/></span>
+        <div className="flex-1 min-w-0">
+          <span className="text-[10px] text-[#6B7280] block leading-tight">{m.kana}</span>
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-[14px] leading-tight">{m.name}</span>
+            <span className="text-[11px] text-[#9CA3AF]">({m.age})</span>
+          </div>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#6B7280]">{m.district}</span>
+            <span className="text-[11px] text-[#6B7280]">{m.visits.length > 0 ? `${m.visits.length} 回訪問` : '未訪問'}</span>
+          </div>
+        </div>
+      </div>
+      {m.visits.length === 0 ? null : (
+        <div className="bg-[#F2F2F4] rounded-lg mx-3 mt-1">
+          <div
+            ref={ref}
+            className="flex overflow-x-auto [&::-webkit-scrollbar]:hidden"
+            style={{
+              scrollSnapType: 'x mandatory',
+              scrollbarWidth: 'none',          // Firefox
+              msOverflowStyle: 'none' as 'none', // 旧 IE/Edge(念のため)
+            }}
+          >
+            {m.visits.map((v, i) => (
+              <div
+                key={v.id}
+                className="shrink-0 w-full px-3"
+                style={{
+                  scrollSnapAlign: 'start',
+                  paddingTop: '12px',
+                  paddingBottom: '12px',
+                }}
+              >
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-[12px] font-bold tabular-nums shrink-0">
+                      {fmtJaDate(v.date)}
+                    </span>
+                    <StatusChip status={v.status} size="sm" />
+                  </div>
+                  {m.visits.length > 1 && (
+                    <span className="text-[10px] tabular-nums text-[#6B7280] shrink-0">
+                      {i + 1} / {m.visits.length}
+                    </span>
+                  )}
+                </div>
                 <p className="text-[11px] text-[#374151] leading-snug line-clamp-2">{v.memo}</p>
               </div>
             ))}
@@ -573,7 +642,8 @@ function Baseline({ m }: { m: SampleMember }) {
 
 function renderCard(variant: Variant, m: SampleMember) {
   switch (variant) {
-    case 'adopted': return <Adopted m={m}/>;
+    case 'adopted':   return <Adopted m={m}/>;
+    case 'adopted_b': return <AdoptedB m={m}/>;
     case 'D1':  return <D1 m={m}/>;
     case 'D2':  return <D2 m={m}/>;
     case 'D3':  return <D3 m={m}/>;
