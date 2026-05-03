@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import AuthShell from "../components/AuthShell";
 import DesignTuner from "../components/DesignTuner";
+import ServiceWorkerRegistration from "../components/ServiceWorkerRegistration";
 
 export const metadata: Metadata = {
   title: "家庭訪問アプリ",
@@ -44,6 +45,8 @@ export default function RootLayout({
         </div>
         {/* 開発環境専用のデザイン調整パネル。本番ビルドでは描画されない */}
         <DesignTuner />
+        {/* PWA: Service Worker 登録 (本番ビルドのみ動作) */}
+        <ServiceWorkerRegistration />
       </body>
     </html>
   );
