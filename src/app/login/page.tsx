@@ -13,12 +13,28 @@
 // PWA 用のフォールバック。
 // ──────────────────────────────────────────────────────────────
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Mail, Loader2, Check, KeyRound } from 'lucide-react';
 import { signInWithEmailOtp, verifyEmailOtp, useAuthUser } from '../../lib/auth';
 
+// Next.js 16: useSearchParams を使う Client Component は CSR bailout 対策で
+// Suspense でラップしないと プリレンダー が落ちる。
 export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="h-full flex items-center justify-center">
+          <Loader2 size={20} className="animate-spin text-[var(--color-subtext)]" />
+        </div>
+      }
+    >
+      <LoginPageInner />
+    </Suspense>
+  );
+}
+
+function LoginPageInner() {
   const router = useRouter();
   const params = useSearchParams();
   const { user, loading: authLoading } = useAuthUser();
