@@ -335,7 +335,12 @@ function AdoptedB({ m }: { m: SampleMember }) {
                   paddingBottom: '12px',
                 }}
               >
-                <div className="flex items-center justify-between gap-2 mb-1">
+                {/* 上段: 日付+チップ ─ 数字(右端)
+                    数字のサイズ&揃えは CSS 変数で動的調整(下のツールから) */}
+                <div
+                  className="flex justify-between gap-2 mb-1"
+                  style={{ alignItems: 'var(--mock-numb-align, center)' }}
+                >
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-[12px] font-bold tabular-nums shrink-0">
                       {fmtJaDate(v.date)}
@@ -343,7 +348,10 @@ function AdoptedB({ m }: { m: SampleMember }) {
                     <StatusChip status={v.status} size="sm" />
                   </div>
                   {m.visits.length > 1 && (
-                    <span className="text-[10px] tabular-nums text-[#6B7280] shrink-0">
+                    <span
+                      className="tabular-nums text-[#6B7280] shrink-0 leading-none"
+                      style={{ fontSize: 'var(--mock-numb-size, 10px)' }}
+                    >
                       {i + 1} / {m.visits.length}
                     </span>
                   )}
@@ -677,6 +685,16 @@ function FakeMapBg() {
 
 // localStorage キー(padding 調整値の保存用)
 const PAD_STORAGE = 'mock-member-card-pad-v1';
+// localStorage キー(B 数字スタイル保存用)
+const NUMB_STORAGE = 'mock-member-card-numb-v1';
+
+type NumAlign = 'flex-start' | 'center' | 'flex-end' | 'baseline';
+const NUM_ALIGN_OPTIONS: { val: NumAlign; label: string }[] = [
+  { val: 'flex-start', label: '上' },
+  { val: 'center',     label: '中' },
+  { val: 'flex-end',   label: '下' },
+  { val: 'baseline',   label: 'ベース' },
+];
 
 export default function MemberCardVariantsPage() {
   const [variant, setVariant] = useState<Variant>('adopted');
@@ -705,6 +723,27 @@ export default function MemberCardVariantsPage() {
       window.localStorage.setItem(PAD_STORAGE, JSON.stringify({ top: padTop, bot: padBot }));
     } catch { /* ignore */ }
   }, [padTop, padBot]);
+
+  // ── B 用: 数字 (1/3) のサイズ・上下揃え ──
+  const [numSize, setNumSize] = useState<number>(10);
+  const [numAlign, setNumAlign] = useState<NumAlign>('center');
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(NUMB_STORAGE);
+      if (raw) {
+        const v = JSON.parse(raw);
+        if (typeof v.size === 'number') setNumSize(v.size);
+        if (typeof v.align === 'string') setNumAlign(v.align);
+      }
+    } catch { /* ignore */ }
+  }, []);
+  useEffect(() => {
+    document.documentElement.style.setProperty('--mock-numb-size', `${numSize}px`);
+    document.documentElement.style.setProperty('--mock-numb-align', numAlign);
+    try {
+      window.localStorage.setItem(NUMB_STORAGE, JSON.stringify({ size: numSize, align: numAlign }));
+    } catch { /* ignore */ }
+  }, [numSize, numAlign]);
 
   // D3 / 採用候補 はカードに外枠が無いので、シート内の背景を利用するため bg をそのまま使う
   const sheetBg = '#FFFFFF';
@@ -750,7 +789,65 @@ export default function MemberCardVariantsPage() {
         </p>
       </section>
 
-      {/* グレーセクション padding 調整ツール — 採用候補のときだけ表示 */}
+      {/* B 用: 数字 (1/3) のサイズ・上下揃え 調整 — adopted_b 選択時のみ */}
+      {variant === 'adopted_b' && (
+        <section className="px-4 pt-2 pb-2">
+          <div className="rounded-xl bg-white border border-[#E5E7EB] px-3 py-2.5">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[11px] font-bold text-[#111]">数字 (1/3) のサイズと揃え</span>
+              <button
+                type="button"
+                onClick={() => { setNumSize(10); setNumAlign('center'); }}
+                className="text-[10px] text-[#6B7280] active:opacity-60"
+                title="既定値(10px / 中央)に戻す"
+              >
+                リセット
+              </button>
+            </div>
+            {/* サイズ */}
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-[10px] text-[#6B7280] w-10 shrink-0">サイズ</span>
+              <input
+                type="range"
+                min={8}
+                max={16}
+                step={1}
+                value={numSize}
+                onChange={(e) => setNumSize(Number(e.target.value))}
+                className="flex-1 accent-[#111]"
+                aria-label="数字のサイズ"
+              />
+              <span className="text-[10px] tabular-nums w-10 text-right text-[#374151]">{numSize} px</span>
+            </div>
+            {/* 揃え(セグメント) */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-[#6B7280] w-10 shrink-0">揃え</span>
+              <div className="flex-1 inline-flex p-0.5 bg-[#F3F4F6] rounded-md">
+                {NUM_ALIGN_OPTIONS.map(opt => (
+                  <button
+                    key={opt.val}
+                    type="button"
+                    onClick={() => setNumAlign(opt.val)}
+                    className={`flex-1 px-2 py-1 rounded text-[11px] font-semibold transition-all ${
+                      numAlign === opt.val
+                        ? 'bg-white text-[#111] shadow-sm'
+                        : 'text-[#6B7280]'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="text-[10px] text-[#9CA3AF] mt-1.5 leading-tight">
+              数字部分のフォントサイズと、左の日付・チップとの上下揃え位置を調整。
+              値は端末に保存(リロード後も有効)。
+            </p>
+          </div>
+        </section>
+      )}
+
+      {/* グレーセクション padding 調整ツール — 採用候補A のときだけ表示 */}
       {variant === 'adopted' && (
         <section className="px-4 pt-2 pb-2">
           <div className="rounded-xl bg-white border border-[#E5E7EB] px-3 py-2.5">
