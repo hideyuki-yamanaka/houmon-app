@@ -120,6 +120,30 @@ export interface MemberRow {
   updated_at: string;
 }
 
+// ── マルチユーザー化 (2026-05-03 / B型: オーナー+招待) ──
+//   members.user_id / visits.user_id は "オーナー" の id。
+//   招待された人(team_memberships.member_id) もアクセス可だが
+//   編集権限は role='editor' に絞られる。
+export type TeamRole = 'viewer' | 'editor';
+
+export interface TeamMembershipRow {
+  owner_id: string;
+  member_id: string;
+  role: TeamRole;
+  invited_at: string;
+}
+
+export interface InviteTokenRow {
+  token: string;
+  owner_id: string;
+  role: TeamRole;
+  created_at: string;
+  expires_at: string;
+  used_at: string | null;
+  used_by: string | null;
+  note: string | null;
+}
+
 export interface VisitRow {
   id: string;
   member_id: string;
