@@ -1,112 +1,96 @@
 'use client';
 
 // ──────────────────────────────────────────────────────────────
-// メンバーカード下に「訪問ログセクション(グレー背景)」を付ける
-// レイアウト 5 案 比較プロトタイプ
+// メンバーカード + 横カルーセル訪問ログ — D 系 10 バリエーション
 //
-// ヒデさん要望(2026-05-03 更新):
-//   - メンバーカードの下にグレーのセクションが追加される
-//   - 中身は「日付 + ステータスチップ + メモ最大2行」
-//   - 5 パターン UI を比較したい
+// ヒデさん要望(2026-05-03 改訂):
+//   - 訪問ログカードは「横幅いっぱいフィル」、横スワイプで次が出る
+//   - 他にもカードがあるとひと目で分かる工夫(ドット・数字・矢印・peek 等)
+//   - メンバーカード/ログのカラー反転、外枠ベタ塗り無し、コンパクト化等
+//   - 10 案を実画面風プレビューで比較
 //
-// このページは比較用モックなのでハードコードのサンプルメンバーで描画する。
+// 全パターン共通: scroll-snap + 横スクロール、indexトラッキングで現在位置表示。
 // ──────────────────────────────────────────────────────────────
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, Clock, ChevronRight as ChevronR } from 'lucide-react';
+import { ChevronLeft, ChevronLeft as ChevL, ChevronRight as ChevR } from 'lucide-react';
 import StatusChip from '../../../components/StatusChip';
 import type { VisitStatus } from '../../../lib/types';
 
-// ── サンプルデータ(ヒデさんスクショ準拠) ──
-type SampleVisit = {
-  id: string;
-  date: string;
-  status: VisitStatus;
-  memo: string;
-};
+// ── サンプルデータ ──
+type SampleVisit = { id: string; date: string; status: VisitStatus; memo: string };
 type SampleMember = {
-  id: string;
-  name: string;
-  kana: string;
-  district: string;
-  age: number;
+  id: string; name: string; kana: string; district: string; age: number;
   visits: SampleVisit[];
 };
 
-const MEMBER_HIDETO: SampleMember = {
-  id: 'm1',
-  name: '高桑 秀都',
-  kana: 'たかくわ ひでと',
-  district: '英雄地区',
-  age: 24,
+const HIDETO: SampleMember = {
+  id: 'm1', name: '高桑 秀都', kana: 'たかくわ ひでと', district: '英雄地区', age: 24,
   visits: [
-    {
-      id: 'v1',
-      date: '2026-04-25',
-      status: 'absent',
-      memo: '集合マンションみたいな形の一番右が高桑さんがいる場所で、3階。ピンポンして不在だったので、お菓子を置いて帰ってきました。',
-    },
-    {
-      id: 'v2',
-      date: '2026-04-12',
-      status: 'met_family',
-      memo: 'お母さんが対応してくれた。本人は仕事で不在。来週末また伺うことを約束。',
-    },
-    {
-      id: 'v3',
-      date: '2026-03-29',
-      status: 'met_self',
-      memo: '本人と話せた。元気そうで何より。',
-    },
+    { id: 'v1', date: '2026-04-25', status: 'absent',
+      memo: '集合マンションみたいな形の一番右が高桑さんがいる場所で、3階。ピンポンして不在だったので、お菓子を置いて帰ってきました。' },
+    { id: 'v2', date: '2026-04-12', status: 'met_family',
+      memo: 'お母さんが対応してくれた。本人は仕事で不在。来週末また伺うことを約束。' },
+    { id: 'v3', date: '2026-03-29', status: 'met_self',
+      memo: '本人と話せた。元気そうで何より。' },
   ],
 };
-
-// 短めメモ・1件だけバリエーション
-const MEMBER_FUJISAKI: SampleMember = {
-  id: 'm2',
-  name: '藤崎 勇輝',
-  kana: 'ふじさき ゆうき',
-  district: '正義地区',
-  age: 28,
+const FUJI: SampleMember = {
+  id: 'm2', name: '藤崎 勇輝', kana: 'ふじさき ゆうき', district: '正義地区', age: 28,
   visits: [
-    {
-      id: 'v4',
-      date: '2026-04-25',
-      status: 'met_family',
-      memo: '父親が対応。',
-    },
+    { id: 'v4', date: '2026-04-25', status: 'met_family', memo: '父親が対応。元気そう。' },
   ],
 };
-
-// 未訪問
-const MEMBER_ASAHI: SampleMember = {
-  id: 'm3',
-  name: '朝日 涼太',
-  kana: 'あさひ りょうた',
-  district: '歓喜地区',
-  age: 25,
+const ASAHI: SampleMember = {
+  id: 'm3', name: '朝日 涼太', kana: 'あさひ りょうた', district: '歓喜地区', age: 25,
   visits: [],
 };
-
-const ALL_MEMBERS = [MEMBER_HIDETO, MEMBER_FUJISAKI, MEMBER_ASAHI];
+const ALL = [HIDETO, FUJI, ASAHI];
 
 function fmtJaDate(s: string): string {
   const [y, m, d] = s.split('-').map(Number);
   return `${y}年${m}月${d}日`;
 }
-function fmtMD(s: string): string {
-  const [, m, d] = s.split('-').map(Number);
-  return `${m}/${d}`;
+
+// ── 共通: スクロール位置を index にトラッキングする hook ──
+function useCarouselIndex(itemCount: number) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onScroll = () => {
+      const w = el.clientWidth;
+      const next = Math.round(el.scrollLeft / w);
+      if (next !== idx) setIdx(Math.max(0, Math.min(itemCount - 1, next)));
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [idx, itemCount]);
+  const scrollTo = (i: number) => {
+    const el = ref.current;
+    if (!el) return;
+    el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' });
+  };
+  return { ref, idx, scrollTo };
 }
 
-// ── メンバーカード(上半分の見た目) — 全パターン共通 ──
-function MemberHead({ m }: { m: SampleMember }) {
+// ── 共通: ピン ──
+function PinSvg() {
   return (
-    <div className="px-3 py-2.5 flex items-center gap-3 bg-white">
-      <span className="w-7 h-10 shrink-0 inline-flex items-center justify-center">
-        <PinSvg />
-      </span>
+    <svg width="18" height="26" viewBox="0 0 28 40" fill="none">
+      <path d="M14 0C6.268 0 0 6.268 0 14C0 24.5 14 40 14 40S28 24.5 28 14C28 6.268 21.732 0 14 0Z" fill="#0EA5E9" stroke="#0284C7" strokeWidth="1"/>
+      <circle cx="14" cy="13.5" r="5" fill="#fff"/>
+    </svg>
+  );
+}
+
+// ── メンバーヘッダー(共通) ──
+function MemberHead({ m, dark = false }: { m: SampleMember; dark?: boolean }) {
+  return (
+    <div className={`px-3 py-2.5 flex items-center gap-3 ${dark ? 'bg-[#F5F5F5]' : 'bg-white'}`}>
+      <span className="w-7 h-10 shrink-0 inline-flex items-center justify-center"><PinSvg/></span>
       <div className="flex-1 min-w-0">
         <span className="text-[10px] text-[#6B7280] block leading-tight">{m.kana}</span>
         <div className="flex items-center gap-1.5">
@@ -114,249 +98,406 @@ function MemberHead({ m }: { m: SampleMember }) {
           <span className="text-[11px] text-[#9CA3AF]">({m.age})</span>
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#6B7280]">
-            {m.district}
-          </span>
-          <span className="text-[11px] text-[#6B7280]">
-            {m.visits.length > 0 ? `${m.visits.length} 回訪問` : '未訪問'}
-          </span>
+          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#6B7280]">{m.district}</span>
+          <span className="text-[11px] text-[#6B7280]">{m.visits.length > 0 ? `${m.visits.length} 回訪問` : '未訪問'}</span>
         </div>
       </div>
     </div>
   );
 }
 
-function PinSvg() {
+// ── 訪問ログ 1 件分(中身、共通) ──
+function LogContent({ v, compact = false }: { v: SampleVisit; compact?: boolean }) {
   return (
-    <svg width="18" height="26" viewBox="0 0 28 40" fill="none">
-      <path
-        d="M14 0C6.268 0 0 6.268 0 14C0 24.5 14 40 14 40S28 24.5 28 14C28 6.268 21.732 0 14 0Z"
-        fill="#0EA5E9"
-        stroke="#0284C7"
-        strokeWidth="1"
-      />
-      <circle cx="14" cy="13.5" r="5" fill="#fff" />
-    </svg>
+    <>
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-[12px] font-bold tabular-nums">{fmtJaDate(v.date)}</span>
+        <StatusChip status={v.status} size="sm" />
+      </div>
+      <p className={`text-[11px] text-[#374151] leading-snug ${compact ? 'line-clamp-1' : 'line-clamp-2'}`}>
+        {v.memo}
+      </p>
+    </>
   );
 }
 
-// 共通: 「未訪問」セクション
-function EmptyVisits() {
+// ── 空状態 ──
+function Empty({ tone = 'gray' }: { tone?: 'gray' | 'white' }) {
   return (
-    <div className="px-3 py-2.5 bg-[#F5F5F5] text-center">
+    <div className={`px-3 py-2.5 text-center ${tone === 'gray' ? 'bg-[#F5F5F5]' : 'bg-white'}`}>
       <span className="text-[11px] text-[#9CA3AF]">訪問ログはまだありません</span>
     </div>
   );
 }
 
 // ──────────────────────────────────────────────────────────────
-// 案 A: 1段ミニマル(横並び・最新ログだけ)
-//   [チップ] 日付 / メモ 1 行(省略)
-//   - 一番省スペース
-//   - 最新の 1 件しか見せない(複数あっても最新だけ)
+// インジケーター部品集
 // ──────────────────────────────────────────────────────────────
-function CardA({ m }: { m: SampleMember }) {
-  const v = m.visits[0];
+function Dots({ count, active, onJump }: { count: number; active: number; onJump?: (i: number) => void }) {
   return (
-    <div className="rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-      <MemberHead m={m} />
-      {v ? (
-        <div className="px-3 py-2 bg-[#F5F5F5] flex items-center gap-2 min-w-0">
-          <StatusChip status={v.status} size="sm" />
-          <span className="text-[11px] tabular-nums text-[#6B7280] shrink-0">{fmtMD(v.date)}</span>
-          <span className="text-[11px] text-[#374151] truncate flex-1">{v.memo}</span>
-        </div>
-      ) : <EmptyVisits />}
+    <div className="flex justify-center gap-1.5 py-1.5">
+      {Array.from({ length: count }).map((_, i) => (
+        <button
+          key={i}
+          type="button"
+          onClick={() => onJump?.(i)}
+          aria-label={`${i + 1}件目`}
+          className={`rounded-full transition-all ${
+            i === active ? 'w-4 h-1.5 bg-[#111]' : 'w-1.5 h-1.5 bg-[#D1D5DB]'
+          }`}
+        />
+      ))}
     </div>
   );
 }
-
-// ──────────────────────────────────────────────────────────────
-// 案 B: 2段スタンダード(最新ログ・日付+チップを上、メモ2行)★推奨
-//   - スクショに一番近い形
-//   - 最新の 1 件だけ表示
-// ──────────────────────────────────────────────────────────────
-function CardB({ m }: { m: SampleMember }) {
-  const v = m.visits[0];
+function NumIndicator({ count, active }: { count: number; active: number }) {
   return (
-    <div className="rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-      <MemberHead m={m} />
-      {v ? (
-        <div className="px-3 py-2.5 bg-[#F5F5F5]">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[12px] font-bold text-[#111] tabular-nums">{fmtJaDate(v.date)}</span>
-            <StatusChip status={v.status} size="sm" />
-          </div>
-          <p className="text-[11px] text-[#374151] leading-snug line-clamp-2">{v.memo}</p>
-        </div>
-      ) : <EmptyVisits />}
+    <div className="flex justify-end px-3 py-1">
+      <span className="text-[10px] tabular-nums text-[#6B7280]">{active + 1} / {count}</span>
     </div>
   );
 }
-
-// ──────────────────────────────────────────────────────────────
-// 案 C: 全件タイムライン(縦に積む)
-//   - 全訪問を縦に並べる
-//   - 各エントリ: 日付 + チップ + メモ 2 行
-//   - 多くなりすぎたら 3 件で切って「もっと見る」(省略)
-// ──────────────────────────────────────────────────────────────
-function CardC({ m }: { m: SampleMember }) {
-  if (m.visits.length === 0) {
-    return (
-      <div className="rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-        <MemberHead m={m} />
-        <EmptyVisits />
-      </div>
-    );
-  }
+function ProgressBar({ count, active }: { count: number; active: number }) {
   return (
-    <div className="rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-      <MemberHead m={m} />
-      <div className="bg-[#F5F5F5] divide-y divide-[#E5E7EB]">
-        {m.visits.map(v => (
-          <div key={v.id} className="px-3 py-2.5">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[12px] font-bold text-[#111] tabular-nums">{fmtJaDate(v.date)}</span>
-              <StatusChip status={v.status} size="sm" />
-            </div>
-            <p className="text-[11px] text-[#374151] leading-snug line-clamp-2">{v.memo}</p>
-          </div>
+    <div className="px-3 py-1.5">
+      <div className="flex gap-1">
+        {Array.from({ length: count }).map((_, i) => (
+          <div
+            key={i}
+            className={`flex-1 h-[3px] rounded-full transition-colors ${
+              i === active ? 'bg-[#111]' : 'bg-[#E5E7EB]'
+            }`}
+          />
         ))}
       </div>
     </div>
   );
 }
-
-// ──────────────────────────────────────────────────────────────
-// 案 D: 横カルーセル(前回案ベース、グレー背景化)
-//   - 複数訪問を横スワイプで 1 枚ずつ
-//   - 各カード: 日付 + チップ + メモ 2 行
-// ──────────────────────────────────────────────────────────────
-function CardD({ m }: { m: SampleMember }) {
-  if (m.visits.length === 0) {
-    return (
-      <div className="rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-        <MemberHead m={m} />
-        <EmptyVisits />
-      </div>
-    );
-  }
+function Arrows({ count, active, onJump }: { count: number; active: number; onJump: (i: number) => void }) {
   return (
-    <div className="rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-      <MemberHead m={m} />
-      <div className="bg-[#F5F5F5] py-2">
-        <div
-          className="flex gap-2 overflow-x-auto px-3 pb-1"
-          style={{ scrollSnapType: 'x mandatory' }}
-        >
-          {m.visits.map((v, i) => (
-            <div
-              key={v.id}
-              className="shrink-0 w-[260px] rounded-lg bg-white border border-[#E5E7EB] p-2.5"
-              style={{ scrollSnapAlign: 'start' }}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[12px] font-bold tabular-nums">{fmtJaDate(v.date)}</span>
-                <StatusChip status={v.status} size="sm" />
-              </div>
-              <p className="text-[11px] text-[#374151] leading-snug line-clamp-2">{v.memo}</p>
-              {m.visits.length > 1 && (
-                <div className="mt-1 text-[9px] text-[#9CA3AF] tabular-nums text-right">
-                  {i + 1} / {m.visits.length}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
+    <div className="flex items-center justify-between px-2 py-1">
+      <button
+        type="button"
+        disabled={active === 0}
+        onClick={() => onJump(active - 1)}
+        className="p-0.5 disabled:opacity-30"
+        aria-label="前のログ"
+      >
+        <ChevL size={16} className="text-[#6B7280]" />
+      </button>
+      <span className="text-[10px] tabular-nums text-[#6B7280]">{active + 1} / {count}</span>
+      <button
+        type="button"
+        disabled={active === count - 1}
+        onClick={() => onJump(active + 1)}
+        className="p-0.5 disabled:opacity-30"
+        aria-label="次のログ"
+      >
+        <ChevR size={16} className="text-[#6B7280]" />
+      </button>
     </div>
   );
 }
 
 // ──────────────────────────────────────────────────────────────
-// 案 E: タイムライン縦線型(縦・接続線あり)
-//   - 各エントリの左に小さなドット + 縦線でつなぐ
-//   - 訪問ログ感が「履歴」っぽくて視覚的に分かりやすい
+// バリエーション本体
+//   variant ごとに見た目を switch
 // ──────────────────────────────────────────────────────────────
-function CardE({ m }: { m: SampleMember }) {
-  if (m.visits.length === 0) {
-    return (
-      <div className="rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-        <MemberHead m={m} />
-        <EmptyVisits />
-      </div>
-    );
-  }
-  return (
-    <div className="rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden">
-      <MemberHead m={m} />
-      <div className="bg-[#F5F5F5] px-3 pt-2.5 pb-1">
-        <ul className="relative">
-          {/* 縦線 */}
-          <span
-            className="absolute left-[5px] top-1.5 bottom-2 w-px bg-[#D1D5DB]"
-            aria-hidden
-          />
-          {m.visits.map(v => (
-            <li key={v.id} className="relative pl-5 pb-2.5 last:pb-0">
-              {/* ドット */}
-              <span
-                className="absolute left-0 top-1 w-3 h-3 rounded-full bg-white border-2"
-                style={{ borderColor: '#9CA3AF' }}
-                aria-hidden
-              />
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-[12px] font-bold text-[#111] tabular-nums">{fmtJaDate(v.date)}</span>
-                <StatusChip status={v.status} size="sm" />
-              </div>
-              <p className="text-[11px] text-[#374151] leading-snug line-clamp-2">{v.memo}</p>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  );
-}
-
-// ──────────────────────────────────────────────────────────────
-// メインページ
-// ──────────────────────────────────────────────────────────────
-type Variant = 'simple' | 'A' | 'B' | 'C' | 'D' | 'E';
+type Variant =
+  | 'D1' | 'D2' | 'D3' | 'D4' | 'D5'
+  | 'D6' | 'D7' | 'D8' | 'D9' | 'D10'
+  | 'baseline'; // 比較用: 現状(横スワイプ無し)
 
 const VARIANTS: { key: Variant; label: string; desc: string }[] = [
-  { key: 'simple', label: '現状', desc: 'メンバーカードのみ。訪問ログ無し' },
-  { key: 'A', label: 'A. 1段ミニマル', desc: '最新ログを1行で。チップ・日付・メモ1行(省略)' },
-  { key: 'B', label: 'B. 2段スタンダード ★', desc: 'ヘッダー+メモ2行。スクショに一番近い、推奨' },
-  { key: 'C', label: 'C. 全件タイムライン', desc: '訪問全件を縦に並べる。各エントリにメモ2行' },
-  { key: 'D', label: 'D. 横カルーセル', desc: '複数訪問を横スワイプ。1枚ずつ snap' },
-  { key: 'E', label: 'E. 縦線つなぎ', desc: 'タイムライン感。ドット+縦線でつなぐ' },
+  { key: 'D1',  label: 'D1 標準ドット',  desc: 'メンバー白 + ログ薄グレー、フル幅、下にドット' },
+  { key: 'D2',  label: 'D2 反転配色',    desc: 'メンバーグレー + ログ白、ドット下' },
+  { key: 'D3',  label: 'D3 外枠なしフラット', desc: 'カード自体の外枠を撤去、ベース背景に直置き' },
+  { key: 'D4',  label: 'D4 数字 (1/3)',  desc: 'ドット代わりに右に「1 / 3」を小さく表示' },
+  { key: 'D5',  label: 'D5 プログレスバー', desc: 'ストーリー風バー(現在位置だけ濃い)' },
+  { key: 'D6',  label: 'D6 Peek',         desc: '次のカードがチラ見え。物理的に「もう一枚あるで」感' },
+  { key: 'D7',  label: 'D7 重なりシルエット', desc: '裏に薄い 2 枚目シルエット。ドット併用' },
+  { key: 'D8',  label: 'D8 矢印タップ',     desc: '左右の矢印で進める(指タッチ無しでも操作可)' },
+  { key: 'D9',  label: 'D9 コンパクト1行', desc: 'メモ 1 行に圧縮、最低高さで密度UP' },
+  { key: 'D10', label: 'D10 統合カード',   desc: 'メンバー & ログを 1 枚の大カードに統合(区切り線のみ)' },
+  { key: 'baseline', label: '現状', desc: '訪問ログ無し(現状の MemberCard)' },
 ];
 
-// シンプル版: メンバーカードだけ
-function CardSimple({ m }: { m: SampleMember }) {
-  const lastVisit = m.visits[0];
+// ====================== D1: 標準ドット ======================
+function D1({ m }: { m: SampleMember }) {
+  const { ref, idx, scrollTo } = useCarouselIndex(m.visits.length);
+  return (
+    <div className="rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden bg-white">
+      <MemberHead m={m} />
+      {m.visits.length === 0 ? <Empty/> : (
+        <div className="bg-[#F5F5F5]">
+          <div ref={ref} className="flex overflow-x-auto" style={{ scrollSnapType: 'x mandatory' }}>
+            {m.visits.map(v => (
+              <div key={v.id} className="shrink-0 w-full px-3 py-2.5" style={{ scrollSnapAlign: 'start' }}>
+                <LogContent v={v} />
+              </div>
+            ))}
+          </div>
+          {m.visits.length > 1 && <Dots count={m.visits.length} active={idx} onJump={scrollTo}/>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ====================== D2: 反転配色 ======================
+function D2({ m }: { m: SampleMember }) {
+  const { ref, idx, scrollTo } = useCarouselIndex(m.visits.length);
+  return (
+    <div className="rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden bg-[#F5F5F5]">
+      <MemberHead m={m} dark/>
+      {m.visits.length === 0 ? <Empty tone="white"/> : (
+        <div className="bg-white border-t border-[#E5E7EB]">
+          <div ref={ref} className="flex overflow-x-auto" style={{ scrollSnapType: 'x mandatory' }}>
+            {m.visits.map(v => (
+              <div key={v.id} className="shrink-0 w-full px-3 py-2.5" style={{ scrollSnapAlign: 'start' }}>
+                <LogContent v={v} />
+              </div>
+            ))}
+          </div>
+          {m.visits.length > 1 && <Dots count={m.visits.length} active={idx} onJump={scrollTo}/>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ====================== D3: 外枠なしフラット ======================
+function D3({ m }: { m: SampleMember }) {
+  const { ref, idx, scrollTo } = useCarouselIndex(m.visits.length);
+  return (
+    <div className="border-b border-[#E5E7EB] pb-2">
+      {/* 外枠なし — シート背景にそのまま乗る */}
+      <MemberHead m={m} />
+      {m.visits.length === 0 ? null : (
+        <div className="bg-[#F5F5F5] rounded-lg mx-3 mt-1">
+          <div ref={ref} className="flex overflow-x-auto" style={{ scrollSnapType: 'x mandatory' }}>
+            {m.visits.map(v => (
+              <div key={v.id} className="shrink-0 w-full px-3 py-2.5" style={{ scrollSnapAlign: 'start' }}>
+                <LogContent v={v} />
+              </div>
+            ))}
+          </div>
+          {m.visits.length > 1 && <Dots count={m.visits.length} active={idx} onJump={scrollTo}/>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ====================== D4: 数字インジケーター ======================
+function D4({ m }: { m: SampleMember }) {
+  const { ref, idx } = useCarouselIndex(m.visits.length);
+  return (
+    <div className="rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden bg-white">
+      <MemberHead m={m}/>
+      {m.visits.length === 0 ? <Empty/> : (
+        <div className="bg-[#F5F5F5] relative">
+          <div ref={ref} className="flex overflow-x-auto" style={{ scrollSnapType: 'x mandatory' }}>
+            {m.visits.map(v => (
+              <div key={v.id} className="shrink-0 w-full px-3 py-2.5" style={{ scrollSnapAlign: 'start' }}>
+                <LogContent v={v} />
+              </div>
+            ))}
+          </div>
+          {m.visits.length > 1 && (
+            <span className="absolute top-1.5 right-2 text-[10px] tabular-nums text-[#6B7280] bg-white/80 px-1.5 py-0.5 rounded-full">
+              {idx + 1} / {m.visits.length}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ====================== D5: プログレスバー(ストーリー風) ======================
+function D5({ m }: { m: SampleMember }) {
+  const { ref, idx, scrollTo } = useCarouselIndex(m.visits.length);
+  return (
+    <div className="rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden bg-white">
+      <MemberHead m={m}/>
+      {m.visits.length === 0 ? <Empty/> : (
+        <div className="bg-[#F5F5F5]">
+          {m.visits.length > 1 && <ProgressBar count={m.visits.length} active={idx}/>}
+          <div ref={ref} className="flex overflow-x-auto" style={{ scrollSnapType: 'x mandatory' }}>
+            {m.visits.map(v => (
+              <div key={v.id} className="shrink-0 w-full px-3 py-2 pb-2.5" style={{ scrollSnapAlign: 'start' }}>
+                <LogContent v={v} />
+              </div>
+            ))}
+          </div>
+          {/* dummy use of scrollTo for touch */}
+          <button type="button" onClick={() => scrollTo(0)} className="hidden" aria-hidden tabIndex={-1}/>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ====================== D6: Peek(次カードちょい見え) ======================
+function D6({ m }: { m: SampleMember }) {
+  const itemCount = m.visits.length;
+  const ref = useRef<HTMLDivElement>(null);
+  const [idx, setIdx] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onScroll = () => {
+      const w = el.clientWidth - 24; // 1 枚分は w - peek 分
+      const next = Math.round(el.scrollLeft / w);
+      setIdx(Math.max(0, Math.min(itemCount - 1, next)));
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [itemCount]);
+  return (
+    <div className="rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden bg-white">
+      <MemberHead m={m}/>
+      {itemCount === 0 ? <Empty/> : (
+        <div className="bg-[#F5F5F5]">
+          <div ref={ref} className="flex overflow-x-auto" style={{ scrollSnapType: 'x mandatory' }}>
+            {m.visits.map((v, i) => (
+              <div
+                key={v.id}
+                className="shrink-0 px-3 py-2.5"
+                style={{
+                  scrollSnapAlign: 'start',
+                  // 100% から 「次がちょっと見える」分(24px)を引く。最後だけはフル幅
+                  width: i === itemCount - 1 ? '100%' : 'calc(100% - 24px)',
+                }}
+              >
+                <div className="bg-white rounded-md px-2.5 py-2 shadow-sm">
+                  <LogContent v={v} />
+                </div>
+              </div>
+            ))}
+          </div>
+          {itemCount > 1 && <Dots count={itemCount} active={idx}/>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ====================== D7: 重なりシルエット ======================
+function D7({ m }: { m: SampleMember }) {
+  const { ref, idx, scrollTo } = useCarouselIndex(m.visits.length);
+  const remaining = m.visits.length - 1 - idx;
+  return (
+    <div className="rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden bg-white">
+      <MemberHead m={m}/>
+      {m.visits.length === 0 ? <Empty/> : (
+        <div className="bg-[#F5F5F5] relative pb-1">
+          {/* 裏に重なりシルエット(2 件以上の時、残数分だけ右に少しずれて表示) */}
+          {remaining > 0 && (
+            <div
+              className="absolute right-2 top-2 bottom-2 rounded-md bg-white border border-[#E5E7EB]"
+              style={{ width: 18, transform: 'translateX(6px)' }}
+              aria-hidden
+            />
+          )}
+          <div ref={ref} className="relative flex overflow-x-auto" style={{ scrollSnapType: 'x mandatory' }}>
+            {m.visits.map(v => (
+              <div key={v.id} className="shrink-0 w-full px-3 py-2.5" style={{ scrollSnapAlign: 'start' }}>
+                <div className="bg-white rounded-md p-2 shadow-sm border border-[#F0F0F0]">
+                  <LogContent v={v} />
+                </div>
+              </div>
+            ))}
+          </div>
+          {m.visits.length > 1 && <Dots count={m.visits.length} active={idx} onJump={scrollTo}/>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ====================== D8: 矢印タップ ======================
+function D8({ m }: { m: SampleMember }) {
+  const { ref, idx, scrollTo } = useCarouselIndex(m.visits.length);
+  return (
+    <div className="rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden bg-white">
+      <MemberHead m={m}/>
+      {m.visits.length === 0 ? <Empty/> : (
+        <div className="bg-[#F5F5F5]">
+          <div ref={ref} className="flex overflow-x-auto" style={{ scrollSnapType: 'x mandatory' }}>
+            {m.visits.map(v => (
+              <div key={v.id} className="shrink-0 w-full px-3 py-2.5" style={{ scrollSnapAlign: 'start' }}>
+                <LogContent v={v} />
+              </div>
+            ))}
+          </div>
+          {m.visits.length > 1 && <Arrows count={m.visits.length} active={idx} onJump={scrollTo}/>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ====================== D9: コンパクト 1 行 ======================
+function D9({ m }: { m: SampleMember }) {
+  const { ref, idx, scrollTo } = useCarouselIndex(m.visits.length);
+  return (
+    <div className="rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden bg-white">
+      <MemberHead m={m}/>
+      {m.visits.length === 0 ? <Empty/> : (
+        <div className="bg-[#F5F5F5]">
+          <div ref={ref} className="flex overflow-x-auto" style={{ scrollSnapType: 'x mandatory' }}>
+            {m.visits.map(v => (
+              <div key={v.id} className="shrink-0 w-full px-3 py-2" style={{ scrollSnapAlign: 'start' }}>
+                <LogContent v={v} compact />
+              </div>
+            ))}
+          </div>
+          {m.visits.length > 1 && <Dots count={m.visits.length} active={idx} onJump={scrollTo}/>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ====================== D10: 統合カード(区切り線のみ) ======================
+function D10({ m }: { m: SampleMember }) {
+  const { ref, idx, scrollTo } = useCarouselIndex(m.visits.length);
+  return (
+    <div className="rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] overflow-hidden bg-white">
+      <MemberHead m={m}/>
+      {m.visits.length === 0 ? null : (
+        <div className="border-t border-dashed border-[#E5E7EB]">
+          <div ref={ref} className="flex overflow-x-auto" style={{ scrollSnapType: 'x mandatory' }}>
+            {m.visits.map(v => (
+              <div key={v.id} className="shrink-0 w-full px-3 py-2.5" style={{ scrollSnapAlign: 'start' }}>
+                <LogContent v={v} />
+              </div>
+            ))}
+          </div>
+          {m.visits.length > 1 && <Dots count={m.visits.length} active={idx} onJump={scrollTo}/>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ====================== baseline: 現状 ======================
+function Baseline({ m }: { m: SampleMember }) {
+  const last = m.visits[0];
   return (
     <div className="bg-white rounded-xl shadow-[0_1px_3px_rgba(0,0,0,0.06)] px-3 py-2.5 flex items-center gap-3">
-      <span className="w-7 h-10 shrink-0 inline-flex items-center justify-center">
-        <PinSvg />
-      </span>
+      <span className="w-7 h-10 shrink-0 inline-flex items-center justify-center"><PinSvg/></span>
       <div className="flex-1 min-w-0">
         <span className="text-[10px] text-[#6B7280] block leading-tight">{m.kana}</span>
         <div className="flex items-center gap-1.5">
           <span className="font-bold text-[15px]">{m.name}</span>
           <span className="text-[11px] text-[#9CA3AF]">({m.age})</span>
-          <ChevronR size={20} className="text-[#D1D5DB] shrink-0" />
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#6B7280]">
-            {m.district}
-          </span>
-          <span className="flex items-center gap-1 text-[11px] text-[#6B7280]">
-            <Clock size={12} strokeWidth={1.8} />
-            {lastVisit
-              ? `${fmtJaDate(lastVisit.date)}(${m.visits.length}回)`
-              : '----年--月--日'}
-          </span>
+          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#6B7280]">{m.district}</span>
+          <span className="text-[11px] text-[#6B7280]">{last ? `${fmtJaDate(last.date)}(${m.visits.length}回)` : '----年--月--日'}</span>
         </div>
       </div>
     </div>
@@ -364,71 +505,63 @@ function CardSimple({ m }: { m: SampleMember }) {
 }
 
 function renderCard(variant: Variant, m: SampleMember) {
-  if (variant === 'simple') return <CardSimple m={m} />;
-  if (variant === 'A') return <CardA m={m} />;
-  if (variant === 'B') return <CardB m={m} />;
-  if (variant === 'C') return <CardC m={m} />;
-  if (variant === 'D') return <CardD m={m} />;
-  return <CardE m={m} />;
+  switch (variant) {
+    case 'D1':  return <D1 m={m}/>;
+    case 'D2':  return <D2 m={m}/>;
+    case 'D3':  return <D3 m={m}/>;
+    case 'D4':  return <D4 m={m}/>;
+    case 'D5':  return <D5 m={m}/>;
+    case 'D6':  return <D6 m={m}/>;
+    case 'D7':  return <D7 m={m}/>;
+    case 'D8':  return <D8 m={m}/>;
+    case 'D9':  return <D9 m={m}/>;
+    case 'D10': return <D10 m={m}/>;
+    case 'baseline': return <Baseline m={m}/>;
+  }
 }
 
-// ── 「ぼんやりマップ風」 背景(本物の地図の代わり) ──
+// ── マップ風背景 ──
 function FakeMapBg() {
   return (
-    <div
-      className="absolute inset-0"
-      style={{
-        background: 'linear-gradient(135deg, #E8F5E9 0%, #E3F2FD 100%)',
-        backgroundImage: `
-          linear-gradient(#D1D5DB22 1px, transparent 1px),
-          linear-gradient(90deg, #D1D5DB22 1px, transparent 1px)
-        `,
-        backgroundSize: '32px 32px',
-      }}
-    >
-      {/* ピン風の点 */}
-      <span className="absolute left-[18%] top-[24%] w-3 h-4">
-        <PinSvg />
-      </span>
-      <span className="absolute left-[42%] top-[18%] w-3 h-4">
-        <PinSvg />
-      </span>
-      <span className="absolute left-[68%] top-[36%] w-3 h-4">
-        <PinSvg />
-      </span>
-      <span className="absolute left-[28%] top-[52%] w-3 h-4">
-        <PinSvg />
-      </span>
-      <span className="absolute left-[56%] top-[44%] w-3 h-4">
-        <PinSvg />
-      </span>
+    <div className="absolute inset-0" style={{
+      background: 'linear-gradient(135deg, #E8F5E9 0%, #E3F2FD 100%)',
+      backgroundImage: 'linear-gradient(#D1D5DB22 1px, transparent 1px), linear-gradient(90deg, #D1D5DB22 1px, transparent 1px)',
+      backgroundSize: '32px 32px',
+    }}>
+      {[
+        ['18%','24%'], ['42%','18%'], ['68%','36%'], ['28%','52%'], ['56%','44%'],
+      ].map(([l, t], i) => (
+        <span key={i} className="absolute" style={{ left: l, top: t }}><PinSvg/></span>
+      ))}
     </div>
   );
 }
 
 export default function MemberCardVariantsPage() {
-  const [variant, setVariant] = useState<Variant>('B');
+  const [variant, setVariant] = useState<Variant>('D1');
+
+  // D3 はカードに外枠が無いので、シート内の背景を利用するため bg をそのまま使う
+  const sheetBg = variant === 'D3' ? '#FFFFFF' : '#FFFFFF';
 
   return (
     <div className="min-h-screen bg-[#F5F5F7] pb-20">
       <nav className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-[#E5E7EB] px-4 py-3 flex items-center gap-2">
         <Link href="/log" className="flex items-center gap-1 text-[var(--color-primary)]">
-          <ChevronLeft size={22} />
+          <ChevronLeft size={22}/>
           <span className="text-sm">戻る</span>
         </Link>
-        <h1 className="flex-1 text-center text-base font-bold">メンバーカード 5案</h1>
-        <div className="w-14" />
+        <h1 className="flex-1 text-center text-base font-bold">D系 10案 + 現状</h1>
+        <div className="w-14"/>
       </nav>
 
-      {/* 説明 + 切替 */}
       <section className="px-4 pt-3 pb-1">
         <p className="text-[12px] text-[#6B7280] leading-relaxed">
-          実際の「ホーム地図 + ボトムシート」に組み込んだ状態でプレビュー。
-          スクロール下端まで見て案を比較してな。
+          訪問ログは横幅フィル + 横スワイプで切替。下のドット/数字/矢印などで「他にもある」を伝える 10 案。
+          実画面風プレビューで比較してな。
         </p>
       </section>
 
-      {/* 切替セグメント (sticky で上に追従) */}
+      {/* 切替セグメント sticky */}
       <section className="sticky top-[52px] z-20 bg-[#F5F5F7] px-4 pt-2 pb-2 border-b border-[#E5E7EB]">
         <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mx-4 px-4">
           {VARIANTS.map(v => (
@@ -451,27 +584,23 @@ export default function MemberCardVariantsPage() {
         </p>
       </section>
 
-      {/* ─── 実画面風プレビュー: ホーム画面 + メンバー一覧ボトムシート ─── */}
+      {/* 実画面風プレビュー */}
       <section className="px-3 pt-4">
         <div
           className="relative rounded-2xl overflow-hidden border border-[#E5E7EB] bg-white shadow-sm"
-          style={{ height: 720, maxWidth: 480, margin: '0 auto' }}
+          style={{ height: 760, maxWidth: 480, margin: '0 auto' }}
         >
-          {/* マップ風背景 (上半分) */}
+          {/* マップ風 */}
           <div className="absolute inset-x-0 top-0 h-[260px]">
-            <FakeMapBg />
+            <FakeMapBg/>
           </div>
-
-          {/* ボトムシート風 (下半分) */}
-          <div
-            className="absolute inset-x-0 bottom-0 bg-white rounded-t-2xl shadow-[0_-4px_16px_rgba(0,0,0,0.08)] flex flex-col"
-            style={{ top: 220 }}
+          {/* ボトムシート風 */}
+          <div className="absolute inset-x-0 bottom-0 rounded-t-2xl shadow-[0_-4px_16px_rgba(0,0,0,0.08)] flex flex-col"
+               style={{ top: 220, background: sheetBg }}
           >
-            {/* シートのドラッグハンドル */}
             <div className="flex justify-center pt-2 pb-2">
-              <div className="w-9 h-[5px] rounded-full bg-gray-300" />
+              <div className="w-9 h-[5px] rounded-full bg-gray-300"/>
             </div>
-            {/* シートヘッダー */}
             <div className="px-4 pb-2 border-b border-[#F0F0F0] shrink-0 flex items-baseline justify-between">
               <div className="flex items-baseline gap-2">
                 <h2 className="text-base font-bold">メンバー</h2>
@@ -479,43 +608,42 @@ export default function MemberCardVariantsPage() {
               </div>
               <span className="text-xs text-[#9CA3AF]">並び順 ▼</span>
             </div>
-            {/* メンバーリスト(スクロール) */}
             <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
-              {ALL_MEMBERS.map(m => (
-                <div key={m.id}>{renderCard(variant, m)}</div>
-              ))}
-              <p className="text-[10px] text-center text-[#9CA3AF] pt-2">
-                ↑ ボトムシート内をスクロール
-              </p>
+              {ALL.map(m => <div key={m.id}>{renderCard(variant, m)}</div>)}
+              <p className="text-[10px] text-center text-[#9CA3AF] pt-2">↑ ボトムシート内をスクロール</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* メンバー説明 */}
+      {/* 操作ヒント */}
       <section className="px-4 pt-4">
         <div className="rounded-xl bg-white border border-[#E5E7EB] p-3 text-[11px] text-[#6B7280] leading-relaxed">
-          <strong className="text-[#111]">サンプル内訳:</strong>
-          <br />・高桑 秀都 = 訪問 3 件(複数パターン確認用)
-          <br />・藤崎 勇輝 = 訪問 1 件(単発の見え方)
-          <br />・朝日 涼太 = 未訪問(空状態)
+          <strong className="text-[#111]">使い方:</strong>
+          高桑(3 件)の訪問ログを<u>左にスワイプ</u>(PCならドラッグ)で次のログへ切替。
+          ドット/数字/矢印などインジケーターも各案ごとに違うで。
         </div>
       </section>
 
-      {/* 仕様サマリ */}
+      {/* 10 案サマリ */}
       <section className="px-4 pt-4">
         <div className="rounded-xl bg-white border border-[#E5E7EB] p-4">
-          <h3 className="text-[13px] font-bold mb-2">5 案の特徴まとめ</h3>
+          <h3 className="text-[13px] font-bold mb-2">10 案の特徴</h3>
           <ul className="text-[12px] text-[#374151] space-y-1.5 leading-relaxed">
-            <li><b>A. 1段ミニマル</b> — 最小スペース、最新 1 件のみ、メモも 1 行省略</li>
-            <li><b>B. 2段スタンダード ★</b> — ヘッダー(日付+チップ) と メモ 2 行。スクショ準拠</li>
-            <li><b>C. 全件タイムライン</b> — 全訪問を縦に並べる。リスト感、情報量多め</li>
-            <li><b>D. 横カルーセル</b> — 複数訪問を横スワイプ。コンパクト、複数比較しやすい</li>
-            <li><b>E. 縦線つなぎ</b> — ドット+縦線でタイムライン感。視覚的に「履歴」っぽい</li>
+            <li><b>D1 標準ドット</b> — 配色そのまま、下にドット</li>
+            <li><b>D2 反転配色</b> — メンバー部がグレー、ログが白</li>
+            <li><b>D3 外枠なし</b> — カードの白枠を外し、シート背景に直置き</li>
+            <li><b>D4 数字 (1/3)</b> — ドット代わりに右上に小さく数字</li>
+            <li><b>D5 プログレスバー</b> — Instagram ストーリー風</li>
+            <li><b>D6 Peek</b> — 次のカードがチラッと見える(右に余白で予告)</li>
+            <li><b>D7 シルエット</b> — 裏に薄く 2 枚目が透ける</li>
+            <li><b>D8 矢印タップ</b> — 左右の矢印で進める。スワイプ + タップ両対応</li>
+            <li><b>D9 コンパクト1行</b> — メモ 1 行に圧縮、密度UP</li>
+            <li><b>D10 統合カード</b> — 上下を 1 枚カードに統合、点線で区切り</li>
           </ul>
           <p className="text-[11px] text-[#6B7280] mt-3 leading-relaxed">
-            気に入った案 + 「メンバーカード上のチェブロン要らん」「メモのフォントもう少し大きく」
-            みたいな個別調整も気軽に〜。組み合わせ案(B+E ハイブリッド等)も歓迎。
+            気に入った案 + 「ドットの色をもう少し濃く」「Peek 量を 24 → 32px」みたいな
+            微調整も気軽に〜。
           </p>
         </div>
       </section>
