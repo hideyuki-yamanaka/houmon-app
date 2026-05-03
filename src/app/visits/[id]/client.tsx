@@ -11,6 +11,7 @@ import { formatDate } from '../../../lib/utils';
 import type { VisitStatus, Respondent } from '../../../lib/types';
 import TiptapViewer from '../../../components/TiptapViewer';
 import StatusChip from '../../../components/StatusChip';
+import { useSwipeBack } from '../../../lib/useSwipeBack';
 
 export default function VisitDetailClient() {
   const params = useParams();
@@ -21,6 +22,9 @@ export default function VisitDetailClient() {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  // iOS 風 「左端から右にスワイプで戻る」
+  useSwipeBack(() => router.back());
 
   const fetchVisit = useCallback(() => {
     getVisitById(id)

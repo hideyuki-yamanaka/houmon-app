@@ -9,6 +9,7 @@ import { getMember, getVisits } from '../../../lib/storage';
 import MemberInfo from '../../../components/MemberInfo';
 import InfoSection from '../../../components/InfoSection';
 import VisitCard from '../../../components/VisitCard';
+import { useSwipeBack } from '../../../lib/useSwipeBack';
 
 /**
  * 検索ヒットから飛んで来た時に、指定セクションにスクロール＋一瞬フラッシュする。
@@ -32,6 +33,9 @@ export default function MemberDetailClient() {
   const [member, setMember] = useState<Member | null>(null);
   const [visits, setVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // iOS 風 「左端から右にスワイプで戻る」
+  useSwipeBack(() => router.back());
 
   // フラッシュ対象のセクション DOM id。表示後に一瞬リングアニメを走らせてスッと消す。
   const [flashId, setFlashId] = useState<string | null>(null);

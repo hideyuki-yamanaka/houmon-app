@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { MapPin, CalendarDays, LayoutDashboard } from 'lucide-react';
+import { tapHaptic } from '../lib/haptics';
 
 const TABS = [
   { href: '/', label: 'ホーム', icon: MapPin },
@@ -22,6 +23,7 @@ export default function BottomTabBar() {
             <Link
               key={href}
               href={href}
+              onClick={() => tapHaptic()}
               className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${
                 isActive
                   ? 'text-[var(--color-primary)]'
