@@ -11,7 +11,12 @@
 //   - 1 段目: 日付 → 名前タグ → ステータスタグ + 右端に N/M
 //   - 2 段目: メモ 2 行省略
 //   - スライドタップで /visits/[id] に遷移 + Haptics
-//   - 横スクロール中は ブラウザが click を抑制するので 干渉なし
+//
+// noScroll prop:
+//   親が SwipeableBottomSheet 等の縦ドラッグ可能コンテナの場合、
+//   横スクロール領域があると iOS Safari が縦ドラッグを「横スクロール」と
+//   誤判定して 親のシートドラッグが効かなくなる。
+//   そういう場面では noScroll=true で 1件目だけ表示する (横スクロール無効)。
 // ──────────────────────────────────────────────────────────────
 
 import { useEffect, useRef, useState } from 'react';
@@ -23,38 +28,54 @@ import { VisitAuthorChip } from './VisitAuthorChip';
 import { useTeamProfiles } from '../lib/useTeamProfiles';
 import { tapHaptic } from '../lib/haptics';
 
-export default function VisitsCarousel({ visits }: { visits: Visit[] }) {
+interface Props {
+  visits: Visit[];
+  /** true の時は 1件目だけ表示 + 横スクロール無効。
+   *  ボトムシート等の 縦ドラッグコンテナ内で使う時に指定する。 */
+  noScroll?: boolean;
+}
+
+export default function VisitsCarousel({ visits, noScroll = false }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const [idx, setIdx] = useState(0);
   const { lookup } = useTeamProfiles();
 
+  // noScroll の時は 1件目だけ表示。横スクロール領域も無効。
+  const visibleVisits = noScroll ? visits.slice(0, 1) : visits;
+  const totalCount = visits.length;
+
   useEffect(() => {
+    if (noScroll) return;
     const el = ref.current;
     if (!el) return;
     const onScroll = () => {
       const w = el.clientWidth;
       if (w === 0) return;
       const next = Math.round(el.scrollLeft / w);
-      if (next !== idx) setIdx(Math.max(0, Math.min(visits.length - 1, next)));
+      if (next !== idx) setIdx(Math.max(0, Math.min(totalCount - 1, next)));
     };
     el.addEventListener('scroll', onScroll, { passive: true });
     return () => el.removeEventListener('scroll', onScroll);
-  }, [idx, visits.length]);
+  }, [idx, totalCount, noScroll]);
 
-  if (visits.length === 0) return null;
+  if (visibleVisits.length === 0) return null;
 
   return (
     <div className="bg-[#F2F2F4] rounded-lg">
       <div
         ref={ref}
-        className="flex overflow-x-auto [&::-webkit-scrollbar]:hidden"
-        style={{
-          scrollSnapType: 'x mandatory',
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none' as 'none',
-        }}
+        className={noScroll ? 'flex' : 'flex overflow-x-auto [&::-webkit-scrollbar]:hidden'}
+        style={
+          noScroll
+            ? undefined
+            : {
+                scrollSnapType: 'x mandatory',
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none' as 'none',
+              }
+        }
       >
-        {visits.map((v, i) => {
+        {visibleVisits.map((v, i) => {
           const memo = extractMemoText(v);
           const author = lookup(v.createdBy);
           return (
@@ -64,7 +85,7 @@ export default function VisitsCarousel({ visits }: { visits: Visit[] }) {
               onClick={() => tapHaptic()}
               className="shrink-0 w-full block active:bg-[#E8E8EB] transition-colors"
               style={{
-                scrollSnapAlign: 'start',
+                ...(noScroll ? {} : { scrollSnapAlign: 'start' }),
                 paddingTop: 12,
                 paddingBottom: 12,
                 paddingLeft: 16,
@@ -79,14 +100,21 @@ export default function VisitsCarousel({ visits }: { visits: Visit[] }) {
                   {author.userId && <VisitAuthorChip author={author} />}
                   <StatusChip status={v.status} />
                 </div>
-                {visits.length > 1 && (
-                  <span
-                    className="tabular-nums text-[var(--color-subtext)] shrink-0 leading-none"
-                    style={{ fontSize: '12px', letterSpacing: '-0.1em' }}
-                  >
-                    {i + 1} / {visits.length}
-                  </span>
-                )}
+                {/* noScroll 時は 1/N の代わりに「他 +N 件」のヒントを薄く出す */}
+                {noScroll
+                  ? totalCount > 1 && (
+                      <span className="text-[10px] text-[var(--color-subtext)] shrink-0 leading-none">
+                        他 +{totalCount - 1} 件
+                      </span>
+                    )
+                  : totalCount > 1 && (
+                      <span
+                        className="tabular-nums text-[var(--color-subtext)] shrink-0 leading-none"
+                        style={{ fontSize: '12px', letterSpacing: '-0.1em' }}
+                      >
+                        {i + 1} / {totalCount}
+                      </span>
+                    )}
               </div>
               {memo && (
                 <p className="text-[11px] text-[#374151] leading-snug line-clamp-2 whitespace-pre-line">

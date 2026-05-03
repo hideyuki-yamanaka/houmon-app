@@ -254,8 +254,12 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                   <p className="text-sm text-[var(--color-subtext)]">読み込み中...</p>
                 ) : (
                   <>
-                    <VisitsCarousel visits={visits} />
-                    {m.totalVisits > 5 && (
+                    {/* noScroll で 1件目だけ表示。横スクロール領域を作ると
+                        iOS Safari の縦ドラッグ判定と衝突して シートのドラッグが
+                        途中で止まるバグが出るため (2026-05-04 ヒデさん指摘)。
+                        他の訪問は「もっと見る」or タップで詳細遷移から確認可。 */}
+                    <VisitsCarousel visits={visits} noScroll />
+                    {m.totalVisits > 1 && (
                       <button
                         onClick={() => { tapHaptic(); rememberMemberForReturn(m.id); router.push(`/members/${m.id}`); }}
                         className="text-sm text-[var(--color-primary)] font-medium flex items-center gap-1 mt-2"
