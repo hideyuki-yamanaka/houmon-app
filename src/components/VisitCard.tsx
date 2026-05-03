@@ -2,9 +2,7 @@
 
 import Link from 'next/link';
 import type { Visit } from '../lib/types';
-import { RESPONDENT_CONFIG } from '../lib/constants';
 import { formatDate } from '../lib/utils';
-import type { Respondent } from '../lib/types';
 import { ChevronRight } from 'lucide-react';
 import Highlight from './Highlight';
 import StatusChip from './StatusChip';
@@ -15,17 +13,10 @@ interface Props {
   highlightQuery?: string;
 }
 
-/** 対応者配列を 「父・母」 みたいに連結。型外の値('other'等)は「その他」にフォールバック */
-function joinRespondentLabels(rs?: Respondent[]): string {
-  if (!rs || rs.length === 0) return '';
-  return rs
-    .map(r => RESPONDENT_CONFIG[r as Respondent]?.label ?? 'その他')
-    .join('・');
-}
+// ヒデさん指示 (2026-05-03): 1行目の「父・母」等の対応者タグは表示しない。
+// 段落ちでデザインが破綻するため、対応者は詳細画面でのみ確認する形に統一。
 
 export default function VisitCard({ visit, highlightQuery }: Props) {
-  const respondentLabel = joinRespondentLabels(visit.respondents);
-
   return (
     <Link href={`/visits/${visit.id}`} className="block">
       <div className="ios-card p-4 flex items-center gap-3 active:bg-[#F5F5F5] transition-colors">
@@ -33,11 +24,6 @@ export default function VisitCard({ visit, highlightQuery }: Props) {
           <div className="flex items-center gap-2">
             <span className="text-[15px] font-bold">{formatDate(visit.visitedAt, 'yyyy年M月d日')}</span>
             <StatusChip status={visit.status} />
-            {respondentLabel && (
-              <span className="text-sm px-2.5 py-0.5 rounded-full bg-gray-100 text-[var(--color-subtext)]">
-                {respondentLabel}
-              </span>
-            )}
           </div>
           {visit.summary && (
             <p className="text-sm text-[var(--color-subtext)] mt-1.5 line-clamp-2">
