@@ -350,7 +350,10 @@ function AdoptedB({ m }: { m: SampleMember }) {
                   {m.visits.length > 1 && (
                     <span
                       className="tabular-nums text-[#6B7280] shrink-0 leading-none"
-                      style={{ fontSize: 'var(--mock-numb-size, 10px)' }}
+                      style={{
+                        fontSize: 'var(--mock-numb-size, 10px)',
+                        letterSpacing: 'var(--mock-numb-tracking, 0em)',
+                      }}
                     >
                       {i + 1} / {m.visits.length}
                     </span>
@@ -724,9 +727,10 @@ export default function MemberCardVariantsPage() {
     } catch { /* ignore */ }
   }, [padTop, padBot]);
 
-  // ── B 用: 数字 (1/3) のサイズ・上下揃え ──
+  // ── B 用: 数字 (1/3) のサイズ・上下揃え・letter-spacing ──
   const [numSize, setNumSize] = useState<number>(10);
   const [numAlign, setNumAlign] = useState<NumAlign>('center');
+  const [numTracking, setNumTracking] = useState<number>(0); // em 単位
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(NUMB_STORAGE);
@@ -734,16 +738,21 @@ export default function MemberCardVariantsPage() {
         const v = JSON.parse(raw);
         if (typeof v.size === 'number') setNumSize(v.size);
         if (typeof v.align === 'string') setNumAlign(v.align);
+        if (typeof v.tracking === 'number') setNumTracking(v.tracking);
       }
     } catch { /* ignore */ }
   }, []);
   useEffect(() => {
     document.documentElement.style.setProperty('--mock-numb-size', `${numSize}px`);
     document.documentElement.style.setProperty('--mock-numb-align', numAlign);
+    document.documentElement.style.setProperty('--mock-numb-tracking', `${numTracking}em`);
     try {
-      window.localStorage.setItem(NUMB_STORAGE, JSON.stringify({ size: numSize, align: numAlign }));
+      window.localStorage.setItem(
+        NUMB_STORAGE,
+        JSON.stringify({ size: numSize, align: numAlign, tracking: numTracking }),
+      );
     } catch { /* ignore */ }
-  }, [numSize, numAlign]);
+  }, [numSize, numAlign, numTracking]);
 
   // D3 / 採用候補 はカードに外枠が無いので、シート内の背景を利用するため bg をそのまま使う
   const sheetBg = '#FFFFFF';
@@ -797,9 +806,9 @@ export default function MemberCardVariantsPage() {
               <span className="text-[11px] font-bold text-[#111]">数字 (1/3) のサイズと揃え</span>
               <button
                 type="button"
-                onClick={() => { setNumSize(10); setNumAlign('center'); }}
+                onClick={() => { setNumSize(10); setNumAlign('center'); setNumTracking(0); }}
                 className="text-[10px] text-[#6B7280] active:opacity-60"
-                title="既定値(10px / 中央)に戻す"
+                title="既定値(10px / 中央 / tracking 0)に戻す"
               >
                 リセット
               </button>
@@ -820,7 +829,7 @@ export default function MemberCardVariantsPage() {
               <span className="text-[10px] tabular-nums w-10 text-right text-[#374151]">{numSize} px</span>
             </div>
             {/* 揃え(セグメント) */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mb-1.5">
               <span className="text-[10px] text-[#6B7280] w-10 shrink-0">揃え</span>
               <div className="flex-1 inline-flex p-0.5 bg-[#F3F4F6] rounded-md">
                 {NUM_ALIGN_OPTIONS.map(opt => (
@@ -839,8 +848,25 @@ export default function MemberCardVariantsPage() {
                 ))}
               </div>
             </div>
+            {/* 文字間 (letter-spacing em) */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-[#6B7280] w-10 shrink-0">文字間</span>
+              <input
+                type="range"
+                min={-0.1}
+                max={0.1}
+                step={0.005}
+                value={numTracking}
+                onChange={(e) => setNumTracking(Number(e.target.value))}
+                className="flex-1 accent-[#111]"
+                aria-label="数字の文字間 (letter-spacing em)"
+              />
+              <span className="text-[10px] tabular-nums w-14 text-right text-[#374151]">
+                {numTracking.toFixed(3)} em
+              </span>
+            </div>
             <p className="text-[10px] text-[#9CA3AF] mt-1.5 leading-tight">
-              数字部分のフォントサイズと、左の日付・チップとの上下揃え位置を調整。
+              数字部分のフォントサイズ・上下揃え・文字間(letter-spacing) を調整。
               値は端末に保存(リロード後も有効)。
             </p>
           </div>
