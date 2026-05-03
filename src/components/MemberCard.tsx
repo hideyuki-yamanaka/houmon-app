@@ -1,15 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ChevronRight, Clock } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit } from '../lib/types';
-import { extractMemoText, formatDate, resolveAge } from '../lib/utils';
+import { formatDate, resolveAge } from '../lib/utils';
 import MemberPin from './MemberPin';
-import StatusChip from './StatusChip';
-import { VisitAuthorChip } from './VisitAuthorChip';
-import { useTeamProfiles } from '../lib/useTeamProfiles';
-import { tapHaptic } from '../lib/haptics';
+import VisitsCarousel from './VisitsCarousel';
 
 interface Props {
   member: MemberWithVisitInfo;
@@ -20,89 +16,8 @@ interface Props {
   withLogs?: boolean;
 }
 
-// ── 訪問ログ横カルーセル(B 案: スクロールバー無し + 1/N 右端) ──
-//
-// ヒデさん指示 (2026-05-03 v3 改訂):
-//   - 1段目に 日付 → 名前タグ → ステータス の順 で並べる
-//   - スライドタップで /visits/[id] に遷移 (横スクロール中は ブラウザが click を抑制)
-//   - Haptics 付き
-function VisitsCarousel({ visits }: { visits: Visit[] }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [idx, setIdx] = useState(0);
-  const { lookup } = useTeamProfiles();
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const onScroll = () => {
-      const w = el.clientWidth;
-      if (w === 0) return;
-      const next = Math.round(el.scrollLeft / w);
-      if (next !== idx) setIdx(Math.max(0, Math.min(visits.length - 1, next)));
-    };
-    el.addEventListener('scroll', onScroll, { passive: true });
-    return () => el.removeEventListener('scroll', onScroll);
-  }, [idx, visits.length]);
-
-  return (
-    <div className="bg-[#F2F2F4] rounded-lg mx-3 mt-1 mb-1.5">
-      <div
-        ref={ref}
-        className="flex overflow-x-auto [&::-webkit-scrollbar]:hidden"
-        style={{
-          scrollSnapType: 'x mandatory',
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none' as 'none',
-        }}
-      >
-        {visits.map((v, i) => {
-          const memo = extractMemoText(v);
-          const author = lookup(v.createdBy);
-          return (
-            <Link
-              key={v.id}
-              href={`/visits/${v.id}`}
-              onClick={() => tapHaptic()}
-              className="shrink-0 w-full block active:bg-[#E8E8EB] transition-colors"
-              style={{
-                scrollSnapAlign: 'start',
-                paddingTop: 12,
-                paddingBottom: 12,
-                paddingLeft: 16,
-                paddingRight: 16,
-              }}
-            >
-              {/* 上段: 日付 + 名前 + ステータス  ─  右端に 1/N */}
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-[12px] font-bold tabular-nums shrink-0">
-                    {formatDate(v.visitedAt, 'yyyy年M月d日')}
-                  </span>
-                  {author.userId && <VisitAuthorChip author={author} />}
-                  <StatusChip status={v.status} size="sm" />
-                </div>
-                {visits.length > 1 && (
-                  <span
-                    className="tabular-nums text-[var(--color-subtext)] shrink-0 leading-none"
-                    style={{ fontSize: '12px', letterSpacing: '-0.1em' }}
-                  >
-                    {i + 1} / {visits.length}
-                  </span>
-                )}
-              </div>
-              {/* 下段: メモ 2 行省略 */}
-              {memo && (
-                <p className="text-[11px] text-[#374151] leading-snug line-clamp-2 whitespace-pre-line">
-                  {memo}
-                </p>
-              )}
-            </Link>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+// VisitsCarousel は components/VisitsCarousel.tsx に切り出し済み
+// (MemberBottomSheet でも同じ見た目で使うため。2026-05-03 v3 ヒデさん指示)
 
 export default function MemberCard({ member, onSelect, visits, withLogs }: Props) {
   const hasVisits = member.totalVisits > 0;
@@ -180,8 +95,11 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
           {head}
         </Link>
       )}
-      {/* 訪問ログカルーセル(B 案、本実装) */}
-      <VisitsCarousel visits={visits!} />
+      {/* 訪問ログカルーセル(B 案、本実装)。
+          mx-3 で カードの左右パディングと整合、mt-1/mb-1.5 で head との縦余白 */}
+      <div className="mx-3 mt-1 mb-1.5">
+        <VisitsCarousel visits={visits!} />
+      </div>
     </div>
   );
   return card;

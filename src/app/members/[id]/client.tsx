@@ -138,7 +138,8 @@ export default function MemberDetailClient() {
       </nav>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-[1366px] mx-auto px-4 py-4 pb-24 space-y-4">
+        {/* pb は最小限 (4=16px)。下のタブバー領域は親 layout の outer pb で確保済 */}
+        <div className="max-w-[1366px] mx-auto px-4 py-4 pb-4 space-y-4">
           <div id="section-basic" className={flashCls('section-basic')}>
             <MemberInfo
               member={member}

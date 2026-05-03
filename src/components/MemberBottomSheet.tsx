@@ -7,7 +7,7 @@ import type { MemberWithVisitInfo, Visit, MemberRow } from '../lib/types';
 import { formatDate, resolveAge, stripBuildingName } from '../lib/utils';
 import { getVisits, updateMember } from '../lib/storage';
 import SwipeableBottomSheet, { type SheetHandle } from './SwipeableBottomSheet';
-import VisitCard from './VisitCard';
+import VisitsCarousel from './VisitsCarousel';
 import { tapHaptic } from '../lib/haptics';
 
 interface Props {
@@ -242,8 +242,8 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
 
             {/* 訪問ログ: 訪問実績がある場合のみセクション丸ごと表示
                 blank state (totalVisits === 0) のときは見出しも非表示にして余白を詰める。
-                ヒデさん指示 (2026-05-03): メンバー詳細ページと同じ VisitCard で統一。
-                作者バッジ・ハプティクス・遷移は VisitCard 側で完結。 */}
+                ヒデさん指示 (2026-05-03 v3): メンバー一覧の MemberCard と同じ
+                VisitsCarousel で統一 (横スワイプ + 名前タグ + ステータス)。 */}
             {m.totalVisits > 0 && (
               <div
                 className="px-4 pt-4 pb-2"
@@ -253,19 +253,17 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                 {loading ? (
                   <p className="text-sm text-[var(--color-subtext)]">読み込み中...</p>
                 ) : (
-                  <div className="space-y-2">
-                    {visits.map(v => (
-                      <VisitCard key={v.id} visit={v} />
-                    ))}
+                  <>
+                    <VisitsCarousel visits={visits} />
                     {m.totalVisits > 5 && (
                       <button
                         onClick={() => { tapHaptic(); rememberMemberForReturn(m.id); router.push(`/members/${m.id}`); }}
-                        className="text-sm text-[var(--color-primary)] font-medium flex items-center gap-1"
+                        className="text-sm text-[var(--color-primary)] font-medium flex items-center gap-1 mt-2"
                       >
                         もっと見る <ChevronRight size={16} />
                       </button>
                     )}
-                  </div>
+                  </>
                 )}
               </div>
             )}
