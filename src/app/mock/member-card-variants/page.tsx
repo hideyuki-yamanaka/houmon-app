@@ -229,7 +229,8 @@ const VARIANTS: { key: Variant; label: string; desc: string }[] = [
 // - インジケーターは右上の小さな数字 1/3 のみ(ドット無し)
 // - 縦パディングを詰めてコンパクトに
 function Adopted({ m }: { m: SampleMember }) {
-  const { ref, idx } = useCarouselIndex(m.visits.length);
+  // 数字 N/全件 は map の i で表現するので idx は受け取らない(scroll 同期は ref のみ使用)
+  const { ref } = useCarouselIndex(m.visits.length);
   return (
     <div className="border-b border-[#E5E7EB] pb-1.5">
       {/* メンバーヘッダー(コンパクト: py-1.5) */}
@@ -248,30 +249,40 @@ function Adopted({ m }: { m: SampleMember }) {
         </div>
       </div>
       {/* ログセクション(外枠なし、シート背景にグレーボックスを直接乗せる)
-          グレーボックスの上下 padding は CSS 変数で動的調整(下のスライダー UI から) */}
+          - 上下 padding は CSS 変数で動的調整(下のスライダー UI から)
+          - 数字 N/全件 は日付・チップと同じ行に置いて両端揃え(右端) */}
       {m.visits.length === 0 ? null : (
-        <div className="bg-[#F2F2F4] rounded-lg mx-3 mt-1 relative">
+        <div className="bg-[#F2F2F4] rounded-lg mx-3 mt-1">
           <div ref={ref} className="flex overflow-x-auto" style={{ scrollSnapType: 'x mandatory' }}>
-            {m.visits.map(v => (
+            {m.visits.map((v, i) => (
               <div
                 key={v.id}
-                className="shrink-0 w-full px-2.5 pr-12"
+                className="shrink-0 w-full px-3"
                 style={{
                   scrollSnapAlign: 'start',
-                  paddingTop: 'var(--mock-grey-pt, 6px)',
-                  paddingBottom: 'var(--mock-grey-pb, 6px)',
+                  paddingTop: 'var(--mock-grey-pt, 12px)',
+                  paddingBottom: 'var(--mock-grey-pb, 16px)',
                 }}
               >
-                <LogContent v={v}/>
+                {/* 上段: 日付 + チップ ─ 数字(右端) */}
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-[12px] font-bold tabular-nums shrink-0">
+                      {fmtJaDate(v.date)}
+                    </span>
+                    <StatusChip status={v.status} size="sm" />
+                  </div>
+                  {m.visits.length > 1 && (
+                    <span className="text-[10px] tabular-nums text-[#6B7280] shrink-0">
+                      {i + 1} / {m.visits.length}
+                    </span>
+                  )}
+                </div>
+                {/* 下段: メモ 2 行 */}
+                <p className="text-[11px] text-[#374151] leading-snug line-clamp-2">{v.memo}</p>
               </div>
             ))}
           </div>
-          {/* 右上に小さく N / 全件(ドット無し) */}
-          {m.visits.length > 1 && (
-            <span className="absolute top-1.5 right-1.5 text-[10px] tabular-nums text-[#6B7280] bg-white/85 px-1.5 py-0.5 rounded-full leading-none">
-              {idx + 1} / {m.visits.length}
-            </span>
-          )}
         </div>
       )}
     </div>
@@ -602,8 +613,9 @@ export default function MemberCardVariantsPage() {
 
   // ── 採用候補のグレーセクション 上下 padding 調整スライダー ──
   // localStorage に保存して、リロード後も値を維持
-  const [padTop, setPadTop] = useState<number>(6);
-  const [padBot, setPadBot] = useState<number>(6);
+  // (デフォルト: 上 12 / 下 16 = ヒデさん検証で確定した値)
+  const [padTop, setPadTop] = useState<number>(12);
+  const [padBot, setPadBot] = useState<number>(16);
   // 初回マウント: localStorage から復元
   useEffect(() => {
     try {
@@ -676,9 +688,9 @@ export default function MemberCardVariantsPage() {
               <span className="text-[11px] font-bold text-[#111]">グレーセクションの上下パディング</span>
               <button
                 type="button"
-                onClick={() => { setPadTop(6); setPadBot(6); }}
+                onClick={() => { setPadTop(12); setPadBot(16); }}
                 className="text-[10px] text-[#6B7280] active:opacity-60"
-                title="既定値(6/6)に戻す"
+                title="既定値(12/16)に戻す"
               >
                 リセット
               </button>
