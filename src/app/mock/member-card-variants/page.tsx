@@ -328,11 +328,13 @@ function AdoptedB({ m }: { m: SampleMember }) {
             {m.visits.map((v, i) => (
               <div
                 key={v.id}
-                className="shrink-0 w-full px-3"
+                className="shrink-0 w-full"
                 style={{
                   scrollSnapAlign: 'start',
-                  paddingTop: '12px',
-                  paddingBottom: '12px',
+                  paddingTop: 'var(--mock-numb-pt, 12px)',
+                  paddingBottom: 'var(--mock-numb-pb, 12px)',
+                  paddingLeft: 'var(--mock-numb-pl, 12px)',
+                  paddingRight: 'var(--mock-numb-pr, 12px)',
                 }}
               >
                 {/* 上段: 日付+チップ ─ 数字(右端)
@@ -669,6 +671,26 @@ function renderCard(variant: Variant, m: SampleMember) {
   }
 }
 
+// ── padding 用の共通スライダー行 ──
+function PadSlider({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="flex items-center gap-2 mb-1">
+      <span className="text-[10px] text-[#6B7280] w-7 shrink-0">{label}</span>
+      <input
+        type="range"
+        min={0}
+        max={32}
+        step={1}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="flex-1 accent-[#111]"
+        aria-label={`${label}パディング`}
+      />
+      <span className="text-[10px] tabular-nums w-10 text-right text-[#374151]">{value} px</span>
+    </div>
+  );
+}
+
 // ── マップ風背景 ──
 function FakeMapBg() {
   return (
@@ -690,6 +712,8 @@ function FakeMapBg() {
 const PAD_STORAGE = 'mock-member-card-pad-v1';
 // localStorage キー(B 数字スタイル保存用)
 const NUMB_STORAGE = 'mock-member-card-numb-v1';
+// localStorage キー(B グレーボックス内 上下左右 padding 保存用)
+const NUMB_PAD_STORAGE = 'mock-member-card-numb-pad-v1';
 
 type NumAlign = 'flex-start' | 'center' | 'flex-end' | 'baseline';
 const NUM_ALIGN_OPTIONS: { val: NumAlign; label: string }[] = [
@@ -726,6 +750,36 @@ export default function MemberCardVariantsPage() {
       window.localStorage.setItem(PAD_STORAGE, JSON.stringify({ top: padTop, bot: padBot }));
     } catch { /* ignore */ }
   }, [padTop, padBot]);
+
+  // ── B 用: グレーボックス内の 上下左右 padding ──
+  const [bPadTop, setBPadTop]   = useState<number>(12);
+  const [bPadBot, setBPadBot]   = useState<number>(12);
+  const [bPadL,   setBPadL]     = useState<number>(12);
+  const [bPadR,   setBPadR]     = useState<number>(12);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(NUMB_PAD_STORAGE);
+      if (raw) {
+        const v = JSON.parse(raw);
+        if (typeof v.t === 'number') setBPadTop(v.t);
+        if (typeof v.b === 'number') setBPadBot(v.b);
+        if (typeof v.l === 'number') setBPadL(v.l);
+        if (typeof v.r === 'number') setBPadR(v.r);
+      }
+    } catch { /* ignore */ }
+  }, []);
+  useEffect(() => {
+    document.documentElement.style.setProperty('--mock-numb-pt', `${bPadTop}px`);
+    document.documentElement.style.setProperty('--mock-numb-pb', `${bPadBot}px`);
+    document.documentElement.style.setProperty('--mock-numb-pl', `${bPadL}px`);
+    document.documentElement.style.setProperty('--mock-numb-pr', `${bPadR}px`);
+    try {
+      window.localStorage.setItem(
+        NUMB_PAD_STORAGE,
+        JSON.stringify({ t: bPadTop, b: bPadBot, l: bPadL, r: bPadR }),
+      );
+    } catch { /* ignore */ }
+  }, [bPadTop, bPadBot, bPadL, bPadR]);
 
   // ── B 用: 数字 (1/3) のサイズ・上下揃え・letter-spacing ──
   const [numSize, setNumSize] = useState<number>(10);
@@ -865,8 +919,26 @@ export default function MemberCardVariantsPage() {
                 {numTracking.toFixed(3)} em
               </span>
             </div>
+            {/* グレーボックス 上下左右 padding (4 軸個別) */}
+            <div className="mt-2 pt-2 border-t border-[#F0F0F0]">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[11px] font-bold text-[#111]">グレーボックス 上下左右パディング</span>
+                <button
+                  type="button"
+                  onClick={() => { setBPadTop(12); setBPadBot(12); setBPadL(12); setBPadR(12); }}
+                  className="text-[10px] text-[#6B7280] active:opacity-60"
+                  title="全部 12px に戻す"
+                >
+                  リセット
+                </button>
+              </div>
+              <PadSlider label="上" value={bPadTop} onChange={setBPadTop}/>
+              <PadSlider label="下" value={bPadBot} onChange={setBPadBot}/>
+              <PadSlider label="左" value={bPadL}   onChange={setBPadL}/>
+              <PadSlider label="右" value={bPadR}   onChange={setBPadR}/>
+            </div>
             <p className="text-[10px] text-[#9CA3AF] mt-1.5 leading-tight">
-              数字部分のフォントサイズ・上下揃え・文字間(letter-spacing) を調整。
+              数字スタイル(サイズ/揃え/文字間) と グレーボックス内の 上下左右 padding を調整。
               値は端末に保存(リロード後も有効)。
             </p>
           </div>
