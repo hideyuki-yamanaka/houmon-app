@@ -1,12 +1,15 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { ChevronDown } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit, VisitStatus } from '../../lib/types';
 import { getMembersWithVisitInfo, getAllVisits } from '../../lib/storage';
 import { VISIT_STATUS_CONFIG, DISTRICT_COLORS } from '../../lib/constants';
 import MembersListBottomSheet from '../../components/MembersListBottomSheet';
+import PersonIcon from '../../components/PersonIcon';
+import { useTeamProfiles } from '../../lib/useTeamProfiles';
 
 // ─── ダッシュボードのドリルダウン用 シート種別 ───
 // (段階 A: state とシート mount だけを先に入れて Safari 互換性を確認する。
@@ -27,9 +30,19 @@ const STATUS_HEX: Record<VisitStatus, string> = {
   moved:           VISIT_STATUS_CONFIG.moved.dot,
 };
 
-// 「家庭訪問の回数」カードは直近 12 週固定で集計する
-// (旧: スパン切替 12週/半年/1年/全期間 を持たせていたが、ヒデさん指示で撤去)
-const WEEK_SPAN = 12;
+// ── 期間フィルタ (2026-05-04 ヒデさん指示で追加) ──
+//   全期間 (デフォルト) では「直近 12 週固定」をやめて 訪問のあった全期間を見せる。
+//   特定期間を選ぶと そこに絞り込み、全カード(回数 / 内訳 / 地区 / TOP5) に効く。
+type PeriodFilter = 'all' | 'this_week' | 'last_week' | '1m' | '6m' | '1y';
+const PERIOD_LABEL: Record<PeriodFilter, string> = {
+  all:       '全期間',
+  this_week: '今週',
+  last_week: '先週',
+  '1m':      '直近1ヶ月',
+  '6m':      '直近半年',
+  '1y':      '直近1年',
+};
+const PERIOD_ORDER: PeriodFilter[] = ['all', 'this_week', 'last_week', '1m', '6m', '1y'];
 
 // 月曜始まり週バケット
 function mondayOf(d: Date): Date {
@@ -59,6 +72,30 @@ function weekJaLabel(i: number): string {
   return `${i}週間前`;
 }
 
+/** 期間フィルタの開始/終了日 (visited_at と直接比較できる 'YYYY-MM-DD' 文字列).
+ *  終了は今日。開始は フィルタ種別による。'all' は全期間扱い (空文字 = 制限なし). */
+function periodRange(p: PeriodFilter): { start: string; end: string } {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = fmtDate(today);
+  if (p === 'all') return { start: '', end: todayStr };
+
+  if (p === 'this_week') {
+    return { start: fmtDate(mondayOf(today)), end: todayStr };
+  }
+  if (p === 'last_week') {
+    const thisMon = mondayOf(today);
+    const lastMon = new Date(thisMon); lastMon.setDate(thisMon.getDate() - 7);
+    const lastSun = new Date(thisMon); lastSun.setDate(thisMon.getDate() - 1);
+    return { start: fmtDate(lastMon), end: fmtDate(lastSun) };
+  }
+  const start = new Date(today);
+  if (p === '1m') start.setDate(today.getDate() - 30);
+  else if (p === '6m') start.setMonth(today.getMonth() - 6);
+  else if (p === '1y') start.setFullYear(today.getFullYear() - 1);
+  return { start: fmtDate(start), end: todayStr };
+}
+
 export default function LogPage() {
   const [members, setMembers] = useState<MemberWithVisitInfo[]>([]);
   const [allVisits, setAllVisits] = useState<Visit[]>([]);
@@ -67,7 +104,11 @@ export default function LogPage() {
   const [expandDistrict, setExpandDistrict] = useState(false);
   // ドリルダウン: 各UIタップで開く メンバー一覧シート
   const [sheetSpec, setSheetSpec] = useState<SheetSpec | null>(null);
+  // 2026-05-04 フィルタ: 人 (作成者) + 期間
+  const [personFilter, setPersonFilter] = useState<string>('all');   // 'all' | userId
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('all');
   const router = useRouter();
+  const { profileMap } = useTeamProfiles();
 
   useEffect(() => {
     Promise.all([getMembersWithVisitInfo(), getAllVisits()])
@@ -76,40 +117,69 @@ export default function LogPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // ── 全期間ベースの統計（地区別タイルで使用） ──
-  // 旧仕様の period タブを撤廃したので、地区別は常に全期間累計を見せる。
+  // ── フィルタ適用済み訪問リスト (2026-05-04) ──
+  // 人 (created_by) + 期間 (visited_at 範囲) で絞り込み。
+  // この後の weekly / breakdown / district / TOP5 の元データになる。
+  const filteredVisits = useMemo<Visit[]>(() => {
+    const range = periodRange(periodFilter);
+    return allVisits.filter(v => {
+      if (personFilter !== 'all' && v.createdBy !== personFilter) return false;
+      if (range.start && v.visitedAt < range.start) return false;
+      if (v.visitedAt > range.end) return false;
+      return true;
+    });
+  }, [allVisits, personFilter, periodFilter]);
+
+  // ── 地区別タイル用 統計 (filteredVisits ベース) ──
+  // 旧: 全期間 allVisits 固定 → フィルタに連動するように変更。
   const stats = useMemo(() => {
     const districtStats = new Map<string, { total: number; visited: number }>();
     for (const m of members) {
       const d = districtStats.get(m.district) ?? { total: 0, visited: 0 };
       d.total++;
-      if (allVisits.some(v => v.memberId === m.id)) d.visited++;
+      if (filteredVisits.some(v => v.memberId === m.id)) d.visited++;
       districtStats.set(m.district, d);
     }
     return { districtStats };
-  }, [members, allVisits]);
+  }, [members, filteredVisits]);
 
-  // ── 直近 12 週分の週別バケット ──
-  // 各週: ステータス別カウント + 合計。
-  // 「家庭訪問の回数」カード(横棒)も「訪問ログ内訳」カードもこのデータで集計する。
+  // ── 週別バケット (filteredVisits ベース) ──
+  // 全期間: 訪問のあった最古の週から今週まで全部。 デフォルトでスクロール表示。
+  // 期間フィルタ: その範囲内の週だけ。
+  // 「家庭訪問の回数」「訪問ログ内訳」両カードで使う。
   const weekly = useMemo<WeekBucket[]>(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const thisMon = mondayOf(today);
 
-    const buckets: WeekBucket[] = [];
-    for (let i = WEEK_SPAN - 1; i >= 0; i--) {
-      const start = new Date(thisMon);
-      start.setDate(thisMon.getDate() - i * 7);
-      buckets.push({ start, startStr: fmtDate(start), counts: emptyStatusCounts(), total: 0 });
+    // 範囲決定: 期間フィルタが all なら 訪問の最古週、それ以外は periodRange.start。
+    let earliestMon: Date;
+    if (periodFilter === 'all') {
+      if (filteredVisits.length === 0) {
+        // 訪問ゼロなら 今週 1 週だけ作っておく(空表示)
+        return [{ start: thisMon, startStr: fmtDate(thisMon), counts: emptyStatusCounts(), total: 0 }];
+      }
+      const earliestStr = filteredVisits.reduce((min, v) => v.visitedAt < min ? v.visitedAt : min, filteredVisits[0].visitedAt);
+      earliestMon = mondayOf(new Date(earliestStr));
+    } else {
+      const r = periodRange(periodFilter);
+      earliestMon = mondayOf(new Date(r.start));
     }
-    for (const v of allVisits) {
+
+    const buckets: WeekBucket[] = [];
+    const cursor = new Date(earliestMon);
+    while (cursor.getTime() <= thisMon.getTime()) {
+      const startCopy = new Date(cursor);
+      buckets.push({ start: startCopy, startStr: fmtDate(startCopy), counts: emptyStatusCounts(), total: 0 });
+      cursor.setDate(cursor.getDate() + 7);
+    }
+    for (const v of filteredVisits) {
       const vMonStr = fmtDate(mondayOf(new Date(v.visitedAt)));
       const b = buckets.find(b => b.startStr === vMonStr);
       if (b) { b.counts[v.status]++; b.total++; }
     }
     return buckets;
-  }, [allVisits]);
+  }, [filteredVisits, periodFilter]);
 
   // ── 訪問ログ内訳(スタックバー＋レジェンド)用の統計 ──
   // weekly と同じ範囲で集計、会えた率も計算
@@ -136,11 +206,12 @@ export default function LogPage() {
     members: MemberWithVisitInfo[];
     visitsByMember: Map<string, Visit[]>;
   }>(() => {
-    // 共通: メンバー単位の訪問ログ Map(新しい順)。シート内の MemberCard withLogs に渡す
+    // 共通: メンバー単位の訪問ログ Map(新しい順)。シート内の MemberCard withLogs に渡す.
+    // 2026-05-04: ダッシュボードのフィルタに合わせて filteredVisits を使う.
     const buildVbm = (ms: MemberWithVisitInfo[]): Map<string, Visit[]> => {
       const wanted = new Set(ms.map(m => m.id));
       const map = new Map<string, Visit[]>();
-      for (const v of allVisits) {
+      for (const v of filteredVisits) {
         if (!wanted.has(v.memberId)) continue;
         const arr = map.get(v.memberId);
         if (arr) arr.push(v);
@@ -154,7 +225,7 @@ export default function LogPage() {
 
     if (sheetSpec.kind === 'week') {
       const ids = new Set<string>();
-      for (const v of allVisits) {
+      for (const v of filteredVisits) {
         const vMon = fmtDate(mondayOf(new Date(v.visitedAt)));
         if (vMon === sheetSpec.weekStartStr) ids.add(v.memberId);
       }
@@ -170,7 +241,7 @@ export default function LogPage() {
       const set = new Set<VisitStatus>(sheetSpec.statuses);
       const cutoff = weekly[0]?.startStr ?? '';
       const ids = new Set<string>();
-      for (const v of allVisits) {
+      for (const v of filteredVisits) {
         if (!set.has(v.status)) continue;
         if (cutoff && v.visitedAt < cutoff) continue;
         ids.add(v.memberId);
@@ -183,15 +254,16 @@ export default function LogPage() {
       };
     }
 
-    // district
-    const list = members.filter(m => m.district === sheetSpec.district);
+    // district: その地区の中で、絞り込みされた訪問が 1件以上あるメンバーだけ
+    const visitedIds = new Set(filteredVisits.map(v => v.memberId));
+    const list = members.filter(m => m.district === sheetSpec.district && visitedIds.has(m.id));
     const short = sheetSpec.district.replace(/豊岡部|光陽部|豊岡中央支部/g, '');
     return {
       title: `${short}地区のメンバー`,
       members: list,
       visitsByMember: buildVbm(list),
     };
-  }, [sheetSpec, members, allVisits, weekly]);
+  }, [sheetSpec, members, filteredVisits, weekly]);
 
   if (loading) {
     return (
@@ -210,6 +282,14 @@ export default function LogPage() {
   // 訪問ログ内訳のスタックバー順
   const statusOrder: VisitStatus[] = ['met_self', 'met_family', 'absent', 'refused', 'unknown_address', 'moved'];
 
+  // 人プルダウン用: チームメンバー一覧 (display_name 順)
+  const teamOptions = useMemo(() => {
+    const arr: { id: string; name: string }[] = [];
+    profileMap.forEach((p, id) => arr.push({ id, name: p.display_name }));
+    arr.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+    return arr;
+  }, [profileMap]);
+
   return (
     <div className="absolute inset-0 flex flex-col bg-[var(--color-bg)]">
       <div className="ios-nav px-4 py-3">
@@ -224,6 +304,23 @@ export default function LogPage() {
             paddingBottom: 'calc(60px + env(safe-area-inset-bottom) + 16px)',
           }}
         >
+          {/* ────────────── フィルタ (人 + 期間) ────────────── */}
+          <div className="flex gap-2 mb-3 flex-wrap">
+            <FilterDropdown
+              icon={<PersonIcon size={12} />}
+              label={personFilter === 'all' ? '全員' : (teamOptions.find(o => o.id === personFilter)?.name ?? '?')}
+              value={personFilter}
+              options={[{ id: 'all', name: '全員' }, ...teamOptions]}
+              onChange={setPersonFilter}
+            />
+            <FilterDropdown
+              label={PERIOD_LABEL[periodFilter]}
+              value={periodFilter}
+              options={PERIOD_ORDER.map(p => ({ id: p, name: PERIOD_LABEL[p] }))}
+              onChange={(v) => setPeriodFilter(v as PeriodFilter)}
+            />
+          </div>
+
           {/* (旧: 上部の期間タブ "全期間/1週間/1ヶ月/..." はメインカードに効かず体験が悪かったので
               撤廃した。代わりに「家庭訪問の回数」カードに局所的なスパン切替を入れてある) */}
 
@@ -602,9 +699,15 @@ export default function LogPage() {
 
             {/* ────────────── 訪問した回数が多い人 ────────────── */}
             {(() => {
+              // 2026-05-04: filteredVisits から再集計 (人/期間 フィルタを反映)
+              const countByMember = new Map<string, number>();
+              for (const v of filteredVisits) {
+                countByMember.set(v.memberId, (countByMember.get(v.memberId) ?? 0) + 1);
+              }
               const ranked = members
-                .filter(m => m.totalVisits > 0)
-                .sort((a, b) => b.totalVisits - a.totalVisits)
+                .map(m => ({ m, count: countByMember.get(m.id) ?? 0 }))
+                .filter(x => x.count > 0)
+                .sort((a, b) => b.count - a.count)
                 .slice(0, 5);
               return (
                 <div
@@ -614,11 +717,11 @@ export default function LogPage() {
                   <div className="flex items-baseline gap-2 mb-2">
                     <div>
                       <h3 className="text-lg font-bold leading-tight">訪問した回数が多い人</h3>
-                      <p className="text-xs text-[var(--color-subtext)] mt-0.5">TOP5(全期間)</p>
+                      <p className="text-xs text-[var(--color-subtext)] mt-0.5">TOP5({PERIOD_LABEL[periodFilter]})</p>
                     </div>
                   </div>
                   <div>
-                    {ranked.map((m, i) => {
+                    {ranked.map(({ m, count }, i) => {
                       const medalColor = i === 0 ? '#D97706' : i === 1 ? '#9CA3AF' : i === 2 ? '#B45309' : '#9CA3AF';
                       return (
                         <Link
@@ -650,7 +753,7 @@ export default function LogPage() {
                               className="tabular-nums leading-none font-black"
                               style={{ fontSize: 'var(--tune-ranking-num, 1.5rem)' }}
                             >
-                              {m.totalVisits}
+                              {count}
                             </span>
                             <span className="text-[11px] text-[var(--color-subtext)]">回</span>
                           </span>
@@ -683,6 +786,64 @@ export default function LogPage() {
         }}
         onClose={() => setSheetSpec(null)}
       />
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────────────────────
+// FilterDropdown — シンプルなピル型プルダウン (人 / 期間 共用)
+// 外側クリックで閉じる、選択したら自動 close。
+// ──────────────────────────────────────────────────────────────
+function FilterDropdown({
+  icon,
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  icon?: React.ReactNode;
+  label: string;
+  value: string;
+  options: { id: string; name: string }[];
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white border border-[#E5E7EB] text-[12px] font-bold text-gray-900 active:scale-95 transition-transform"
+      >
+        {icon}
+        {label}
+        <ChevronDown size={12} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 bg-white border border-[#E5E7EB] rounded-lg shadow-lg z-30 overflow-hidden min-w-[140px] max-h-[280px] overflow-y-auto">
+          {options.map(o => (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => { onChange(o.id); setOpen(false); }}
+              className={`w-full text-left px-3 py-2 text-[13px] hover:bg-[#F3F4F6] ${value === o.id ? 'bg-[#F9FAFB] font-bold' : ''}`}
+            >
+              {o.name}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

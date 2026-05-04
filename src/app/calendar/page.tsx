@@ -8,6 +8,8 @@ import { getAllVisits, getVisitsByDate } from '../../lib/storage';
 import { formatDate } from '../../lib/utils';
 import CalendarGrid from '../../components/CalendarGrid';
 import StatusChip from '../../components/StatusChip';
+import { VisitAuthorChip } from '../../components/VisitAuthorChip';
+import { useTeamProfiles } from '../../lib/useTeamProfiles';
 
 export default function CalendarPage() {
   const now = new Date();
@@ -18,6 +20,7 @@ export default function CalendarPage() {
   );
   const [allVisits, setAllVisits] = useState<Visit[]>([]);
   const [dayVisits, setDayVisits] = useState<(Visit & { memberName: string; memberDistrict: string })[]>([]);
+  const { lookup } = useTeamProfiles();
 
   // 全訪問データを一度だけ取得（月切り替えのラグを排除）
   useEffect(() => {
@@ -79,12 +82,16 @@ export default function CalendarPage() {
           ) : (
             <div className="space-y-2">
               {dayVisits.map(v => {
+                const author = lookup(v.createdBy);
                 return (
                   <Link key={v.id} href={`/visits/${v.id}`} className="block">
                     <div className="ios-card px-3 py-3.5">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-[15px]">{v.memberName}</span>
+                        <span className="font-bold text-[15px] truncate">{v.memberName}</span>
                         <StatusChip status={v.status} size="sm" />
+                        {author.userId && (
+                          <span className="ml-auto"><VisitAuthorChip author={author} /></span>
+                        )}
                       </div>
                       {v.summary && (
                         <p className="text-xs text-[var(--color-subtext)] mt-0.5 line-clamp-1">{v.summary}</p>
