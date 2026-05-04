@@ -16,11 +16,11 @@
 //   - 一括 + 個別 適用
 // ──────────────────────────────────────────────────────────────
 
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  ChevronLeft, Loader2, Sparkles, Check, AlertCircle, RefreshCw, ChevronDown, ChevronUp,
+  ChevronLeft, Loader2, Sparkles, Check, AlertCircle, RefreshCw, ChevronDown, ChevronUp, Pencil,
 } from 'lucide-react';
 import { useSwipeBack } from '../../../lib/useSwipeBack';
 import { tapHaptic } from '../../../lib/haptics';
@@ -32,6 +32,8 @@ interface Proposal {
   original: string;
   proposed: string;
   unchanged: boolean;
+  /** ヒデさんが校正後を手動で微修正した場合 true */
+  userEdited?: boolean;
 }
 
 type Phase = 'idle' | 'running' | 'done' | 'applying' | 'applied' | 'error';
@@ -47,6 +49,10 @@ export default function ProofreadingPage() {
   const [appliedCount, setAppliedCount] = useState(0);
   const [memberNames, setMemberNames] = useState<Map<string, string>>(new Map());
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // どの行を編集中か (null = 編集なし)
+  const [editingId, setEditingId] = useState<string | null>(null);
+  // 編集中のテキストバッファ (確定時に proposals[].proposed に反映)
+  const [editBuffer, setEditBuffer] = useState<string>('');
 
   // メンバー名 (id → name) を取得しとく (校正対象 visit に member_id 出ない設計やから
   // 別途取得して 一覧表示時にマッピング)
@@ -177,6 +183,41 @@ export default function ProofreadingPage() {
       return next;
     });
   };
+
+  // 校正後カードタップで編集モード ON
+  const startEdit = (id: string, current: string) => {
+    tapHaptic();
+    setEditingId(id);
+    setEditBuffer(current);
+    // 編集する時は折りたたみも展開しとく (原文と並べて見れるように)
+    setExpanded(prev => new Set(prev).add(id));
+  };
+
+  // 編集確定 (blur or 完了ボタン)
+  const commitEdit = () => {
+    if (!editingId) return;
+    const trimmed = editBuffer.trim();
+    setProposals(prev =>
+      prev.map(p => {
+        if (p.id !== editingId) return p;
+        // 空文字は反映せず元の値維持 (誤操作防止)
+        if (!trimmed) return p;
+        const userEdited = trimmed !== p.proposed;
+        return { ...p, proposed: trimmed, userEdited: userEdited || p.userEdited };
+      }),
+    );
+    setEditingId(null);
+    setEditBuffer('');
+  };
+
+  // textarea 自動リサイズ
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = editTextareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [editBuffer]);
 
   const visibleProposals = useMemo(
     () => proposals.filter(p => !p.unchanged), // 変更なしは UI から省く
@@ -313,15 +354,60 @@ export default function ProofreadingPage() {
                                 <div className="text-[10px] text-red-600 font-bold mb-1">🔴 原文</div>
                                 <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">{p.original}</p>
                               </div>
-                              <div className="text-[11px] bg-emerald-50 border border-emerald-100 rounded p-2">
-                                <div className="text-[10px] text-emerald-600 font-bold mb-1">🟢 校正後</div>
-                                <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">{p.proposed}</p>
-                              </div>
+                              {/* 緑の校正後カード — タップで textarea 化、blur で確定 */}
+                              {editingId === p.id ? (
+                                <div className="text-[11px] bg-emerald-50 border-2 border-emerald-400 rounded p-2">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <div className="text-[10px] text-emerald-600 font-bold">✏️ 編集中</div>
+                                    <button
+                                      type="button"
+                                      onClick={commitEdit}
+                                      className="text-[10px] text-emerald-700 font-bold active:opacity-60"
+                                    >
+                                      完了
+                                    </button>
+                                  </div>
+                                  <textarea
+                                    ref={editTextareaRef}
+                                    value={editBuffer}
+                                    onChange={e => setEditBuffer(e.target.value)}
+                                    onBlur={commitEdit}
+                                    autoFocus
+                                    className="w-full text-[12px] text-gray-700 leading-relaxed bg-white border border-emerald-200 rounded p-2 outline-none resize-none focus:border-emerald-400"
+                                    style={{ minHeight: 60, fontFamily: 'inherit' }}
+                                  />
+                                  <p className="mt-1 text-[10px] text-emerald-700/70">
+                                    💡 改行は そのまま入力できる。空欄にすると元の校正案が保持される。
+                                  </p>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => startEdit(p.id, p.proposed)}
+                                  className="block w-full text-left text-[11px] bg-emerald-50 border border-emerald-100 rounded p-2 active:bg-emerald-100 transition-colors"
+                                >
+                                  <div className="flex items-center justify-between mb-1">
+                                    <div className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+                                      🟢 校正後
+                                      {p.userEdited && (
+                                        <span className="ml-1 px-1 py-0.5 rounded bg-emerald-200 text-emerald-800 text-[9px]">
+                                          編集済み
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-[10px] text-emerald-600/70 inline-flex items-center gap-0.5">
+                                      <Pencil size={10} />
+                                      タップで編集
+                                    </span>
+                                  </div>
+                                  <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">{p.proposed}</p>
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => handleApply([p.id])}
-                                disabled={phase === 'applying'}
-                                className="text-[11px] text-[var(--color-primary)] font-bold active:opacity-60"
+                                disabled={phase === 'applying' || editingId === p.id}
+                                className="text-[11px] text-[var(--color-primary)] font-bold active:opacity-60 disabled:opacity-40"
                               >
                                 この 1 件だけ反映
                               </button>
