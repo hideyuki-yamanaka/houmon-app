@@ -16,7 +16,7 @@ import BottomTabBar from './BottomTabBar';
 import InstallBanner from './InstallBanner';
 import OwnerContextBanner from './OwnerContextBanner';
 
-const HIDE_TABBAR_PATHS = ['/login', '/auth/callback', '/invite'];
+const HIDE_TABBAR_PATHS = ['/login', '/auth/callback', '/invite', '/onboarding'];
 
 export default function AuthShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();

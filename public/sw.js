@@ -12,7 +12,8 @@
 //   activate 時に古い cache を全部削除する。
 // ──────────────────────────────────────────────────────────────
 
-const CACHE_VERSION = 'v1-2026-05-03';
+// 2026-05-04 v2: 通知の title 空文字対応 + iOS PWA キャッシュ強制更新のためバージョン上げ
+const CACHE_VERSION = 'v2-2026-05-04';
 const STATIC_CACHE = `houmon-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `houmon-runtime-${CACHE_VERSION}`;
 

@@ -61,9 +61,10 @@ export default function InviteRedeemPage() {
         if (cancelled) return;
         const ownerName = names.find(n => n.owner_id === res.owner_id)?.display_name ?? null;
         setState({ kind: 'success', ownerName });
-        // 1.5 秒後にホーム
+        // 1.5 秒後にオンボーディング (名前設定) へ進む
+        // (2026-05-04 ヒデさん指示: 招待ユーザーはまず名前を決めてもらう)
         setTimeout(() => {
-          router.replace('/');
+          router.replace('/onboarding/profile');
         }, 1500);
       } else {
         setState({ kind: 'error', reason: res.reason });
@@ -107,7 +108,7 @@ export default function InviteRedeemPage() {
                 'データに参加しました'
               )}
               <br />
-              ホームに移動します…
+              続いて 表示名を設定します…
             </p>
           </>
         )}
