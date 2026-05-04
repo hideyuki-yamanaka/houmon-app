@@ -81,22 +81,25 @@ export default function CalendarPage() {
             <p className="text-sm text-[var(--color-subtext)] text-center mt-6">この日の訪問ログはありません</p>
           ) : (
             <div className="space-y-2">
+              {/* 訪問ログのグレーカード (VisitsCarousel と同じ見た目で統一) */}
               {dayVisits.map(v => {
                 const author = lookup(v.createdBy);
                 return (
-                  <Link key={v.id} href={`/visits/${v.id}`} className="block">
-                    <div className="ios-card px-3 py-3.5">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-[15px] truncate">{v.memberName}</span>
-                        <StatusChip status={v.status} size="sm" />
-                        {author.userId && (
-                          <span className="ml-auto"><VisitAuthorChip author={author} /></span>
-                        )}
-                      </div>
-                      {v.summary && (
-                        <p className="text-xs text-[var(--color-subtext)] mt-0.5 line-clamp-1">{v.summary}</p>
-                      )}
+                  <Link
+                    key={v.id}
+                    href={`/visits/${v.id}`}
+                    className="block bg-[#F2F2F4] rounded-lg px-4 py-3 active:bg-[#E8E8EB] transition-colors"
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[13px] font-bold truncate">{v.memberName}</span>
+                      {author.userId && <VisitAuthorChip author={author} />}
+                      <StatusChip status={v.status} size="sm" />
                     </div>
+                    {v.summary && (
+                      <p className="text-[11px] text-[#374151] leading-snug line-clamp-2 whitespace-pre-line">
+                        {v.summary}
+                      </p>
+                    )}
                   </Link>
                 );
               })}

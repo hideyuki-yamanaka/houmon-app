@@ -265,6 +265,15 @@ export default function LogPage() {
     };
   }, [sheetSpec, members, filteredVisits, weekly]);
 
+  // 人プルダウン用: チームメンバー一覧 (display_name 順)
+  // ⚠ 必ず early return より上 (Rules of Hooks)
+  const teamOptions = useMemo(() => {
+    const arr: { id: string; name: string }[] = [];
+    profileMap.forEach((p, id) => arr.push({ id, name: p.display_name }));
+    arr.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+    return arr;
+  }, [profileMap]);
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -281,14 +290,6 @@ export default function LogPage() {
   const maxWeekCount = Math.max(1, ...weekly.map(w => w.total));
   // 訪問ログ内訳のスタックバー順
   const statusOrder: VisitStatus[] = ['met_self', 'met_family', 'absent', 'refused', 'unknown_address', 'moved'];
-
-  // 人プルダウン用: チームメンバー一覧 (display_name 順)
-  const teamOptions = useMemo(() => {
-    const arr: { id: string; name: string }[] = [];
-    profileMap.forEach((p, id) => arr.push({ id, name: p.display_name }));
-    arr.sort((a, b) => a.name.localeCompare(b.name, 'ja'));
-    return arr;
-  }, [profileMap]);
 
   return (
     <div className="absolute inset-0 flex flex-col bg-[var(--color-bg)]">
