@@ -303,11 +303,29 @@ export async function createVisit(
     const rowWithUser = { ...row, user_id: user.id, created_by: user.id };
     const { error } = await supabase.from('visits').insert(rowWithUser);
     if (error) throw error;
+    // 共有チームメンバーに Web Push 通知 (fire-and-forget、失敗しても本処理は成功扱い)
+    notifyVisitCreated(id).catch(err => console.warn('[notify] visit-created 失敗:', err));
     return toVisit(rowWithUser);
   }
   const { error } = await supabase.from('visits').insert(row);
   if (error) throw error;
   return toVisit(row);
+}
+
+// ── 訪問作成時に同じチームの他のメンバーへ Push 通知をトリガー ─────────
+//   失敗しても createVisit 自体は成功させたいので catch して握り潰す。
+async function notifyVisitCreated(visitId: string): Promise<void> {
+  const { data: sess } = await supabase.auth.getSession();
+  const accessToken = sess.session?.access_token;
+  if (!accessToken) return;
+  await fetch('/api/notify/visit-created', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ visitId }),
+  }).catch(() => { /* ignore */ });
 }
 
 export async function updateVisit(id: string, updates: Partial<VisitRow>): Promise<void> {

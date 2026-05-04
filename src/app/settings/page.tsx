@@ -27,6 +27,8 @@ export default function SettingsPage() {
   const [status, setStatus] = useState<PushStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [testSending, setTestSending] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
     getPushSubscriptionStatus().then(setStatus);
@@ -123,10 +125,48 @@ export default function SettingsPage() {
               loading={busy}
             />
           </div>
+
+          {/* テスト送信ボタン (通知 ON 時のみ表示) */}
+          {isOn && (
+            <div className="px-4 pb-4 -mt-1">
+              <button
+                type="button"
+                onClick={async () => {
+                  tapHaptic();
+                  setTestSending(true);
+                  setTestResult(null);
+                  try {
+                    const { supabase } = await import('../../lib/supabase');
+                    const { data: sess } = await supabase.auth.getSession();
+                    const token = sess.session?.access_token;
+                    if (!token) { setTestResult('ログインしてへんで'); return; }
+                    const res = await fetch('/api/notify/test', {
+                      method: 'POST',
+                      headers: { Authorization: `Bearer ${token}` },
+                    });
+                    const j = await res.json();
+                    if (!res.ok) { setTestResult(j.error ?? `失敗 (${res.status})`); return; }
+                    setTestResult(j.succeeded > 0 ? '送信したで！スマホ見てみ ✅' : '送信先 0 件…購読し直してみて');
+                  } catch (e) {
+                    setTestResult(e instanceof Error ? e.message : String(e));
+                  } finally {
+                    setTestSending(false);
+                  }
+                }}
+                disabled={testSending}
+                className="text-[12px] text-[var(--color-primary)] font-bold active:opacity-60 disabled:opacity-40 inline-flex items-center gap-1"
+              >
+                {testSending ? <><Loader2 size={12} className="animate-spin" />送信中…</> : '🔔 テスト通知を送信'}
+              </button>
+              {testResult && (
+                <p className="mt-1 text-[11px] text-gray-600">{testResult}</p>
+              )}
+            </div>
+          )}
         </section>
 
-        <p className="text-[11px] text-gray-400 px-2">
-          通知の配信機能は順次追加予定や (現在は購読登録のみ)
+        <p className="text-[11px] text-gray-400 px-2 leading-relaxed">
+          📬 共有相手が訪問記録を追加した時 と、毎週日曜夜に活動サマリーを通知します。
         </p>
 
         {/* 共有・招待セクション */}
