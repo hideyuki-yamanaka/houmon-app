@@ -11,7 +11,9 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "家庭訪問",
+    // iOS PWA 通知の「from xxx」行が出ないよう、通知タイトル「家庭訪問アプリ」と一致させる
+    // (2026-05-04 ヒデさん指示)
+    title: "家庭訪問アプリ",
   },
   icons: {
     icon: [
