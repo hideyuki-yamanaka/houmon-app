@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   }
 
   const result = await sendPushTo(targets, {
-    title: '🔔 テスト通知',
+    title: '家庭訪問アプリ',
     body: '通知の動作確認です。これが見えていれば成功 ✅',
     url: '/',
     tag: 'test',

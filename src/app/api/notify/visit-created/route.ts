@@ -71,14 +71,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
 
-  // メンバー名を取得 (通知本文用)
-  const { data: member } = await admin
-    .from('members')
-    .select('name')
-    .eq('id', visit.member_id)
-    .maybeSingle();
-  const memberName = member?.name ?? 'メンバー';
-
   // 作成者の表示名を profiles から取得
   const { data: profile } = await admin
     .from('profiles')
@@ -86,6 +78,20 @@ export async function POST(req: NextRequest) {
     .eq('user_id', callerId)
     .maybeSingle();
   const callerName = profile?.display_name ?? 'チームの誰か';
+
+  // 「本日 callerId が記録した unique メンバー数」 を集計
+  // (同じメンバーを 1 日に複数回訪問した場合は 1 とカウント)
+  const today = new Date();
+  const jstOffsetMs = 9 * 60 * 60 * 1000;
+  const todayJSTStr = new Date(today.getTime() + jstOffsetMs).toISOString().slice(0, 10);
+  const { data: todayVisits } = await admin
+    .from('visits')
+    .select('member_id')
+    .eq('created_by', callerId)
+    .eq('visited_at', todayJSTStr)
+    .is('deleted_at', null);
+  const uniqueMembers = new Set((todayVisits ?? []).map(v => v.member_id as string));
+  const todayCount = uniqueMembers.size;
 
   // 同じチームの「他の人」を集める:
   //   - visit.user_id (= データのオーナー) 本人
@@ -110,11 +116,13 @@ export async function POST(req: NextRequest) {
 
   const targets = await getSubscriptionsForUsers(targetUserIds);
 
+  // tag を 「daily-{userId}-{date}」 にすると 同日内の続報が前の通知を置き換える
+  // (端末に積もらず 常に最新カウントだけ表示される)
   const result = await sendPushTo(targets, {
-    title: `${callerName}さんが訪問記録`,
-    body: `${memberName}さんの訪問ログを追加しました`,
-    url: `/visits/${visitId}`,
-    tag: `visit-${visitId}`,
+    title: '家庭訪問アプリ',
+    body: `${callerName}さんが本日 ${todayCount} 人 訪問しました。`,
+    url: `/visits/by-user/${callerId}?range=today`,
+    tag: `daily-${callerId}-${todayJSTStr}`,
   });
 
   return NextResponse.json({

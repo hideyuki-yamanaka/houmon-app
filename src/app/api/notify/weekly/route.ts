@@ -7,8 +7,13 @@
 // 認証: NOTIFY_CRON_SECRET ヘッダ X-Cron-Secret で検証
 //   → 外部からの不正呼び出しを防ぐ
 //
-// 各ユーザーに 「今週は N 件訪問した (会えた M 件 / 不在 K 件)」 を送る。
-// 「自分のチームの owner_id 配下の visits」を直近 7 日で集計。
+// ヒデさん指示 (2026-05-04):
+//   - タイトル: 「家庭訪問アプリ」 (一律)
+//   - 本文: 「{苗字}さんが今週 N 人 訪問しました。」 (created_by ごと)
+//   - タップ: /visits/by-user/{userId}?range=week
+//
+// 各ユーザーは「自分自身の今週の活動」を 1 通受け取る。
+// 訪問 0 人なら通知しない。
 //
 // 環境変数:
 //   NOTIFY_CRON_SECRET             ← 必須 (cron 認証用)
@@ -20,14 +25,6 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { getSupabaseAdmin } from '../../../../lib/server/supabaseAdmin';
 import { sendPushTo, getSubscriptionsForUsers } from '../../../../lib/server/sendPush';
 
-interface UserSummary {
-  userId: string;
-  total: number;
-  metSelfFamily: number;
-  absent: number;
-  refused: number;
-}
-
 export async function POST(req: NextRequest) {
   // ── cron シークレット検証 ─────────────────────────
   const expected = process.env.NOTIFY_CRON_SECRET;
@@ -38,75 +35,76 @@ export async function POST(req: NextRequest) {
 
   const admin = getSupabaseAdmin();
 
-  // 直近 7 日の visits を取得
-  const oneWeekAgo = new Date();
-  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-  const sinceISO = oneWeekAgo.toISOString().slice(0, 10); // YYYY-MM-DD
+  // 直近 7 日 (今日を含む) の visits を取得
+  const today = new Date();
+  const jstOffsetMs = 9 * 60 * 60 * 1000;
+  const todayJST = new Date(today.getTime() + jstOffsetMs);
+  const sevenDaysAgo = new Date(todayJST.getTime() - 6 * 24 * 60 * 60 * 1000);
+  const sinceISO = sevenDaysAgo.toISOString().slice(0, 10);
+  const weekStart = sevenDaysAgo.toISOString().slice(0, 10); // tag 用
 
   const { data: visits, error: visitsErr } = await admin
     .from('visits')
-    .select('user_id, status, visited_at')
+    .select('created_by, member_id')
     .is('deleted_at', null)
     .gte('visited_at', sinceISO);
   if (visitsErr) {
     return NextResponse.json({ error: `visits 取得失敗: ${visitsErr.message}` }, { status: 500 });
   }
 
-  // owner_id (= データの所有者) ごとに集計
-  // ※ team_memberships を辿って 招待された人にも同じサマリーを送る
-  const ownerSummary = new Map<string, UserSummary>();
+  // created_by ごとに unique member 数を集計
+  // Map<created_by, Set<member_id>>
+  const perUser = new Map<string, Set<string>>();
   for (const v of visits ?? []) {
-    const oid = v.user_id as string | null;
-    if (!oid) continue;
-    const cur = ownerSummary.get(oid) ?? { userId: oid, total: 0, metSelfFamily: 0, absent: 0, refused: 0 };
-    cur.total++;
-    if (v.status === 'met_self' || v.status === 'met_family') cur.metSelfFamily++;
-    else if (v.status === 'absent') cur.absent++;
-    else if (v.status === 'refused') cur.refused++;
-    ownerSummary.set(oid, cur);
+    const uid = v.created_by as string | null;
+    const mid = v.member_id as string | null;
+    if (!uid || !mid) continue;
+    if (!perUser.has(uid)) perUser.set(uid, new Set());
+    perUser.get(uid)!.add(mid);
   }
 
-  // 各 owner のチームメンバー (owner 本人 + 招待された人) を集める
-  const { data: memberships } = await admin
-    .from('team_memberships')
-    .select('owner_id, member_id');
-  const teamMembers = new Map<string, Set<string>>(); // owner_id → Set<user_id>
-  for (const [oid] of ownerSummary) {
-    teamMembers.set(oid, new Set([oid]));
-  }
-  for (const m of memberships ?? []) {
-    if (!m.owner_id || !m.member_id) continue;
-    const set = teamMembers.get(m.owner_id);
-    if (set) set.add(m.member_id);
+  if (perUser.size === 0) {
+    return NextResponse.json({ note: '今週の訪問なし', sent: 0 });
   }
 
-  // 各 user_id に送信内容を組み立て
+  // 通知対象ユーザーの display_name を一括取得
+  const userIds = Array.from(perUser.keys());
+  const { data: profiles } = await admin
+    .from('profiles')
+    .select('user_id, display_name')
+    .in('user_id', userIds);
+  const nameMap = new Map<string, string>(
+    (profiles ?? []).map(p => [p.user_id as string, p.display_name as string]),
+  );
+
+  // 各ユーザーに自分宛て通知を送る
   let totalSent = 0;
   let totalRemoved = 0;
   const errors: { userId: string; message: string }[] = [];
 
-  for (const [ownerId, summary] of ownerSummary) {
-    const members = teamMembers.get(ownerId) ?? new Set<string>([ownerId]);
-    const userIds = Array.from(members);
-    const targets = await getSubscriptionsForUsers(userIds);
+  for (const [userId, memberSet] of perUser) {
+    const count = memberSet.size;
+    if (count === 0) continue;
+
+    const targets = await getSubscriptionsForUsers([userId]);
     if (targets.length === 0) continue;
 
-    const body = `今週は ${summary.total} 件訪問しました (本人/家族に会えた ${summary.metSelfFamily} 件、不在 ${summary.absent} 件)`;
+    const userName = nameMap.get(userId) ?? 'あなた';
     const result = await sendPushTo(targets, {
-      title: '📊 今週の活動サマリー',
-      body,
-      url: '/log',
-      tag: `weekly-${new Date().toISOString().slice(0, 10)}`,
+      title: '家庭訪問アプリ',
+      body: `${userName}さんが今週 ${count} 人 訪問しました。`,
+      url: `/visits/by-user/${userId}?range=week`,
+      tag: `weekly-${userId}-${weekStart}`,
     });
     totalSent += result.succeeded;
     totalRemoved += result.removed;
     if (result.errors.length > 0) {
-      errors.push(...result.errors.map(e => ({ userId: ownerId, message: `${e.status ?? '?'} ${e.message}` })));
+      errors.push(...result.errors.map(e => ({ userId, message: `${e.status ?? '?'} ${e.message}` })));
     }
   }
 
   return NextResponse.json({
-    teamsProcessed: ownerSummary.size,
+    usersProcessed: perUser.size,
     sent: totalSent,
     removed: totalRemoved,
     errors,
