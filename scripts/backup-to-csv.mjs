@@ -12,10 +12,12 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+// RLS 有効化後 anon key では中身が読めない (空 CSV 事故 2026-05-04 が起きた)。
+// バックアップは全件読む必要があるので SERVICE_ROLE を必須にする。
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('[backup] SUPABASE_URL / SUPABASE_ANON_KEY が設定されてへん');
+  console.error('[backup] SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY が設定されてへん');
   process.exit(1);
 }
 
@@ -59,6 +61,15 @@ async function main() {
 
   const members = await fetchAll('members', 'district');
   const visits = await fetchAll('visits', 'visited_at');
+
+  // セーフティ: 0件で latest_*.csv を上書きしない (2026-05-04 の事故再発防止)。
+  // anon key 化や RLS 設定ミスで「0件取得→空 CSV で上書き」が起きると、
+  // 最新の手元バックアップが消えてしまう。0件が正しい場合 (新規プロジェクト)
+  // でもまず警告して、 latest_* は前回値のまま残しておく方が安全。
+  if (members.length === 0 && visits.length === 0) {
+    console.error('[backup] 0件が返ってきた。RLS や鍵の設定を疑え。latest_*.csv は更新しない。');
+    process.exit(1);
+  }
 
   writeFileSync(join(outDir, 'members.csv'), toCSV(members));
   writeFileSync(join(outDir, 'visits.csv'), toCSV(visits));

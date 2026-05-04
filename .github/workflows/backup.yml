@@ -26,7 +26,8 @@ jobs:
       - name: Supabase から CSV を取得
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          # RLS 有効化後は anon key だと 0 件しか返らないため SERVICE_ROLE 必須
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: node scripts/backup-to-csv.mjs
 
       - name: 変更があれば自動コミット
