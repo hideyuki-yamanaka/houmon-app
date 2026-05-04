@@ -4,8 +4,11 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import type { Visit } from '../../lib/types';
 import { getAllVisits, getVisitsByDate } from '../../lib/storage';
+import { extractMemoText } from '../../lib/utils';
 import CalendarGrid from '../../components/CalendarGrid';
 import StatusChip from '../../components/StatusChip';
+import { VisitAuthorChip } from '../../components/VisitAuthorChip';
+import { useTeamProfiles } from '../../lib/useTeamProfiles';
 
 // ──────────────────────────────────────────────────────────────
 // v2.1 でタブ名を「メンバー」→「カレンダー」に変更。
@@ -23,6 +26,7 @@ export default function CalendarPage() {
   );
   const [allVisits, setAllVisits] = useState<Visit[]>([]);
   const [dayVisits, setDayVisits] = useState<(Visit & { memberName: string; memberDistrict: string })[]>([]);
+  const { lookup } = useTeamProfiles();
 
   useEffect(() => {
     getAllVisits().then(setAllVisits).catch(() => setAllVisits([]));
@@ -69,18 +73,28 @@ export default function CalendarPage() {
         </div>
       ) : (
         <div className="space-y-2">
+          {/* 訪問ログのカード (白背景, マップタブの VisitsCarousel と同じ並び・2行表示)
+              1行目: 名前 + 作者チップ + ステータス
+              2行目: メモ (extractMemoText で 旧 summary / 新 notes 両対応, 2行省略) */}
           {dayVisits.map(v => {
+            const author = lookup(v.createdBy);
+            const memo = extractMemoText(v);
             return (
-              <Link key={v.id} href={`/visits/${v.id}`} className="block">
-                <div className="ios-card px-3 py-3.5">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-[15px]">{v.memberName}</span>
-                    <StatusChip status={v.status} size="sm" />
-                  </div>
-                  {v.summary && (
-                    <p className="text-xs text-[var(--color-subtext)] mt-0.5 line-clamp-1">{v.summary}</p>
-                  )}
+              <Link
+                key={v.id}
+                href={`/visits/${v.id}`}
+                className="block ios-card px-4 py-3 active:bg-[#F5F5F5] transition-colors"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[13px] font-bold truncate">{v.memberName}</span>
+                  {author.userId && <VisitAuthorChip author={author} />}
+                  <StatusChip status={v.status} size="sm" />
                 </div>
+                {memo && (
+                  <p className="text-[11px] text-[#374151] leading-snug line-clamp-2 whitespace-pre-line">
+                    {memo}
+                  </p>
+                )}
               </Link>
             );
           })}
