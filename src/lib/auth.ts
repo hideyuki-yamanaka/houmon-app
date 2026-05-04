@@ -4,7 +4,8 @@
 // Supabase Auth ヘルパー(マジックリンク方式)
 //
 // マルチユーザー化(2026-05-03 着手) のための認証基盤。
-//   - signInWithMagicLink(email): メアドにリンク送信
+//   - signInWithEmailOtp(email): メアドにリンク+6桁コード送信
+//   - verifyEmailOtp(email, token): 6桁コードで認証
 //   - signOut(): ログアウト
 //   - useAuthUser(): 現在のユーザー(or null) を返す React hook
 //
@@ -53,9 +54,6 @@ export async function verifyEmailOtp(
   if (error) return { error: error.message };
   return {};
 }
-
-/** @deprecated signInWithEmailOtp に統一。後方互換のため残す。 */
-export const signInWithMagicLink = signInWithEmailOtp;
 
 /** 現在のセッションを破棄してログアウト */
 export async function signOut(): Promise<void> {

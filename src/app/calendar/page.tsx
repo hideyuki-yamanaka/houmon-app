@@ -88,7 +88,7 @@ export default function CalendarPage() {
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-[13px] font-bold truncate">{v.memberName}</span>
                   {author.userId && <VisitAuthorChip author={author} />}
-                  <StatusChip status={v.status} size="sm" />
+                  <StatusChip status={v.status} />
                 </div>
                 {memo && (
                   <p className="text-[11px] text-[#374151] leading-snug line-clamp-2 whitespace-pre-line">
