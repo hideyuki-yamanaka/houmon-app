@@ -81,14 +81,14 @@ export default function CalendarPage() {
             <p className="text-sm text-[var(--color-subtext)] text-center mt-6">この日の訪問ログはありません</p>
           ) : (
             <div className="space-y-2">
-              {/* 訪問ログのグレーカード (VisitsCarousel と同じ見た目で統一) */}
+              {/* 訪問ログのカード (白背景, VisitsCarousel と同じ並び・2行表示) */}
               {dayVisits.map(v => {
                 const author = lookup(v.createdBy);
                 return (
                   <Link
                     key={v.id}
                     href={`/visits/${v.id}`}
-                    className="block bg-[#F2F2F4] rounded-lg px-4 py-3 active:bg-[#E8E8EB] transition-colors"
+                    className="block ios-card px-4 py-3 active:bg-[#F5F5F5] transition-colors"
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-[13px] font-bold truncate">{v.memberName}</span>
