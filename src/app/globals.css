@@ -248,6 +248,16 @@ body {
   animation: slideIn 0.3s ease-out;
 }
 
+/* ── ダッシュボード フィルタ切替時の バー伸びアニメ (B案: スタッガー波) ── */
+@keyframes bar-stretch-stagger {
+  from { transform: scaleX(0); opacity: 0.4; }
+  to   { transform: scaleX(1); opacity: 1; }
+}
+.animate-bar-stagger {
+  transform-origin: left center;
+  animation: bar-stretch-stagger 600ms ease-out both;
+}
+
 /* ── ボトムシート ── */
 .bottom-sheet {
   border-radius: 16px 16px 0 0;

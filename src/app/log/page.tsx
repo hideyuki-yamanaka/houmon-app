@@ -346,15 +346,14 @@ export default function LogPage() {
                   )}
                 </div>
                 <div className="flex items-baseline gap-1">
-                  <span
+                  <RollupNum
+                    value={visitWeekCount}
                     className="font-extrabold tabular-nums leading-none text-[#111]"
                     style={{
                       fontSize: 'var(--tune-hero-size, 4rem)',
                       letterSpacing: 'var(--tune-hero-tracking, -0.06em)',
                     }}
-                  >
-                    {visitWeekCount}
-                  </span>
+                  />
                   <span className="text-sm font-bold text-[#111]">回</span>
                 </div>
               </div>
@@ -367,34 +366,60 @@ export default function LogPage() {
                 className="overflow-y-auto pr-1"
                 style={{ maxHeight: '260px' }}
               >
-                <div className="space-y-3">
+                <div
+                  key={`${personFilter}-${periodFilter}`}
+                  className="space-y-3"
+                >
                   {(() => {
                     // weekly は古い→新しい順なので、表示は新しい(今週)を上に逆順
                     const ordered = [...weekly].reverse().map((w, idx) => ({ ...w, agoIdx: idx }));
-                    return ordered.map(w => {
+                    return ordered.map((w, displayIdx) => {
                       const hit = w.total > 0;
                       const widthPct = hit ? Math.max(12, (w.total / maxWeekCount) * 100) : 4;
-                      // 内側: 行の中身は前と同じ
+                      // 日付範囲ラベル (B案): 5/4〜10 (同月) / 4/27〜5/3 (月跨ぎ)
+                      const sun = new Date(w.start);
+                      sun.setDate(w.start.getDate() + 6);
+                      const sameMonth = w.start.getMonth() === sun.getMonth();
+                      const dateRange = sameMonth
+                        ? `${w.start.getMonth() + 1}/${w.start.getDate()}〜${sun.getDate()}`
+                        : `${w.start.getMonth() + 1}/${w.start.getDate()}〜${sun.getMonth() + 1}/${sun.getDate()}`;
+                      // スタッガー遅延 (上から順に 50ms ずつ)
+                      const animDelay = `${Math.min(displayIdx, 8) * 50}ms`;
+                      // 内側: 日付範囲 + 今週/先週バッジ (B案: 大きめ ソリッドピル)
                       const inner = (
                         <>
-                          <div className="flex items-baseline gap-1.5 mb-1">
+                          <div className="flex items-center gap-1.5 mb-1">
                             <span
-                              className={`text-[12px] font-bold leading-none ${
-                                w.agoIdx === 0 ? 'text-[#111]' : 'text-[#6B7280]'
+                              className={`text-[12px] font-bold leading-none tabular-nums ${
+                                w.agoIdx === 0 ? 'text-[#111]' : 'text-[#374151]'
                               }`}
                             >
-                              {weekJaLabel(w.agoIdx)}
+                              {dateRange}
                             </span>
-                            <span className="text-[10px] tabular-nums text-[#9CA3AF]">
-                              {w.start.getMonth() + 1}/{w.start.getDate()}
-                            </span>
+                            {w.agoIdx === 0 && (
+                              <span
+                                className="text-[10px] px-2 py-[3px] rounded-full font-bold tracking-wide"
+                                style={{ color: '#FFFFFF', background: '#10B981' }}
+                              >
+                                今週
+                              </span>
+                            )}
+                            {w.agoIdx === 1 && (
+                              <span
+                                className="text-[10px] px-2 py-[3px] rounded-full font-bold tracking-wide"
+                                style={{ color: '#FFFFFF', background: '#9CA3AF' }}
+                              >
+                                先週
+                              </span>
+                            )}
                           </div>
                           <div className="h-5 rounded-md bg-[#F3F4F6] overflow-hidden relative">
                             <div
-                              className="h-full rounded-md transition-all flex items-center justify-end px-2"
+                              className={`h-full rounded-md flex items-center justify-end px-2 ${hit ? 'animate-bar-stagger' : ''}`}
                               style={{
                                 width: `${widthPct}%`,
                                 background: hit ? '#10B981' : '#F3F4F6',
+                                animationDelay: hit ? animDelay : undefined,
                               }}
                             >
                               {hit && (
@@ -467,15 +492,14 @@ export default function LogPage() {
                   <span className="text-[11px] font-medium text-[var(--color-subtext)] whitespace-nowrap">
                     会えた確率
                   </span>
-                  <span
+                  <RollupNum
+                    value={breakdownStats.metRate}
                     className="font-extrabold tabular-nums leading-none text-[#111]"
                     style={{
                       fontSize: 'var(--tune-hero-size, 4rem)',
                       letterSpacing: 'var(--tune-hero-tracking, -0.06em)',
                     }}
-                  >
-                    {breakdownStats.metRate}
-                  </span>
+                  />
                   <span className="text-sm font-bold text-[#111]">%</span>
                 </div>
               </div>
@@ -750,12 +774,11 @@ export default function LogPage() {
                             {m.name}
                           </span>
                           <span className="flex items-baseline gap-0.5">
-                            <span
+                            <RollupNum
+                              value={count}
                               className="tabular-nums leading-none font-black"
                               style={{ fontSize: 'var(--tune-ranking-num, 1.5rem)' }}
-                            >
-                              {count}
-                            </span>
+                            />
                             <span className="text-[11px] text-[var(--color-subtext)]">回</span>
                           </span>
                         </Link>
@@ -789,6 +812,35 @@ export default function LogPage() {
       />
     </div>
   );
+}
+
+// ──────────────────────────────────────────────────────────────
+// RollupNum — フィルタ切替時に prev → next を 600ms ease-out で
+// なめらかに加算する数字 (ヒデさん採択 案A)
+// ──────────────────────────────────────────────────────────────
+function RollupNum({ value, className, style }: {
+  value: number; className?: string; style?: React.CSSProperties;
+}) {
+  const [display, setDisplay] = useState(value);
+  const prev = useRef(value);
+  useEffect(() => {
+    const start = prev.current;
+    const target = value;
+    if (start === target) { setDisplay(target); return; }
+    const dur = 600;
+    const t0 = performance.now();
+    let raf = 0;
+    const tick = (t: number) => {
+      const p = Math.min(1, (t - t0) / dur);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setDisplay(Math.round(start + (target - start) * eased));
+      if (p < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    prev.current = target;
+    return () => cancelAnimationFrame(raf);
+  }, [value]);
+  return <span className={className} style={style}>{display}</span>;
 }
 
 // ──────────────────────────────────────────────────────────────
