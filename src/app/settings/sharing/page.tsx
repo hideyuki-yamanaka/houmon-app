@@ -97,13 +97,13 @@ export default function SharingSettingsPage() {
       </header>
 
       <main className="max-w-[640px] mx-auto px-4 py-4 space-y-5">
-        {/* 1. メアド招待 */}
-        <SectionEmailInvite onSent={() => { setToast('メールを送りました'); refresh(); }} />
+        {/* 1. 招待 (タブ切替: メールで送る / リンクだけ) */}
+        <SectionInvite
+          onSent={() => { setToast('メールを送りました'); refresh(); }}
+          onIssued={() => { setToast('リンクを発行しました'); refresh(); }}
+        />
 
-        {/* 2. リンクだけ発行 */}
-        <SectionIssueLink onIssued={() => { setToast('リンクを発行しました'); refresh(); }} />
-
-        {/* 3. 発行中リンク */}
+        {/* 2. 発行中リンク */}
         <SectionTokens
           tokens={tokens}
           loading={listLoading}
@@ -131,10 +131,79 @@ export default function SharingSettingsPage() {
   );
 }
 
-// ── セクション 1: メアド招待 ─────────────────────────────────────
-function SectionEmailInvite({ onSent }: { onSent: () => void }) {
-  const [email, setEmail] = useState('');
+// ── セクション 1: 招待 (タブ切替で メール送る / リンクだけ) ─────
+type InviteTab = 'email' | 'link';
+
+function SectionInvite({
+  onSent,
+  onIssued,
+}: {
+  onSent: () => void;
+  onIssued: () => void;
+}) {
+  // デフォルトは「リンクだけ」(2026-05-04 ヒデさん指示: LINE/AirDrop で送るケース多い)
+  const [tab, setTab] = useState<InviteTab>('link');
+  // 権限はタブ間で共通
   const [role, setRole] = useState<TeamRole>('viewer');
+
+  return (
+    <Section title="招待する" icon={<Send size={14} />}>
+      <div className="space-y-3">
+        {/* タブ */}
+        <div className="grid grid-cols-2 gap-1 p-1 rounded-full bg-[#F3F4F6]">
+          <TabButton active={tab === 'email'} onClick={() => setTab('email')} icon={<Mail size={13} />}>
+            メールで送る
+          </TabButton>
+          <TabButton active={tab === 'link'} onClick={() => setTab('link')} icon={<LinkIcon size={13} />}>
+            リンクだけ
+          </TabButton>
+        </div>
+
+        {/* 共通: 権限 */}
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-[var(--color-subtext)]">権限:</span>
+          <RoleToggle value={role} onChange={setRole} />
+        </div>
+
+        {/* タブ別の入力 */}
+        {tab === 'email' ? (
+          <EmailInviteForm role={role} onSent={onSent} />
+        ) : (
+          <LinkIssueForm role={role} onIssued={onIssued} />
+        )}
+      </div>
+    </Section>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  icon,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`h-9 rounded-full text-[13px] font-bold inline-flex items-center justify-center gap-1.5 transition-all ${
+        active ? 'bg-white text-[#111] shadow-sm' : 'text-[#666]'
+      }`}
+    >
+      {icon}
+      {children}
+    </button>
+  );
+}
+
+// ── タブ A: メールで送る ────────────────────────────────────────
+function EmailInviteForm({ role, onSent }: { role: TeamRole; onSent: () => void }) {
+  const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -154,44 +223,40 @@ function SectionEmailInvite({ onSent }: { onSent: () => void }) {
   };
 
   return (
-    <Section title="メールで招待を送る" icon={<Mail size={14} />}>
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <input
-          type="email"
-          inputMode="email"
-          autoComplete="off"
-          required
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          placeholder="example@gmail.com"
-          className="w-full h-11 rounded-[10px] border border-[#E5E7EB] px-3 text-[15px] outline-none focus:border-[var(--color-primary)]"
-        />
-        <RoleToggle value={role} onChange={setRole} />
-        {error && (
-          <p className="text-xs text-red-600 flex items-start gap-1">
-            <AlertCircle size={13} className="mt-0.5 shrink-0" />
-            {error}
-          </p>
-        )}
-        <button
-          type="submit"
-          disabled={busy || !email.trim()}
-          className="w-full h-11 rounded-full bg-[#111] text-white text-[14px] font-bold inline-flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95 transition-transform"
-        >
-          {busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-          {busy ? '送信中…' : '招待を送る'}
-        </button>
-        <p className="text-[11px] text-[var(--color-subtext)] leading-relaxed">
-          相手のメールに 招待リンクが届きます。リンクは 30 日間有効。
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <input
+        type="email"
+        inputMode="email"
+        autoComplete="off"
+        required
+        value={email}
+        onChange={e => setEmail(e.target.value)}
+        placeholder="example@gmail.com"
+        className="w-full h-11 rounded-[10px] border border-[#E5E7EB] px-3 text-[15px] outline-none focus:border-[var(--color-primary)]"
+      />
+      {error && (
+        <p className="text-xs text-red-600 flex items-start gap-1">
+          <AlertCircle size={13} className="mt-0.5 shrink-0" />
+          {error}
         </p>
-      </form>
-    </Section>
+      )}
+      <button
+        type="submit"
+        disabled={busy || !email.trim()}
+        className="w-full h-11 rounded-full bg-[#111] text-white text-[14px] font-bold inline-flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95 transition-transform"
+      >
+        {busy ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+        {busy ? '送信中…' : '招待を送る'}
+      </button>
+      <p className="text-[11px] text-[var(--color-subtext)] leading-relaxed">
+        相手のメールに 招待リンクが届きます。リンクは 30 日間有効。
+      </p>
+    </form>
   );
 }
 
-// ── セクション 2: リンクだけ発行 ────────────────────────────────
-function SectionIssueLink({ onIssued }: { onIssued: () => void }) {
-  const [role, setRole] = useState<TeamRole>('viewer');
+// ── タブ B: リンクだけ発行 ──────────────────────────────────────
+function LinkIssueForm({ role, onIssued }: { role: TeamRole; onIssued: () => void }) {
   const [busy, setBusy] = useState(false);
   const [issued, setIssued] = useState<{ token: string; url: string } | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -238,7 +303,6 @@ function SectionIssueLink({ onIssued }: { onIssued: () => void }) {
         /* ユーザーがキャンセル: ignore */
       }
     } else {
-      // フォールバック: コピー
       handleCopy();
     }
   };
@@ -266,62 +330,59 @@ function SectionIssueLink({ onIssued }: { onIssued: () => void }) {
   };
 
   return (
-    <Section title="リンクだけ発行 (メール送信なし)" icon={<LinkIcon size={14} />}>
-      <div className="space-y-3">
-        <RoleToggle value={role} onChange={setRole} />
-        <button
-          type="button"
-          onClick={handleIssue}
-          disabled={busy}
-          className="w-full h-11 rounded-full bg-white text-[#111] border border-[#111] text-[14px] font-bold inline-flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95 transition-transform"
-        >
-          {busy ? <Loader2 size={16} className="animate-spin" /> : <LinkIcon size={16} />}
-          {busy ? '発行中…' : 'リンクを発行'}
-        </button>
+    <div className="space-y-3">
+      <button
+        type="button"
+        onClick={handleIssue}
+        disabled={busy}
+        className="w-full h-11 rounded-full bg-white text-[#111] border border-[#111] text-[14px] font-bold inline-flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95 transition-transform"
+      >
+        {busy ? <Loader2 size={16} className="animate-spin" /> : <LinkIcon size={16} />}
+        {busy ? '発行中…' : 'リンクを発行'}
+      </button>
 
-        {issued && (
-          <div className="rounded-[10px] border border-[#E5E7EB] bg-[#FAFAFA] p-3 space-y-2">
-            <p className="text-[11px] text-[var(--color-subtext)]">発行されたリンク</p>
-            <p className="text-[12px] font-mono break-all text-[#111] bg-white border border-[#E5E7EB] rounded px-2 py-1.5">
-              {issued.url}
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={handleCopy}
-                className="flex-1 h-10 rounded-full bg-white border border-[#E5E7EB] text-[12px] font-medium inline-flex items-center justify-center gap-1.5 active:scale-95 transition-transform"
-              >
-                {copied ? <Check size={14} /> : <Copy size={14} />}
-                {copied ? 'コピー済' : 'コピー'}
-              </button>
-              <button
-                onClick={handleShare}
-                className="flex-1 h-10 rounded-full bg-white border border-[#E5E7EB] text-[12px] font-medium inline-flex items-center justify-center gap-1.5 active:scale-95 transition-transform"
-              >
-                <Share2 size={14} />
-                共有
-              </button>
-              <button
-                onClick={handleShowQr}
-                className="flex-1 h-10 rounded-full bg-white border border-[#E5E7EB] text-[12px] font-medium inline-flex items-center justify-center gap-1.5 active:scale-95 transition-transform"
-              >
-                <QrCode size={14} />
-                QR
-              </button>
-            </div>
-            {showQr && qrDataUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={qrDataUrl}
-                alt="招待リンク QR コード"
-                className="mx-auto rounded-lg border border-[#E5E7EB] bg-white p-2"
-                width={280}
-                height={280}
-              />
-            )}
+      {issued && (
+        <div className="rounded-[10px] border border-[#E5E7EB] bg-[#FAFAFA] p-3 space-y-2">
+          <p className="text-[11px] text-[var(--color-subtext)]">発行されたリンク</p>
+          <p className="text-[12px] font-mono break-all text-[#111] bg-white border border-[#E5E7EB] rounded px-2 py-1.5">
+            {issued.url}
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={handleCopy}
+              className="flex-1 h-10 rounded-full bg-white border border-[#E5E7EB] text-[12px] font-medium inline-flex items-center justify-center gap-1.5 active:scale-95 transition-transform"
+            >
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+              {copied ? 'コピー済' : 'コピー'}
+            </button>
+            <button
+              onClick={handleShare}
+              className="flex-1 h-10 rounded-full bg-white border border-[#E5E7EB] text-[12px] font-medium inline-flex items-center justify-center gap-1.5 active:scale-95 transition-transform"
+            >
+              <Share2 size={14} />
+              共有
+            </button>
+            <button
+              onClick={handleShowQr}
+              className="flex-1 h-10 rounded-full bg-white border border-[#E5E7EB] text-[12px] font-medium inline-flex items-center justify-center gap-1.5 active:scale-95 transition-transform"
+            >
+              <QrCode size={14} />
+              QR
+            </button>
           </div>
-        )}
-      </div>
-    </Section>
+          {showQr && qrDataUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={qrDataUrl}
+              alt="招待リンク QR コード"
+              className="mx-auto rounded-lg border border-[#E5E7EB] bg-white p-2"
+              width={280}
+              height={280}
+            />
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
