@@ -5,7 +5,7 @@ import { Plus } from 'lucide-react';
 import Link from 'next/link';
 import type { Visit } from '../../lib/types';
 import { getAllVisits, getVisitsByDate } from '../../lib/storage';
-import { formatDate } from '../../lib/utils';
+import { formatDate, extractMemoText } from '../../lib/utils';
 import CalendarGrid from '../../components/CalendarGrid';
 import StatusChip from '../../components/StatusChip';
 import { VisitAuthorChip } from '../../components/VisitAuthorChip';
@@ -84,6 +84,7 @@ export default function CalendarPage() {
               {/* 訪問ログのカード (白背景, VisitsCarousel と同じ並び・2行表示) */}
               {dayVisits.map(v => {
                 const author = lookup(v.createdBy);
+                const memo = extractMemoText(v);
                 return (
                   <Link
                     key={v.id}
@@ -95,9 +96,9 @@ export default function CalendarPage() {
                       {author.userId && <VisitAuthorChip author={author} />}
                       <StatusChip status={v.status} size="sm" />
                     </div>
-                    {v.summary && (
+                    {memo && (
                       <p className="text-[11px] text-[#374151] leading-snug line-clamp-2 whitespace-pre-line">
-                        {v.summary}
+                        {memo}
                       </p>
                     )}
                   </Link>
