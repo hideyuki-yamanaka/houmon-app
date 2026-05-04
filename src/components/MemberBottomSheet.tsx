@@ -227,23 +227,29 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                 </span>
               </div>
 
-              {/* 住所（Googleマップ遷移リンク）
+              {/* 住所 + 右に Maps チップ (詳細ページの住所行と統一)
                   表示は建物名込みのフル住所、Maps へ飛ばす時は建物名を除いた住所で検索 */}
               {m.address && (
-                <a
-                  href={
-                    m.lat != null && m.lng != null
-                      ? `https://www.google.com/maps/search/?api=1&query=${m.lat},${m.lng}`
-                      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stripBuildingName(m.address))}`
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 mt-1.5 text-xs text-[var(--color-subtext)] active:text-[var(--color-text)] transition-colors"
-                  onClick={e => e.stopPropagation()}
-                >
-                  <MapPin size={16} strokeWidth={1.8} className="text-[var(--color-icon-gray)] shrink-0" />
-                  <span className="flex-1 truncate">{m.address}</span>
-                </a>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className="flex-1 min-w-0 text-xs text-[var(--color-subtext)] truncate">
+                    {m.address}
+                  </span>
+                  <a
+                    href={
+                      m.lat != null && m.lng != null
+                        ? `https://www.google.com/maps/search/?api=1&query=${m.lat},${m.lng}`
+                        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stripBuildingName(m.address))}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Google Maps で開く"
+                    onClick={e => e.stopPropagation()}
+                    className="shrink-0 inline-flex items-center gap-1 h-7 px-2.5 rounded-full bg-[#F3F4F6] text-[11px] font-medium text-[#111] active:scale-95"
+                  >
+                    <MapPin size={11} />
+                    Maps
+                  </a>
+                </div>
               )}
             </div>
 

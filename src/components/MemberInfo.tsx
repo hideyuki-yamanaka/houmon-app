@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, MapPin } from 'lucide-react';
 import type { Member, MemberRow } from '../lib/types';
 import { STATUS_GRID_ITEMS, STATUS_LEVEL_DISPLAY, type StatusLevel } from '../lib/constants';
 import { updateMember } from '../lib/storage';
@@ -237,12 +237,15 @@ function SelectField({ label, value, fieldKey, memberId, options, onSaved, half,
 }
 
 // ── インライン編集フィールド ──
-function EditableField({ label, value, fieldKey, memberId, link, onSaved, half, suffix, highlightQuery }: {
+function EditableField({ label, value, fieldKey, memberId, link, mapsLink, onSaved, half, suffix, highlightQuery }: {
   label: string; value: string | number | undefined; fieldKey: string;
   memberId: string; link?: string; onSaved: (key: string, value: string) => void;
   half?: boolean; suffix?: string;
   /** 表示テキスト内でハイライトするクエリ文字列 */
   highlightQuery?: string;
+  /** B案: 右端に「Maps」明示ボタンを置く. テキストタップは編集に使う.
+   *  住所行向け. 電話/メール等の link= とは併用しない想定. */
+  mapsLink?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(String(value ?? ''));
@@ -278,6 +281,41 @@ function EditableField({ label, value, fieldKey, memberId, link, onSaved, half, 
         <input ref={inputRef} type="text" value={editValue}
           onChange={e => setEditValue(e.target.value)} onBlur={save} onKeyDown={handleKeyDown}
           className="text-sm w-full bg-transparent outline-none caret-[var(--color-primary)]" />
+      </div>
+    );
+  }
+
+  // B案: mapsLink がある場合 — テキストタップ=編集 / 右に Maps チップボタン
+  if (mapsLink) {
+    return (
+      <div className={`py-2 ${half ? '' : 'border-b border-[#F0F0F0]'}`}>
+        <div className="text-[10px] text-[var(--color-subtext)] mb-0.5">{label}</div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => { setEditValue(displayValue); setEditing(true); }}
+            aria-label={`${label}を編集`}
+            className="flex-1 min-w-0 text-left text-sm text-[#111] active:opacity-60 transition-opacity duration-150 -mx-1 px-1 py-0.5 rounded hover:opacity-70"
+          >
+            {displayValue ? (
+              <Highlight text={displayValue} query={highlightQuery} />
+            ) : (
+              <span className="text-[#CCC] italic">タップして入力</span>
+            )}
+          </button>
+          {displayValue && (
+            <a
+              href={mapsLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Google Maps で開く"
+              className="shrink-0 inline-flex items-center gap-1 h-8 px-3 rounded-full bg-[#F3F4F6] text-[12px] font-medium text-[#111] active:scale-95"
+            >
+              <MapPin size={12} />
+              Maps
+            </a>
+          )}
+        </div>
       </div>
     );
   }
@@ -344,9 +382,10 @@ export default function MemberInfo({ member, onUpdate, highlightQuery, highlight
       .catch(() => { /* サイレントに失敗 */ });
   }, [member?.id, member?.name, member?.nameKana, handleSaved]);
 
-  const F = (key: string, label: string, value: string | number | undefined, opts?: { link?: string; half?: boolean; suffix?: string }) => (
+  const F = (key: string, label: string, value: string | number | undefined, opts?: { link?: string; mapsLink?: string; half?: boolean; suffix?: string }) => (
     <EditableField key={key} fieldKey={key} label={label} value={value}
-      memberId={local.id} link={opts?.link} onSaved={handleSaved} half={opts?.half} suffix={opts?.suffix}
+      memberId={local.id} link={opts?.link} mapsLink={opts?.mapsLink}
+      onSaved={handleSaved} half={opts?.half} suffix={opts?.suffix}
       highlightQuery={highlightQuery} />
   );
 
@@ -393,7 +432,7 @@ export default function MemberInfo({ member, onUpdate, highlightQuery, highlight
             />
           </div>
 
-          {F('address', '住所', local.address, { link: local.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(local.address)}` : undefined })}
+          {F('address', '住所', local.address, { mapsLink: local.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(local.address)}` : undefined })}
         </div>
 
         {/* 開いた時だけ見える残り */}
