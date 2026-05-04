@@ -156,24 +156,23 @@ export default function VisitDetailClient() {
             </div>
 
             {/* メモ(TipTap リッチテキスト) — 編集ボタンを押さなくてもここで読める。
-                summary(短い要約)が別途あれば上に併せて表示。
+                旧 summary 形式しか持たない古いログのフォールバック表示も用意。
                 どちらも空ならセクション自体を出さない。 */}
             {(() => {
               const hasNotes = visit.notes && Object.keys(visit.notes).length > 0;
-              const hasSummary = !!visit.summary;
+              const hasSummary = !!visit.summary && visit.summary.trim().length > 0;
               if (!hasNotes && !hasSummary) return null;
               return (
                 <div>
                   <div className="text-[10px] text-[var(--color-subtext)] mb-1">メモ</div>
-                  {hasSummary && (
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap mb-2">
-                      {visit.summary}
-                    </p>
-                  )}
-                  {hasNotes && (
+                  {hasNotes ? (
                     <div className="text-sm leading-relaxed">
                       <TiptapViewer content={visit.notes} />
                     </div>
+                  ) : (
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                      {visit.summary}
+                    </p>
                   )}
                 </div>
               );

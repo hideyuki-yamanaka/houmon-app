@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { Visit } from '../lib/types';
-import { formatDate } from '../lib/utils';
+import { formatDate, extractMemoText } from '../lib/utils';
 import { ChevronRight } from 'lucide-react';
 import Highlight from './Highlight';
 import StatusChip from './StatusChip';
@@ -12,7 +12,7 @@ import { tapHaptic } from '../lib/haptics';
 
 interface Props {
   visit: Visit;
-  /** 検索ヒットから飛んで来た時に summary 内の該当文字列をハイライト */
+  /** 検索ヒットから飛んで来た時にメモ内の該当文字列をハイライト */
   highlightQuery?: string;
 }
 
@@ -24,6 +24,7 @@ interface Props {
 export default function VisitCard({ visit, highlightQuery }: Props) {
   const { lookup } = useTeamProfiles();
   const author = lookup(visit.createdBy);
+  const memo = extractMemoText(visit);
 
   return (
     <Link
@@ -40,9 +41,9 @@ export default function VisitCard({ visit, highlightQuery }: Props) {
               <span className="ml-auto"><VisitAuthorChip author={author} /></span>
             )}
           </div>
-          {visit.summary && (
+          {memo && (
             <p className="text-sm text-[var(--color-subtext)] mt-1.5 line-clamp-2">
-              <Highlight text={visit.summary} query={highlightQuery} />
+              <Highlight text={memo} query={highlightQuery} />
             </p>
           )}
         </div>

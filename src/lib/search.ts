@@ -1,7 +1,8 @@
 // ─────────────────────────────────────────────────────────
-// メンバー横断検索: 名前/ふりがな/地区/住所/職場/家族/情報(info)/備考(notes)/訪問ログ(summary)
+// メンバー横断検索: 名前/ふりがな/地区/住所/職場/家族/情報(info)/備考(notes)/訪問メモ
 // のいずれかにマッチしたら「1ヒット=1エントリ」で返す。
 // P1(密リスト)方式のUIと直結する前提で設計。
+// 訪問メモは extractMemoText で 旧 summary / 新 notes(TipTap) 両方から抽出。
 // ─────────────────────────────────────────────────────────
 
 import type { LucideIcon } from 'lucide-react';
@@ -15,6 +16,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import type { Member, Visit } from './types';
+import { extractMemoText } from './utils';
 
 export interface SearchMatch {
   field: string;
@@ -110,14 +112,15 @@ export function searchMembers(
     // 訪問ログ
     const memberVisits = visits.filter(v => v.memberId === m.id && !v.deletedAt);
     for (const v of memberVisits) {
-      if ((v.summary ?? '').toLowerCase().includes(q)) {
+      const memo = extractMemoText(v);
+      if (memo.toLowerCase().includes(q)) {
         hits.push({
           member: m,
           match: {
             field: 'visit',
             fieldLabel: '訪問ログ',
             fieldIcon: Calendar,
-            text: extractContext(v.summary ?? '', q),
+            text: extractContext(memo, q),
             visitedAt: v.visitedAt,
             visitId: v.id,
           },
