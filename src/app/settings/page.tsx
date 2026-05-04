@@ -10,7 +10,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Bell, BellOff, Loader2, AlertCircle, Users, ChevronRight, User as UserIcon } from 'lucide-react';
+import { ChevronLeft, Bell, BellOff, Loader2, AlertCircle, Users, ChevronRight, User as UserIcon, Sparkles } from 'lucide-react';
 import {
   getPushSubscriptionStatus,
   subscribeToPush,
@@ -153,13 +153,28 @@ export default function SettingsPage() {
           <Link
             href="/settings/sharing"
             onClick={() => tapHaptic()}
-            className="flex items-center gap-3 px-4 py-4 active:bg-gray-50"
+            className="flex items-center gap-3 px-4 py-4 active:bg-gray-50 border-b border-black/5"
           >
             <Users size={20} className="text-[var(--color-primary)] shrink-0" />
             <div className="flex-1 min-w-0">
               <div className="text-[15px] font-medium text-gray-900">共有・招待</div>
               <div className="text-[12px] text-gray-500 mt-0.5">
                 家族と訪問記録を共有したり、招待リンクを発行
+              </div>
+            </div>
+            <ChevronRight size={18} className="text-gray-400 shrink-0" />
+          </Link>
+
+          <Link
+            href="/settings/proofreading"
+            onClick={() => tapHaptic()}
+            className="flex items-center gap-3 px-4 py-4 active:bg-gray-50"
+          >
+            <Sparkles size={20} className="text-[var(--color-primary)] shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-[15px] font-medium text-gray-900">文書校正</div>
+              <div className="text-[12px] text-gray-500 mt-0.5">
+                訪問ログを AI でですます調に統一・誤字脱字を修正
               </div>
             </div>
             <ChevronRight size={18} className="text-gray-400 shrink-0" />
