@@ -104,7 +104,7 @@ function LoginPageInner() {
     const cleaned = code.replace(/\D/g, '');
     // Supabase の OTP 長は 6〜10 桁で設定可能。受信した長さに柔軟対応。
     if (cleaned.length < 6 || cleaned.length > 10) {
-      setError('6〜10 桁の数字を入力してな');
+      setError('6〜10 桁の数字を入力してください');
       return;
     }
     setError(null);
@@ -135,97 +135,101 @@ function LoginPageInner() {
           メールアドレスでログイン
         </p>
 
-        {phase === 'email' && (
-          <form onSubmit={handleSendCode} className="bg-white rounded-2xl p-6 shadow-sm border border-[#E5E7EB]">
-            <label className="text-sm font-semibold text-[var(--color-subtext)] block mb-2">
-              メールアドレス
-            </label>
-            <div className="relative">
-              <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-icon-gray)]" />
-              <input
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="w-full h-11 rounded-[10px] border border-[#E5E7EB] pl-10 pr-3 text-[15px] outline-none focus:border-[var(--color-primary)]"
-              />
-            </div>
-            {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
-            <button
-              type="submit"
-              disabled={busy || !email.trim()}
-              className="w-full mt-4 h-11 rounded-full bg-[#111] text-white text-[14px] font-bold inline-flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95 transition-transform"
-            >
-              {busy ? (
-                <><Loader2 size={16} className="animate-spin" />送信中…</>
-              ) : (
-                'ログインコードを送信'
-              )}
-            </button>
-            <p className="mt-3 text-[11px] text-[var(--color-subtext)] text-center leading-relaxed">
-              メールでログインコードを送ります。<br />
-              次の画面で入力してください。
-            </p>
-          </form>
-        )}
-
-        {phase === 'code' && (
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E5E7EB]">
-            <div className="w-12 h-12 rounded-full bg-[#10B981]/10 mx-auto mb-3 flex items-center justify-center">
-              <Check size={22} className="text-[#10B981]" />
-            </div>
-            <h2 className="text-base font-bold text-center mb-1">メールを送信しました</h2>
-            <p className="text-[13px] text-[var(--color-subtext)] text-center leading-relaxed mb-5">
-              <span className="font-bold text-[#111]">{email}</span> 宛に<br />
-              <strong>ログインコード</strong>を送ったで。<br />
-              下の欄に入力してログインしてな。
-            </p>
-
-            <form onSubmit={handleVerifyCode}>
+        {/* phase 切替時に card 高さがガタつかないよう min-height を固定。
+            code phase の必要高 (チェックアイコン + 説明文 + 入力 + ボタン + 戻るリンク) ≈ 380px */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E5E7EB] flex flex-col" style={{ minHeight: 380 }}>
+          {phase === 'email' && (
+            <form onSubmit={handleSendCode} className="flex-1 flex flex-col">
               <label className="text-sm font-semibold text-[var(--color-subtext)] block mb-2">
-                ログインコード
+                メールアドレス
               </label>
               <div className="relative">
-                <KeyRound size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-icon-gray)]" />
+                <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-icon-gray)]" />
                 <input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  pattern="[0-9]*"
-                  maxLength={10}
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
                   required
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                  placeholder="123456"
-                  className="w-full h-12 rounded-[10px] border border-[#E5E7EB] pl-10 pr-3 text-[20px] tracking-[0.3em] text-center outline-none focus:border-[var(--color-primary)]"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="w-full h-11 rounded-[10px] border border-[#E5E7EB] pl-10 pr-3 text-[15px] outline-none focus:border-[var(--color-primary)]"
                 />
               </div>
               {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
               <button
                 type="submit"
-                disabled={busy || code.length < 6}
+                disabled={busy || !email.trim()}
                 className="w-full mt-4 h-11 rounded-full bg-[#111] text-white text-[14px] font-bold inline-flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95 transition-transform"
               >
                 {busy ? (
-                  <><Loader2 size={16} className="animate-spin" />認証中…</>
+                  <><Loader2 size={16} className="animate-spin" />送信中…</>
                 ) : (
-                  'ログイン'
+                  'ログインコードを送信'
                 )}
               </button>
+              <p className="mt-3 text-[11px] text-[var(--color-subtext)] text-center leading-relaxed">
+                メールでログインコードをお送りします。<br />
+                次の画面で入力してください。
+              </p>
             </form>
+          )}
 
-            <button
-              type="button"
-              onClick={() => { setPhase('email'); setCode(''); setError(null); }}
-              className="mt-4 w-full text-[12px] text-[var(--color-primary)] active:opacity-60"
-            >
-              別のメールアドレスでやり直す
-            </button>
-          </div>
-        )}
+          {phase === 'code' && (
+            <div className="flex-1 flex flex-col">
+              <div className="w-12 h-12 rounded-full bg-[#10B981]/10 mx-auto mb-3 flex items-center justify-center">
+                <Check size={22} className="text-[#10B981]" />
+              </div>
+              <h2 className="text-base font-bold text-center mb-1">メールを送信しました</h2>
+              <p className="text-[13px] text-[var(--color-subtext)] text-center leading-relaxed mb-5">
+                <span className="font-bold text-[#111]">{email}</span> 宛に<br />
+                <strong>ログインコード</strong>をお送りしました。<br />
+                下の欄に入力してログインしてください。
+              </p>
+
+              <form onSubmit={handleVerifyCode}>
+                <label className="text-sm font-semibold text-[var(--color-subtext)] block mb-2">
+                  ログインコード
+                </label>
+                <div className="relative">
+                  <KeyRound size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-icon-gray)]" />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    pattern="[0-9]*"
+                    maxLength={10}
+                    required
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="123456"
+                    className="w-full h-12 rounded-[10px] border border-[#E5E7EB] pl-10 pr-3 text-[20px] tracking-[0.3em] text-center outline-none focus:border-[var(--color-primary)]"
+                  />
+                </div>
+                {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+                <button
+                  type="submit"
+                  disabled={busy || code.length < 6}
+                  className="w-full mt-4 h-11 rounded-full bg-[#111] text-white text-[14px] font-bold inline-flex items-center justify-center gap-2 disabled:opacity-50 active:scale-95 transition-transform"
+                >
+                  {busy ? (
+                    <><Loader2 size={16} className="animate-spin" />認証中…</>
+                  ) : (
+                    'ログイン'
+                  )}
+                </button>
+              </form>
+
+              <button
+                type="button"
+                onClick={() => { setPhase('email'); setCode(''); setError(null); }}
+                className="mt-4 w-full text-[12px] text-[var(--color-primary)] active:opacity-60"
+              >
+                別のメールアドレスでやり直す
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

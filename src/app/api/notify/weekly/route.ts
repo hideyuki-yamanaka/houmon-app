@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
 
     const userName = nameMap.get(userId) ?? 'あなた';
     const result = await sendPushTo(targets, {
-      title: '家庭訪問アプリ',
+      title: '', // 空にすると iOS が AppName のみ表示 (from 行が出ない)
       body: `${userName}さんが今週 ${count} 人 訪問しました。`,
       url: `/visits/by-user/${userId}?range=week`,
       tag: `weekly-${userId}-${weekStart}`,

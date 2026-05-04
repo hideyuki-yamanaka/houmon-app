@@ -41,6 +41,7 @@ import {
   updateTeamMemberRole,
   type TeamMemberInfo,
 } from '../../../lib/sharing';
+import { getTeamProfiles, type Profile } from '../../../lib/profile';
 import type { InviteTokenRow, TeamRole } from '../../../lib/types';
 import { useSwipeBack } from '../../../lib/useSwipeBack';
 
@@ -51,14 +52,20 @@ export default function SharingSettingsPage() {
   // 共通: 一覧データ
   const [tokens, setTokens] = useState<InviteTokenRow[]>([]);
   const [members, setMembers] = useState<TeamMemberInfo[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setListLoading(true);
-    const [t, m] = await Promise.all([listInviteTokens(), listTeamMembers()]);
+    const [t, m, p] = await Promise.all([
+      listInviteTokens(),
+      listTeamMembers(),
+      getTeamProfiles(),
+    ]);
     setTokens(t);
     setMembers(m);
+    setProfiles(p);
     setListLoading(false);
   }, []);
 
@@ -106,6 +113,7 @@ export default function SharingSettingsPage() {
         {/* 4. 共有してる人 */}
         <SectionMembers
           members={members}
+          profiles={profiles}
           loading={listLoading}
           onChanged={() => { refresh(); }}
         />
@@ -405,33 +413,38 @@ function TokenRow({
 // ── セクション 4: 共有してる人 一覧 ─────────────────────────────
 function SectionMembers({
   members,
+  profiles,
   loading,
   onChanged,
 }: {
   members: TeamMemberInfo[];
+  profiles: Profile[];
   loading: boolean;
   onChanged: () => void;
 }) {
+  // user_id → display_name のマップを作る (表示名で出すため)
+  const nameMap = new Map(profiles.map(p => [p.user_id, p.display_name]));
+
   const handleRoleChange = async (memberId: string, role: TeamRole) => {
     const ok = await updateTeamMemberRole(memberId, role);
     if (!ok) {
-      alert('権限変更に失敗しました');
+      alert('権限の変更に失敗しました');
       return;
     }
     onChanged();
   };
 
-  const handleRemove = async (memberId: string, email: string | null) => {
+  const handleRemove = async (memberId: string, label: string) => {
     if (
       !window.confirm(
-        `${email ?? 'このユーザー'} を共有から外しますか？\n相手はデータを見られなくなります。`,
+        `${label} を共有から外しますか?\n相手はあなたのデータを見られなくなります。`,
       )
     ) {
       return;
     }
     const ok = await removeTeamMember(memberId);
     if (!ok) {
-      alert('外すのに失敗しました');
+      alert('削除に失敗しました');
       return;
     }
     onChanged();
@@ -447,33 +460,44 @@ function SectionMembers({
         </p>
       ) : (
         <ul className="divide-y divide-[#F0F0F0]">
-          {members.map(m => (
-            <li key={m.member_id} className="py-2.5 flex items-center justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="text-[13px] font-medium text-[#111] truncate">
-                  {m.email ?? '(メアド非公開)'}
-                </p>
-                <p className="text-[10px] text-[var(--color-subtext)]">
-                  招待: {formatDate(m.invited_at)}
-                </p>
-              </div>
-              <select
-                value={m.role}
-                onChange={e => handleRoleChange(m.member_id, e.target.value as TeamRole)}
-                className="text-[12px] border border-[#E5E7EB] rounded-full px-2 py-1 bg-white"
-              >
-                <option value="viewer">閲覧</option>
-                <option value="editor">編集</option>
-              </select>
-              <button
-                onClick={() => handleRemove(m.member_id, m.email)}
-                aria-label="外す"
-                className="shrink-0 w-9 h-9 rounded-full hover:bg-red-50 text-red-600 inline-flex items-center justify-center active:scale-95"
-              >
-                <X size={16} />
-              </button>
-            </li>
-          ))}
+          {members.map(m => {
+            const displayName = nameMap.get(m.member_id);
+            const primaryLabel = displayName ?? m.email ?? '(名前未設定)';
+            return (
+              <li key={m.member_id} className="py-3 flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-bold text-[#111] truncate">
+                    {primaryLabel}
+                  </p>
+                  {displayName && m.email && (
+                    <p className="text-[10px] text-[var(--color-subtext)] truncate">
+                      {m.email}
+                    </p>
+                  )}
+                  <p className="text-[10px] text-[var(--color-subtext)]">
+                    招待日: {formatDate(m.invited_at)}
+                  </p>
+                </div>
+                <select
+                  value={m.role}
+                  onChange={e => handleRoleChange(m.member_id, e.target.value as TeamRole)}
+                  className="shrink-0 text-[12px] border border-[#E5E7EB] rounded-full px-3 py-1.5 bg-white font-medium"
+                  aria-label="権限"
+                >
+                  <option value="viewer">閲覧のみ</option>
+                  <option value="editor">編集可</option>
+                </select>
+                <button
+                  onClick={() => handleRemove(m.member_id, primaryLabel)}
+                  aria-label="削除"
+                  title="共有から外す"
+                  className="shrink-0 w-9 h-9 rounded-full hover:bg-red-50 active:bg-red-100 text-red-600 inline-flex items-center justify-center active:scale-95 transition-colors"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </Section>

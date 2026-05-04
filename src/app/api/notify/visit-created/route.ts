@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
   // tag を 「daily-{userId}-{date}」 にすると 同日内の続報が前の通知を置き換える
   // (端末に積もらず 常に最新カウントだけ表示される)
   const result = await sendPushTo(targets, {
-    title: '家庭訪問アプリ',
+    title: '', // 空にすると iOS が AppName のみ表示 (from 行が出ない)
     body: `${callerName}さんが本日 ${todayCount} 人 訪問しました。`,
     url: `/visits/by-user/${callerId}?range=today`,
     tag: `daily-${callerId}-${todayJSTStr}`,

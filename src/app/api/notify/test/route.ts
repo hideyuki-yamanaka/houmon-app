@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
   }
 
   const result = await sendPushTo(targets, {
-    title: '家庭訪問アプリ',
+    title: '', // 空にすると iOS が AppName のみ表示 (from 行が出ない)
     body: '通知の動作確認です。これが見えていれば成功 ✅',
     url: '/',
     tag: 'test',

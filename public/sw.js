@@ -147,16 +147,20 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// ─── プッシュ通知 (Phase 2 で配信ロジック実装予定) ───────────────
-// 受信した payload (JSON) を表示する。payload が空でも fallback で出す。
+// ─── プッシュ通知 ──────────────────────────────────────────────
+// 受信した payload (JSON) を表示する。
+// ヒデさん指示 (2026-05-04): タイトルを空にして iOS の「from xxx」行を回避。
+//   iOS PWA は title="" のとき AppName + body だけシンプルに表示する。
 self.addEventListener('push', (event) => {
   let data = {};
   try {
     data = event.data ? event.data.json() : {};
   } catch {
-    data = { title: '家庭訪問', body: event.data ? event.data.text() : '' };
+    data = { body: event.data ? event.data.text() : '' };
   }
-  const title = data.title || '家庭訪問';
+  // title が明示的に空文字 or 未指定なら空のまま (iOS が AppName を使う)。
+  // Android Chrome 等では明示タイトル無いと寂しいので fallback で AppName。
+  const title = typeof data.title === 'string' ? data.title : '家庭訪問アプリ';
   const options = {
     body: data.body || '',
     icon: data.icon || '/icon-192x192.png',
