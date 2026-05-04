@@ -129,7 +129,7 @@ export default function MemberDetailClient() {
   return (
     <div className="h-full flex flex-col bg-[var(--color-bg)]">
       <nav className="ios-nav flex items-center px-4 py-3 gap-2">
-        <button onClick={() => { tapHaptic(); if (window.history.length > 1) router.back(); else router.push('/members'); }} className="flex items-center gap-1 text-[var(--color-primary)] shrink-0">
+        <button onClick={() => { tapHaptic(); if (window.history.length > 1) router.back(); else router.push('/calendar'); }} className="flex items-center gap-1 text-[var(--color-primary)] shrink-0">
           <ChevronLeft size={24} />
           <span className="text-sm">戻る</span>
         </button>

@@ -7,7 +7,7 @@ import { tapHaptic } from '../lib/haptics';
 
 const TABS = [
   { href: '/', label: 'ホーム', icon: MapPin },
-  { href: '/members', label: 'カレンダー', icon: CalendarDays },
+  { href: '/calendar', label: 'カレンダー', icon: CalendarDays },
   { href: '/log', label: 'ダッシュボード', icon: LayoutDashboard },
 ] as const;
 
