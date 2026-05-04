@@ -11,7 +11,7 @@
 // ──────────────────────────────────────────────────────────────
 
 import { isMockMode, supabase } from './supabase';
-import type { InviteTokenRow, TeamRole } from './types';
+import type { InviteTokenRow, InviteTokenWithRecipient, TeamRole } from './types';
 
 // ─── 招待トークン (リンク発行 / 一覧 / 取消) ────────────────────
 
@@ -50,6 +50,18 @@ export async function listInviteTokens(): Promise<InviteTokenRow[]> {
     return [];
   }
   return (data ?? []) as InviteTokenRow[];
+}
+
+/** 一覧表示用: 受け入れた人 (used_by) の email / display_name 付きで取得.
+ *  list_invite_tokens_with_recipients RPC を叩く. */
+export async function listInviteTokensWithRecipients(): Promise<InviteTokenWithRecipient[]> {
+  if (isMockMode) return [];
+  const { data, error } = await supabase.rpc('list_invite_tokens_with_recipients');
+  if (error) {
+    console.error('[sharing] listInviteTokensWithRecipients failed', error);
+    return [];
+  }
+  return (data ?? []) as InviteTokenWithRecipient[];
 }
 
 /** 招待トークンを物理削除 (RLS で自分のしか消せない) */

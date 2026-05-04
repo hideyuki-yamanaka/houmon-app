@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
   // ── 3. invite_tokens に INSERT (token は DEFAULT で生成) ─────
   const { data: tokenRow, error: insertErr } = await userClient
     .from('invite_tokens')
-    .insert({ owner_id: ownerId, role })
+    .insert({ owner_id: ownerId, role, invited_email: email })
     .select('token')
     .single();
   if (insertErr || !tokenRow?.token) {

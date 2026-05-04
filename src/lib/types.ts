@@ -145,6 +145,20 @@ export interface InviteTokenRow {
   used_at: string | null;
   used_by: string | null;
   note: string | null;
+  invited_email: string | null;
+}
+
+/** list_invite_tokens_with_recipients RPC の戻り型 (UI 一覧表示用に email/name 付き) */
+export interface InviteTokenWithRecipient {
+  token: string;
+  role: TeamRole;
+  created_at: string;
+  expires_at: string;
+  used_at: string | null;
+  used_by: string | null;
+  invited_email: string | null;
+  recipient_email: string | null;
+  recipient_name: string | null;
 }
 
 export interface VisitRow {

@@ -33,7 +33,7 @@ import QRCode from 'qrcode';
 import {
   buildInviteUrl,
   issueInviteLink,
-  listInviteTokens,
+  listInviteTokensWithRecipients,
   listTeamMembers,
   removeTeamMember,
   revokeInviteToken,
@@ -42,7 +42,7 @@ import {
   type TeamMemberInfo,
 } from '../../../lib/sharing';
 import { getTeamProfiles, type Profile } from '../../../lib/profile';
-import type { InviteTokenRow, TeamRole } from '../../../lib/types';
+import type { InviteTokenWithRecipient, TeamRole } from '../../../lib/types';
 import { useSwipeBack } from '../../../lib/useSwipeBack';
 
 export default function SharingSettingsPage() {
@@ -50,7 +50,7 @@ export default function SharingSettingsPage() {
   useSwipeBack(() => router.back());
 
   // 共通: 一覧データ
-  const [tokens, setTokens] = useState<InviteTokenRow[]>([]);
+  const [tokens, setTokens] = useState<InviteTokenWithRecipient[]>([]);
   const [members, setMembers] = useState<TeamMemberInfo[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [listLoading, setListLoading] = useState(true);
@@ -59,7 +59,7 @@ export default function SharingSettingsPage() {
   const refresh = useCallback(async () => {
     setListLoading(true);
     const [t, m, p] = await Promise.all([
-      listInviteTokens(),
+      listInviteTokensWithRecipients(),
       listTeamMembers(),
       getTeamProfiles(),
     ]);
@@ -108,6 +108,7 @@ export default function SharingSettingsPage() {
           tokens={tokens}
           loading={listLoading}
           onRevoked={() => { setToast('リンクを取り消しました'); refresh(); }}
+          onCopied={() => setToast('リンクをコピーしました')}
         />
 
         {/* 4. 共有してる人 */}
@@ -329,10 +330,12 @@ function SectionTokens({
   tokens,
   loading,
   onRevoked,
+  onCopied,
 }: {
-  tokens: InviteTokenRow[];
+  tokens: InviteTokenWithRecipient[];
   loading: boolean;
   onRevoked: () => void;
+  onCopied: () => void;
 }) {
   const handleRevoke = async (token: string) => {
     if (!window.confirm('このリンクを取り消しますか？\n相手はもうリンクを使えなくなります。')) {
@@ -346,6 +349,16 @@ function SectionTokens({
     onRevoked();
   };
 
+  const handleCopy = async (token: string) => {
+    const url = buildInviteUrl(token);
+    try {
+      await navigator.clipboard.writeText(url);
+      onCopied();
+    } catch {
+      alert('コピーに失敗しました');
+    }
+  };
+
   return (
     <Section title="発行中の招待リンク" icon={<LinkIcon size={14} />}>
       {loading ? (
@@ -357,7 +370,7 @@ function SectionTokens({
       ) : (
         <ul className="divide-y divide-[#F0F0F0]">
           {tokens.map(t => (
-            <TokenRow key={t.token} token={t} onRevoke={handleRevoke} />
+            <TokenRow key={t.token} token={t} onRevoke={handleRevoke} onCopy={handleCopy} />
           ))}
         </ul>
       )}
@@ -368,9 +381,11 @@ function SectionTokens({
 function TokenRow({
   token,
   onRevoke,
+  onCopy,
 }: {
-  token: InviteTokenRow;
+  token: InviteTokenWithRecipient;
   onRevoke: (token: string) => void;
+  onCopy: (token: string) => void;
 }) {
   const isUsed = !!token.used_at;
   const isExpired = !isUsed && new Date(token.expires_at) <= new Date();
@@ -381,10 +396,27 @@ function TokenRow({
     ? 'text-amber-700 bg-amber-100'
     : 'text-emerald-700 bg-emerald-100';
 
+  // 宛先表示用ラベル: メアド招待なら invited_email、なしなら「リンクのみ」
+  const recipientLabel = token.invited_email
+    ? token.invited_email
+    : 'リンクのみ（誰でも踏める）';
+  const recipientIcon = token.invited_email ? <Mail size={11} /> : <LinkIcon size={11} />;
+
+  // 受け入れた人ラベル: profiles.display_name が優先、なければ email の @ 前
+  const acceptedName =
+    token.recipient_name ??
+    (token.recipient_email ? token.recipient_email.split('@')[0] : null);
+
   return (
     <li className="py-2.5 flex items-center justify-between gap-2">
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={() => onCopy(token.token)}
+        className="min-w-0 flex-1 text-left active:opacity-60 -mx-1 px-1 py-0.5 rounded-md"
+        aria-label="リンクをコピー"
+        title="タップでリンクをコピー"
+      >
+        <div className="flex items-center gap-1.5 flex-wrap">
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${statusColor}`}>
             {status}
           </span>
@@ -392,13 +424,23 @@ function TokenRow({
             {token.role === 'editor' ? '編集' : '閲覧'}
           </span>
         </div>
-        <p className="text-[11px] text-[var(--color-subtext)] mt-1 font-mono truncate">
-          {token.token.slice(0, 8)}…
+        <p className="text-[11px] text-[#111] mt-1.5 flex items-center gap-1 truncate">
+          <span className="text-[var(--color-subtext)] shrink-0">{recipientIcon}</span>
+          <span className="truncate">{recipientLabel}</span>
         </p>
-        <p className="text-[10px] text-[var(--color-subtext)]">
-          発行: {formatDate(token.created_at)}
+        {isUsed && acceptedName && (
+          <p className="text-[10px] text-emerald-700 mt-0.5 flex items-center gap-1 truncate">
+            <Check size={11} className="shrink-0" />
+            <span className="truncate">
+              {acceptedName}さん が {formatDate(token.used_at!)} に参加
+            </span>
+          </p>
+        )}
+        <p className="text-[10px] text-[var(--color-subtext)] mt-0.5 inline-flex items-center gap-1">
+          <Copy size={10} />
+          発行: {formatDate(token.created_at)} ・ タップでコピー
         </p>
-      </div>
+      </button>
       <button
         onClick={() => onRevoke(token.token)}
         aria-label="リンクを取り消す"
