@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { ChevronRight, MapPin, Clock, Footprints, PencilLine, Star } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit, MemberRow } from '../lib/types';
 import { formatDate, resolveAge, stripBuildingName, formatOrgLabelShort } from '../lib/utils';
-import { getMemberOrgColor } from '../lib/constants';
 import { getVisits, updateMember } from '../lib/storage';
 import SwipeableBottomSheet, { type SheetHandle } from './SwipeableBottomSheet';
 import VisitsCarousel from './VisitsCarousel';
@@ -138,91 +137,38 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
       {(snap) => {
         if (!displayMember) return null;
         const m = displayMember;
-        const orgColor = getMemberOrgColor(m);
-        const hasMemberVisits = (m.totalVisits ?? 0) > 0;
 
         return (
           <div className="flex flex-col">
-            {/* 2026-05-06 統一: メンバーカード (案 1) と同じ「左組織色帯 + 縦分割」構造。
-                星 / 記録する ボタンは右側に独立して配置。 */}
-            <div className="flex items-stretch pt-1.5 pb-3">
-              {/* 左の組織色帯 — MemberCard と同じ太さ・濃さ */}
-              <span
-                className="shrink-0 self-stretch rounded-r"
-                style={{
-                  width: 'var(--tune-mc-stripe, 8px)',
-                  background: hasMemberVisits ? orgColor : `${orgColor}55`,
-                }}
-              />
-              <div
-                className="flex-1 min-w-0 flex items-start gap-2"
-                style={{
-                  paddingLeft: 'var(--tune-mc-pad-x, 0.75rem)',
-                  paddingRight: '1rem',
-                  paddingTop: 'var(--tune-mc-pad-y, 0.9375rem)',
-                  paddingBottom: 'var(--tune-mc-pad-y, 0.9375rem)',
-                }}
-              >
+            {/* 2026-05-06: ボトムシート個別表示。レイアウト構造は MemberCard 踏襲、
+                ただし ボトムシート用に: 左帯なし / Chevron なし / フォント大きめ /
+                星+記録 釦は横並び (ヒデさん指示)。 */}
+            <div className="px-4 pt-1.5 pb-3">
+              <div className="flex items-start justify-between gap-3">
                 <button
                   onClick={() => { tapHaptic(); rememberMemberForReturn(m.id); router.push(`/members/${m.id}`); }}
                   className="flex-1 min-w-0 text-left"
                 >
                   {m.nameKana && (
-                    <span
-                      className="text-[var(--color-subtext)] block leading-tight"
-                      style={{ fontSize: 'var(--tune-mc-kana, 0.5625rem)' }}
-                    >
+                    <span className="text-[9px] font-normal text-[var(--color-subtext)] tracking-wide leading-none block">
                       {m.nameKana}
                     </span>
                   )}
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold" style={{ fontSize: 'var(--tune-mc-name, 1rem)' }}>
-                      {m.name}
-                    </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h2 className="text-lg font-bold truncate">{m.name}</h2>
                     {(() => {
                       const age = resolveAge(m);
-                      return age != null ? <span className="text-[11px] font-normal text-[var(--color-subtext)]">({age})</span> : null;
+                      return age != null ? <span className="text-[13px] font-normal text-[var(--color-subtext)]">({age})</span> : null;
                     })()}
                     {m.category === 'young' && (
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#0EA5E9] text-white leading-none whitespace-nowrap">
                         ヤング
                       </span>
                     )}
-                    <ChevronRight
-                      size={20}
-                      className="text-[var(--color-icon-gray)] shrink-0 ml-auto"
-                      style={{ display: 'var(--tune-mc-chevron, none)' }}
-                    />
-                  </div>
-                  <div className="mt-0.5">
-                    <span
-                      className="font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)] inline-block max-w-full truncate"
-                      style={{ fontSize: 'var(--tune-mc-meta, 0.625rem)' }}
-                    >
-                      {formatOrgLabelShort(m)}
-                    </span>
-                  </div>
-                  {m.address && (
-                    <div
-                      className="mt-0.5 flex items-center gap-1 text-[var(--color-subtext)] truncate"
-                      style={{ fontSize: 'var(--tune-mc-meta, 0.625rem)' }}
-                    >
-                      <MapPin size={12} strokeWidth={1.8} className="shrink-0" />
-                      <span className="truncate">{m.address}</span>
-                    </div>
-                  )}
-                  <div
-                    className="mt-0.5 flex items-center gap-1 text-[var(--color-subtext)]"
-                    style={{ fontSize: 'var(--tune-mc-meta, 0.625rem)' }}
-                  >
-                    <Clock size={12} strokeWidth={1.8} />
-                    {m.lastVisitDate
-                      ? `${formatDate(m.lastVisitDate, 'yyyy年M月d日')}${m.lastVisitHour !== undefined ? ` ${m.lastVisitHour}時` : ''}（${m.totalVisits}回）`
-                      : '----年--月--日'}
                   </div>
                 </button>
-                {/* 行きたい釦 + 記録するボタン (右上に縦並び) */}
-                <div className="flex flex-col items-end gap-1.5 shrink-0">
+                {/* 星 + 記録 ボタン を 横並び */}
+                <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
                     onClick={async () => {
@@ -242,40 +188,57 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                     aria-pressed={!!m.wantToVisit}
                     aria-label={m.wantToVisit ? '行きたいから外す' : '行きたいに追加'}
                     title={m.wantToVisit ? '行きたいから外す' : '行きたいに追加'}
-                    className={`shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-full border-2 transition-colors active:scale-95 ${
+                    className={`shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors active:scale-95 ${
                       m.wantToVisit
                         ? 'bg-[#FFF8E1] border-[#FBC02D] text-[#F57F17]'
                         : 'bg-white border-[#D1D5DB] text-[#6B7280]'
                     } ${savingWant ? 'opacity-70' : ''}`}
                   >
-                    <Star size={16} strokeWidth={2.2} fill={m.wantToVisit ? '#FBC02D' : 'none'} />
+                    <Star size={18} strokeWidth={2.2} fill={m.wantToVisit ? '#FBC02D' : 'none'} />
                   </button>
                   <button
                     onClick={() => { tapHaptic(); router.push(`/visits/new?memberId=${m.id}`); }}
-                    className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#111] text-white text-[12px] font-bold px-3 py-1.5 active:scale-95 transition-transform"
+                    className="shrink-0 inline-flex items-center gap-1 rounded-full bg-[#111] text-white text-[13px] font-bold px-3.5 py-2 active:scale-95 transition-transform"
                     aria-label="訪問を記録する"
                   >
-                    <PencilLine size={14} strokeWidth={2.2} />
+                    <PencilLine size={16} strokeWidth={2.2} />
                     記録する
                   </button>
-                  {m.address && (
-                    <a
-                      href={
-                        m.lat != null && m.lng != null
-                          ? `https://www.google.com/maps/search/?api=1&query=${m.lat},${m.lng}`
-                          : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stripBuildingName(m.address))}`
-                      }
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label="Google Maps で開く"
-                      onClick={e => e.stopPropagation()}
-                      className="shrink-0 inline-flex items-center gap-1 h-7 px-2.5 rounded-full bg-[#F3F4F6] text-[11px] font-medium text-[#111] active:scale-95"
-                    >
-                      <MapPin size={11} />Maps
-                    </a>
-                  )}
                 </div>
               </div>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)]">
+                  {formatOrgLabelShort(m)}
+                </span>
+                <span className="flex items-center gap-1 text-xs text-[var(--color-subtext)]">
+                  <Clock size={14} strokeWidth={1.8} />
+                  {m.lastVisitDate
+                    ? `${formatDate(m.lastVisitDate, 'yyyy年M月d日')}${m.lastVisitHour !== undefined ? ` ${m.lastVisitHour}時` : ''}（${m.totalVisits}回）`
+                    : '----年--月--日'}
+                </span>
+              </div>
+              {m.address && (
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className="flex-1 min-w-0 text-xs text-[var(--color-subtext)] truncate flex items-center gap-1">
+                    <MapPin size={12} className="shrink-0" />
+                    {m.address}
+                  </span>
+                  <a
+                    href={
+                      m.lat != null && m.lng != null
+                        ? `https://www.google.com/maps/search/?api=1&query=${m.lat},${m.lng}`
+                        : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stripBuildingName(m.address))}`
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Google Maps で開く"
+                    onClick={e => e.stopPropagation()}
+                    className="shrink-0 inline-flex items-center gap-1 h-7 px-2.5 rounded-full bg-[#F3F4F6] text-[11px] font-medium text-[#111] active:scale-95"
+                  >
+                    <MapPin size={11} />Maps
+                  </a>
+                </div>
+              )}
             </div>
 
             {/* 訪問ログ: 訪問実績がある場合のみセクション丸ごと表示

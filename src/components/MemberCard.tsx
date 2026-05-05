@@ -34,20 +34,20 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
     <div
       className="flex items-start"
       style={{
-        padding: 'var(--tune-mc-pad-y, 0.625rem) var(--tune-mc-pad-x, 0.75rem)',
+        padding: 'var(--tune-mc-pad-y, 0.9375rem) var(--tune-mc-pad-x, 0.75rem)',
       }}
     >
       <div className="flex-1 min-w-0">
         {member.nameKana && (
           <span
             className="text-[var(--color-subtext)] block leading-tight"
-            style={{ fontSize: 'var(--tune-mc-kana, 0.625rem)' }}
+            style={{ fontSize: 'var(--tune-mc-kana, 0.5625rem)' }}
           >
             {member.nameKana}
           </span>
         )}
         <div className="flex items-center gap-1.5">
-          <span className="font-bold" style={{ fontSize: 'var(--tune-mc-name, 0.9375rem)' }}>
+          <span className="font-bold" style={{ fontSize: 'var(--tune-mc-name, 1rem)' }}>
             {member.name}
           </span>
           {age != null && (
@@ -61,13 +61,13 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
           <ChevronRight
             size={20}
             className="text-[var(--color-icon-gray)] shrink-0 ml-auto"
-            style={{ display: 'var(--tune-mc-chevron, inline-block)' }}
+            style={{ display: 'var(--tune-mc-chevron, none)' }}
           />
         </div>
         <div className="mt-0.5">
           <span
             className="font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)] inline-block max-w-full truncate"
-            style={{ fontSize: 'var(--tune-mc-meta, 0.6875rem)' }}
+            style={{ fontSize: 'var(--tune-mc-meta, 0.625rem)' }}
           >
             {formatOrgLabelShort(member)}
           </span>
@@ -75,7 +75,7 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
         {member.address && (
           <div
             className="mt-0.5 flex items-center gap-1 text-[var(--color-subtext)] truncate"
-            style={{ fontSize: 'var(--tune-mc-meta, 0.6875rem)' }}
+            style={{ fontSize: 'var(--tune-mc-meta, 0.625rem)' }}
           >
             <MapPin size={12} strokeWidth={1.8} className="shrink-0" />
             <span className="truncate">{member.address}</span>
@@ -83,7 +83,7 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
         )}
         <div
           className="mt-0.5 flex items-center gap-1 text-[var(--color-subtext)]"
-          style={{ fontSize: 'var(--tune-mc-meta, 0.6875rem)' }}
+          style={{ fontSize: 'var(--tune-mc-meta, 0.625rem)' }}
         >
           <Clock size={12} strokeWidth={1.8} />
           {member.lastVisitDate
@@ -100,7 +100,7 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
     <span
       className="shrink-0 self-stretch"
       style={{
-        width: 'var(--tune-mc-stripe, 3px)',
+        width: 'var(--tune-mc-stripe, 8px)',
         background: hasVisits ? orgColor : `${orgColor}55`,
       }}
     />

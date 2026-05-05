@@ -238,7 +238,7 @@ export default function MembersListSheet({
                           {group.label}
                         </span>
                       </div>
-                      <div className="flex flex-col" style={{ gap: 'var(--tune-mc-gap, 0px)' }}>
+                      <div className="flex flex-col" style={{ gap: 'var(--tune-mc-gap, 8px)' }}>
                         {group.members.map((m) => (
                           <MemberCard
                             key={m.id}
