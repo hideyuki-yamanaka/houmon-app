@@ -51,7 +51,7 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
           <span className="flex items-center gap-1 text-[11px] text-[var(--color-subtext)]">
             <Clock size={12} strokeWidth={1.8} />
             {member.lastVisitDate
-              ? `${formatDate(member.lastVisitDate, 'yyyy年M月d日')}(${member.totalVisits}回)`
+              ? `${formatDate(member.lastVisitDate, 'yyyy年M月d日')}${member.lastVisitHour !== undefined ? ` ${member.lastVisitHour}時` : ''}(${member.totalVisits}回)`
               : '----年--月--日'}
           </span>
         </div>

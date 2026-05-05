@@ -78,6 +78,9 @@ export interface Visit {
 // ── UI用の派生型 ──
 export interface MemberWithVisitInfo extends Member {
   lastVisitDate?: string;
+  /** 最終訪問の時刻 (24時間表記、0-23)。未設定なら undefined。
+   *  2026-05-05 B1 で visit に visited_hour を追加した連動。 */
+  lastVisitHour?: number;
   lastVisitStatus?: VisitStatus;
   totalVisits: number;
   isOverdue: boolean;

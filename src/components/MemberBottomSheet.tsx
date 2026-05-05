@@ -222,7 +222,7 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                 <span className="flex items-center gap-1 text-xs text-[var(--color-subtext)]">
                   <Clock size={14} strokeWidth={1.8} />
                   {m.lastVisitDate
-                    ? `${formatDate(m.lastVisitDate, 'yyyy年M月d日')}（${m.totalVisits}回）`
+                    ? `${formatDate(m.lastVisitDate, 'yyyy年M月d日')}${m.lastVisitHour !== undefined ? ` ${m.lastVisitHour}時` : ''}（${m.totalVisits}回）`
                     : '----年--月--日'}
                 </span>
               </div>
