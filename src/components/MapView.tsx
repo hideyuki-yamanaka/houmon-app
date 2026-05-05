@@ -16,6 +16,8 @@ import {
   MAP_DEFAULT_ZOOM,
   getMemberOrgColor,
 } from '../lib/constants';
+import { updateMember } from '../lib/storage';
+import { tapHaptic } from '../lib/haptics';
 
 // ── タイルレイヤー設定 ──
 // Google Maps と同じタイルサーバーを使う
@@ -357,6 +359,57 @@ function MapDragHandler({ onDrag }: { onDrag?: () => void }) {
 export default function MapView({ members, selectedMemberId, onMemberSelect, onMapClick, onUserMapDrag, layerMode = 'standard' }: MapViewProps) {
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
 
+  // 2026-05-05 ピン位置編集モード (Google Maps 風 長押しドラッグ)
+  // editingMemberId が非 null の時、その member のマーカーが draggable になり、
+  // 大きめの揺れる赤ピンに切り替わる。マップの空白タップ or 別ピンタップで解除。
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  const [savingMessage, setSavingMessage] = useState<string | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFiredRef = useRef(false);
+
+  const startLongPressDetect = (memberId: string) => {
+    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+    longPressFiredRef.current = false;
+    longPressTimerRef.current = setTimeout(() => {
+      setEditingMemberId(memberId);
+      longPressFiredRef.current = true;
+      tapHaptic();
+    }, 600);
+  };
+  const cancelLongPressDetect = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handlePinDragEnd = async (memberId: string, lat: number, lng: number) => {
+    setSavingMessage('ピン位置を保存中...');
+    try {
+      await updateMember(memberId, { lat, lng });
+    } catch (e) {
+      setSavingMessage(`保存失敗: ${e instanceof Error ? e.message : String(e)}`);
+      setTimeout(() => setSavingMessage(null), 2400);
+      return;
+    }
+    // 住所をリバースジオコードして連動更新 (失敗時はサイレント)
+    setSavingMessage('住所を再取得中...');
+    try {
+      const r = await fetch(`/api/geocode-reverse?lat=${lat}&lng=${lng}`);
+      const data = await r.json();
+      if (r.ok && data?.found && data.address) {
+        await updateMember(memberId, { address: data.address });
+        setSavingMessage(`住所を「${data.address}」に更新`);
+      } else {
+        setSavingMessage('住所は更新できませんでした');
+      }
+    } catch {
+      setSavingMessage('住所は更新できませんでした');
+    }
+    setTimeout(() => setSavingMessage(null), 2400);
+    setEditingMemberId(null);
+  };
+
   // マウント時、「既に許可済み」のときだけ watchPosition で青ドット表示する。
   // 許可未取得(prompt/denied) の場合は起動時に勝手にダイアログを出さず、
   // ユーザーが locate ボタンを押した時だけ prompt が出るようにする。
@@ -467,8 +520,22 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
       />
       <PanToSelected members={geoMembers} selectedId={selectedMemberId} />
       <FitToMembers members={geoMembers} />
-      <MapClickHandler onClick={onMapClick} />
-      <MapDragHandler onDrag={onUserMapDrag} />
+      <MapClickHandler
+        onClick={() => {
+          // 編集モード中のマップ空白タップは編集解除のみ (本来の onMapClick は呼ばない)
+          if (editingMemberId) {
+            setEditingMemberId(null);
+            return;
+          }
+          onMapClick?.();
+        }}
+      />
+      <MapDragHandler
+        onDrag={() => {
+          cancelLongPressDetect();
+          onUserMapDrag?.();
+        }}
+      />
       <SmoothZoomHandler />
       <LocationController onLocate={(lat, lng) => setCurrentLocation({ lat, lng })} />
 
@@ -483,22 +550,116 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
 
       {geoMembers.map(member => {
         const isSelected = member.id === selectedMemberId;
-        // 選択中はメモ化された selectedIcon、それ以外はキャッシュ済みの
-        // 非選択アイコンを使う。これにより selectedMemberId 変化時も、
-        // 非選択 marker の icon reference は同一のまま → DOM 置換が起きない。
-        const icon = isSelected && selectedIcon
-          ? selectedIcon
-          : (baseIcons.get(member.id) ?? createMemberPin(member, false));
+        const isEditing = member.id === editingMemberId;
+        // 編集モードのピンは赤くハイライト。それ以外は通常ロジック。
+        const icon = isEditing
+          ? createEditingPin(member)
+          : isSelected && selectedIcon
+            ? selectedIcon
+            : (baseIcons.get(member.id) ?? createMemberPin(member, false));
         return (
           <Marker
             key={member.id}
             position={[member.lat!, member.lng!]}
             icon={icon}
-            zIndexOffset={isSelected ? 1000 : 0}
-            eventHandlers={{ click: () => onMemberSelect(member.id) }}
+            zIndexOffset={isEditing ? 2500 : (isSelected ? 1000 : 0)}
+            draggable={isEditing}
+            eventHandlers={{
+              // 通常タップ: 長押しが発火しなければ通常選択。
+              click: () => {
+                if (longPressFiredRef.current) {
+                  // 長押しで編集モード入った直後の click は無視
+                  longPressFiredRef.current = false;
+                  return;
+                }
+                onMemberSelect(member.id);
+              },
+              // 長押し検出: mousedown / touchstart で start
+              //   (Leaflet は タッチも mousedown として emit する)
+              mousedown: () => startLongPressDetect(member.id),
+              mouseup: () => cancelLongPressDetect(),
+              mouseout: () => cancelLongPressDetect(),
+              dragstart: () => cancelLongPressDetect(),
+              dragend: (e) => {
+                const ll = (e.target as L.Marker).getLatLng();
+                void handlePinDragEnd(member.id, ll.lat, ll.lng);
+              },
+            }}
           />
         );
       })}
+      {savingMessage && (
+        <div className="leaflet-top leaflet-right" style={{ pointerEvents: 'none' }}>
+          <div className="leaflet-control" style={{ marginTop: 12, marginRight: 12 }}>
+            <div
+              style={{
+                background: 'rgba(17, 17, 17, 0.88)',
+                color: 'white',
+                fontSize: 12,
+                fontWeight: 600,
+                padding: '8px 12px',
+                borderRadius: 12,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+              }}
+            >
+              {savingMessage}
+            </div>
+          </div>
+        </div>
+      )}
+      {editingMemberId && (
+        <div className="leaflet-bottom leaflet-left" style={{ right: 0, marginBottom: 100, pointerEvents: 'none' }}>
+          <div className="leaflet-control" style={{ margin: '0 16px', float: 'none' }}>
+            <div
+              style={{
+                background: 'rgba(239, 68, 68, 0.95)',
+                color: 'white',
+                fontSize: 12,
+                fontWeight: 700,
+                padding: '8px 14px',
+                borderRadius: 999,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+                textAlign: 'center',
+                pointerEvents: 'auto',
+              }}
+            >
+              ピン編集モード — ドラッグして位置を直す。マップ空白タップで終了
+            </div>
+          </div>
+        </div>
+      )}
     </MapContainer>
   );
+}
+
+// ── 編集モード用ピン: 大きめの赤ピン + 揺れアニメ ──
+function createEditingPin(_m: MemberWithVisitInfo): L.DivIcon {
+  return L.divIcon({
+    className: 'map-pin-icon-editing',
+    html: `
+      <div style="
+        width: 48px;
+        height: 56px;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        animation: houmonPinWobble 1.1s ease-in-out infinite;
+      ">
+        <svg width="40" height="56" viewBox="0 0 28 40" fill="none"
+             style="filter: drop-shadow(0 4px 6px rgba(0,0,0,0.45));">
+          <path d="M14 0C6.268 0 0 6.268 0 14C0 24.5 14 40 14 40S28 24.5 28 14C28 6.268 21.732 0 14 0Z"
+                fill="#EF4444" stroke="#FFFFFF" stroke-width="2.5"/>
+          <circle cx="14" cy="13.5" r="5.5" fill="#FFFFFF"/>
+        </svg>
+      </div>
+      <style>
+        @keyframes houmonPinWobble {
+          0%, 100% { transform: rotate(-4deg) translateY(0); }
+          50%      { transform: rotate(4deg) translateY(-2px); }
+        }
+      </style>
+    `,
+    iconSize: [48, 56],
+    iconAnchor: [24, 56],
+  });
 }
