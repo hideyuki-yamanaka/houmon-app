@@ -69,9 +69,17 @@ const DEFS: TuneDef[] = [
 
 const STORAGE_KEY = 'houmon-app:design-tuner-v1';
 
+// パネル高さの保存キー (px、ユーザーがドラッグして決めた値)
+const PANEL_HEIGHT_KEY = 'houmon-app:design-tuner-height-v1';
+
 export default function DesignTuner() {
   const [open, setOpen] = useState(false);
+  // グループ単位の折りたたみ (個別に開閉可能。デフォルト全展開)。
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
+  // パネル全体の高さ (px)。上端のドラッグハンドルでユーザーが調整可能。
+  // デフォルト = 約 50vh 相当だが SSR で window 取れないので、初期値は固定 + マウント後に
+  // localStorage から復元。最小 200px、最大 = window.innerHeight - 200px くらい。
+  const [panelHeight, setPanelHeight] = useState<number>(420);
   const [values, setValues] = useState<Record<string, number>>(() => {
     const init: Record<string, number> = {};
     DEFS.forEach((d) => (init[d.key] = d.default));
@@ -92,8 +100,51 @@ export default function DesignTuner() {
     } catch {
       // 壊れてたら無視
     }
+    // パネル高さ復元 (なければデフォルト 420px、画面が小さければ 50vh で調整)
+    try {
+      const rawH = window.localStorage.getItem(PANEL_HEIGHT_KEY);
+      if (rawH) {
+        const h = Number(rawH);
+        if (Number.isFinite(h) && h > 100) setPanelHeight(h);
+      } else {
+        setPanelHeight(Math.max(240, Math.min(420, Math.floor(window.innerHeight * 0.5))));
+      }
+    } catch { /* 無視 */ }
     setHydrated(true);
   }, []);
+
+  // パネル高さを localStorage に保存
+  useEffect(() => {
+    if (!hydrated) return;
+    try { window.localStorage.setItem(PANEL_HEIGHT_KEY, String(panelHeight)); } catch { /* 無視 */ }
+  }, [panelHeight, hydrated]);
+
+  // 上端ドラッグでパネル高さを変更するハンドラ。
+  // ハンドル要素の onPointerDown から呼ぶ。touch/mouse 両対応のため pointer events 使用。
+  const startResize = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startH = panelHeight;
+    // ドラッグ中は body の選択を無効化 (誤テキスト選択防止)
+    const prevSel = document.body.style.userSelect;
+    document.body.style.userSelect = 'none';
+    const max = Math.max(200, window.innerHeight - 180);
+    const onMove = (ev: PointerEvent) => {
+      // 上に動かすほど高さが増える (下端固定なので)
+      const delta = startY - ev.clientY;
+      const next = Math.max(180, Math.min(max, startH + delta));
+      setPanelHeight(next);
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      document.body.style.userSelect = prevSel;
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }, [panelHeight]);
 
   // CSS 変数を :root に反映 + localStorage に保存
   useEffect(() => {
@@ -194,52 +245,59 @@ export default function DesignTuner() {
         {open ? <X size={18} /> : <Settings2 size={18} />}
       </button>
 
-      {/* パネル本体 */}
+      {/* パネル本体: 上端にドラッグハンドル + ヘッダー + 内部スクロール領域
+          高さはユーザーがドラッグで調整可能 (panelHeight)。 */}
       {open && (
         <div
-          className="fixed right-4 z-[99] w-[320px] max-w-[calc(100vw-32px)] max-h-[70vh] overflow-y-auto rounded-2xl bg-white border border-[#E5E7EB] p-4"
+          className="fixed right-4 z-[99] w-[300px] max-w-[calc(100vw-32px)] rounded-2xl bg-white/95 backdrop-blur border border-[#E5E7EB] flex flex-col"
           style={{
             bottom: 'calc(128px + env(safe-area-inset-bottom))',
+            height: panelHeight,
             boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
           }}
         >
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm font-bold">デザインチューナー</h4>
-            <div className="flex items-center gap-2">
+          {/* 上端のドラッグハンドル — 上方向にドラッグでパネルを高く、下方向で低く */}
+          <div
+            onPointerDown={startResize}
+            className="shrink-0 h-3 flex items-center justify-center cursor-ns-resize touch-none select-none"
+            title="ドラッグでパネルの高さを変更"
+          >
+            <span className="block w-10 h-1 rounded-full bg-[#D1D5DB]" />
+          </div>
+
+          {/* ヘッダー (固定) */}
+          <div className="flex items-center justify-between px-3 pb-2 shrink-0">
+            <h4 className="text-[12px] font-bold">デザインチューナー</h4>
+            <div className="flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={() => setShowExport((v) => !v)}
-                className="text-[11px] font-bold text-white bg-[#111] inline-flex items-center gap-1 px-2 py-1 rounded-md active:opacity-70"
+                className="text-[10px] font-bold text-white bg-[#111] inline-flex items-center gap-1 px-1.5 py-0.5 rounded active:opacity-70"
                 title="Claude に渡すための現在値を表示"
               >
-                <Copy size={11} />
-                Export
+                <Copy size={10} />Export
               </button>
               <button
                 type="button"
                 onClick={reset}
-                className="text-[11px] text-[var(--color-subtext)] inline-flex items-center gap-1 active:opacity-60"
+                className="text-[10px] text-[var(--color-subtext)] inline-flex items-center gap-0.5 active:opacity-60"
                 title="全項目を初期値に戻す"
               >
-                <RotateCcw size={12} />
-                全リセット
+                <RotateCcw size={11} />リセット
               </button>
             </div>
           </div>
-          <p className="text-[10px] text-[var(--color-subtext)] leading-snug mb-3">
-            スライダーを動かすと即反映。値は端末に保存されます。『Export』で現在値を Claude 用にコピーできます。
-          </p>
 
           {showExport && (
-            <div className="mb-3 p-2 rounded-lg bg-[#FAFAFA] border border-[#E5E7EB]">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[11px] font-bold">現在値（これを Claude に貼り付けて）</span>
+            <div className="p-2 border-y border-[#F0F0F0] bg-[#FAFAFA] shrink-0">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-bold">現在値</span>
                 <button
                   type="button"
                   onClick={copyExport}
-                  className="text-[11px] font-bold inline-flex items-center gap-1 px-2 py-1 rounded bg-[#111] text-white active:opacity-70"
+                  className="text-[10px] font-bold inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#111] text-white active:opacity-70"
                 >
-                  {copied ? <Check size={11} /> : <Copy size={11} />}
+                  {copied ? <Check size={10} /> : <Copy size={10} />}
                   {copied ? 'コピー済' : 'コピー'}
                 </button>
               </div>
@@ -247,17 +305,18 @@ export default function DesignTuner() {
                 readOnly
                 value={exportText}
                 onFocus={(e) => e.target.select()}
-                className="w-full h-40 text-[10px] font-mono leading-tight p-2 bg-white border border-[#E5E7EB] rounded resize-none"
+                className="w-full h-24 text-[9px] font-mono leading-tight p-1.5 bg-white border border-[#E5E7EB] rounded resize-none"
               />
             </div>
           )}
 
-          <div className="space-y-3">
+          {/* グループ一覧 (内部スクロール、グループごとに個別折りたたみ) */}
+          <div className="overflow-y-auto flex-1 px-2 pt-1 pb-2 space-y-1.5">
             {groups.map((g) => {
               const collapsed = collapsedGroups[g.name];
               return (
-                <section key={g.name} className="rounded-xl border border-[#F0F0F0] overflow-hidden">
-                  <div className="flex items-center bg-[#FAFAFA] px-3 py-1.5">
+                <section key={g.name} className="rounded-lg border border-[#F0F0F0] overflow-hidden">
+                  <div className="flex items-center bg-[#FAFAFA] px-2 py-1">
                     <button
                       type="button"
                       onClick={() =>
@@ -265,7 +324,7 @@ export default function DesignTuner() {
                       }
                       className="flex-1 flex items-center gap-1 text-left"
                     >
-                      {collapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
+                      {collapsed ? <ChevronDown size={11} /> : <ChevronUp size={11} />}
                       <span className="text-[11px] font-bold">{g.name}</span>
                     </button>
                     <button
@@ -278,14 +337,13 @@ export default function DesignTuner() {
                     </button>
                   </div>
                   {!collapsed && (
-                    <div className="p-3 space-y-2.5">
+                    <div className="p-2 space-y-2">
                       {g.items.map((d) => (
                         <div key={d.key}>
-                          <div className="flex items-baseline justify-between mb-0.5">
-                            <label className="text-[11px] font-semibold leading-tight">{d.label}</label>
-                            <span className="text-[11px] tabular-nums text-[var(--color-subtext)]">
-                              {values[d.key]}
-                              {d.unit}
+                          <div className="flex items-baseline justify-between mb-0.5 gap-2">
+                            <label className="text-[10px] font-semibold leading-tight truncate">{d.label}</label>
+                            <span className="text-[10px] tabular-nums text-[var(--color-subtext)] shrink-0">
+                              {values[d.key]}{d.unit}
                             </span>
                           </div>
                           <input
