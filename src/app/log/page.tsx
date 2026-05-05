@@ -682,7 +682,11 @@ export default function LogPage() {
                     {allDistricts.map(([district, data]) => {
                       const hex = DISTRICT_COLORS[district]?.hex ?? '#6B7280';
                       // 旧連結形式 "豊岡部英雄地区" の互換 (3 階層化以降は通常剥がし不要)
-                      const short = district.replace(/豊岡部|光陽部|豊岡中央支部/g, '');
+                      // 地区が空文字 (district 未設定の人) の場合は「??地区」を出す。
+                      // ?? は 2026-05-05 から「未設定」placeholder の統一表記。
+                      const short = district
+                        ? district.replace(/豊岡部|光陽部|豊岡中央支部/g, '')
+                        : '??地区';
                       const percent = data.total > 0 ? Math.min(100, (data.visited / data.total) * 100) : 0;
                       const r = 14;
                       const c = 2 * Math.PI * r;
