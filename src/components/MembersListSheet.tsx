@@ -141,7 +141,9 @@ export default function MembersListSheet({
   }, [filtered]);
 
   const hasAnyFilter =
-    filter.parent !== null ||
+    filter.honbu !== null ||
+    filter.bu !== null ||
+    filter.district !== null ||
     filter.category !== null ||
     periodFilter !== null ||
     categoryFilter !== null;
