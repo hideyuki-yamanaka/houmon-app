@@ -145,7 +145,9 @@ for (const c of changes) {
     body: JSON.stringify({
       honbu: c.to.honbu,
       bu: c.to.bu,
-      district: c.to.district,
+      // district は NOT NULL 制約が残ってるので null の代わりに空文字を入れる
+      // (formatOrgLabel は trim 後 falsy なら無視するので 表示は変わらない)
+      district: c.to.district ?? '',
       updated_at: new Date().toISOString(),
     }),
   });
