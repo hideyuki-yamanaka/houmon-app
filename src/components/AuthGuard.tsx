@@ -18,7 +18,7 @@ import { useAuthUser } from '../lib/auth';
 // 認証不要のパス(ホワイトリスト)
 //   /invite/[token] は 中で 「未ログインなら /login?next=... に飛ばす」 を
 //   独自に行うため、 AuthGuard 側では素通しさせる。
-const PUBLIC_PATHS = ['/login', '/auth/callback', '/invite'];
+const PUBLIC_PATHS = ['/login', '/auth/callback', '/invite', '/mock'];
 
 export default function AuthGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname();
