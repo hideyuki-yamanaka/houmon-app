@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ExternalLink, MapPin } from 'lucide-react';
+import Link from 'next/link';
+import { ExternalLink, MapPin, Pencil } from 'lucide-react';
 import type { Member, MemberRow } from '../lib/types';
 import { STATUS_GRID_ITEMS, STATUS_LEVEL_DISPLAY, type StatusLevel } from '../lib/constants';
 import { updateMember } from '../lib/storage';
@@ -237,7 +238,7 @@ function SelectField({ label, value, fieldKey, memberId, options, onSaved, half,
 }
 
 // ── インライン編集フィールド ──
-function EditableField({ label, value, fieldKey, memberId, link, mapsLink, onSaved, half, suffix, highlightQuery }: {
+function EditableField({ label, value, fieldKey, memberId, link, mapsLink, pinEditHref, onSaved, half, suffix, highlightQuery }: {
   label: string; value: string | number | undefined; fieldKey: string;
   memberId: string; link?: string; onSaved: (key: string, value: string) => void;
   half?: boolean; suffix?: string;
@@ -246,6 +247,8 @@ function EditableField({ label, value, fieldKey, memberId, link, mapsLink, onSav
   /** B案: 右端に「Maps」明示ボタンを置く. テキストタップは編集に使う.
    *  住所行向け. 電話/メール等の link= とは併用しない想定. */
   mapsLink?: string;
+  /** mapsLink と併用。住所行で 別途「ピン編集」リンクを足す時に使う. */
+  pinEditHref?: string;
 }) {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(String(value ?? ''));
@@ -315,6 +318,16 @@ function EditableField({ label, value, fieldKey, memberId, link, mapsLink, onSav
               Maps
             </a>
           )}
+          {pinEditHref && (
+            <Link
+              href={pinEditHref}
+              aria-label="ピン位置を編集"
+              className="shrink-0 inline-flex items-center gap-1 h-8 px-3 rounded-full bg-[#F3F4F6] text-[12px] font-medium text-[#111] active:scale-95"
+            >
+              <Pencil size={12} />
+              ピン編集
+            </Link>
+          )}
         </div>
       </div>
     );
@@ -382,9 +395,9 @@ export default function MemberInfo({ member, onUpdate, highlightQuery, highlight
       .catch(() => { /* サイレントに失敗 */ });
   }, [member?.id, member?.name, member?.nameKana, handleSaved]);
 
-  const F = (key: string, label: string, value: string | number | undefined, opts?: { link?: string; mapsLink?: string; half?: boolean; suffix?: string }) => (
+  const F = (key: string, label: string, value: string | number | undefined, opts?: { link?: string; mapsLink?: string; pinEditHref?: string; half?: boolean; suffix?: string }) => (
     <EditableField key={key} fieldKey={key} label={label} value={value}
-      memberId={local.id} link={opts?.link} mapsLink={opts?.mapsLink}
+      memberId={local.id} link={opts?.link} mapsLink={opts?.mapsLink} pinEditHref={opts?.pinEditHref}
       onSaved={handleSaved} half={opts?.half} suffix={opts?.suffix}
       highlightQuery={highlightQuery} />
   );
@@ -432,7 +445,10 @@ export default function MemberInfo({ member, onUpdate, highlightQuery, highlight
             />
           </div>
 
-          {F('address', '住所', local.address, { mapsLink: local.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(local.address)}` : undefined })}
+          {F('address', '住所', local.address, {
+            mapsLink: local.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(local.address)}` : undefined,
+            pinEditHref: `/members/${local.id}/pin-edit`,
+          })}
         </div>
 
         {/* 開いた時だけ見える残り */}
