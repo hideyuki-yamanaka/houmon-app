@@ -295,21 +295,14 @@ export async function createVisit(
   // RLS の WITH CHECK が auth.uid() = user_id を要求するので、ここで埋めとかんと INSERT が拒否される。
   // 同時に created_by に "実際にこの記録を書いた人" として auth.uid() を入れる。
   // (共有機能で「誰が記入」を表示するため。user_id とは将来的に分離する可能性あり)
-  // 移行中(NEXT_PUBLIC_AUTH_ENABLED!='1')は user_id 無しでも INSERT できる。
-  const authEnabled = process.env.NEXT_PUBLIC_AUTH_ENABLED === '1';
-  if (authEnabled) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('未ログイン状態では訪問記録を作成できません');
-    const rowWithUser = { ...row, user_id: user.id, created_by: user.id };
-    const { error } = await supabase.from('visits').insert(rowWithUser);
-    if (error) throw error;
-    // 共有チームメンバーに Web Push 通知 (fire-and-forget、失敗しても本処理は成功扱い)
-    notifyVisitCreated(id).catch(err => console.warn('[notify] visit-created 失敗:', err));
-    return toVisit(rowWithUser);
-  }
-  const { error } = await supabase.from('visits').insert(row);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未ログイン状態では訪問記録を作成できません');
+  const rowWithUser = { ...row, user_id: user.id, created_by: user.id };
+  const { error } = await supabase.from('visits').insert(rowWithUser);
   if (error) throw error;
-  return toVisit(row);
+  // 共有チームメンバーに Web Push 通知 (fire-and-forget、失敗しても本処理は成功扱い)
+  notifyVisitCreated(id).catch(err => console.warn('[notify] visit-created 失敗:', err));
+  return toVisit(rowWithUser);
 }
 
 // ── 訪問作成時に同じチームの他のメンバーへ Push 通知をトリガー ─────────

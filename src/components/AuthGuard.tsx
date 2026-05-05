@@ -6,10 +6,7 @@
 // /login と /auth/callback 以外のページをこのガードで包む。
 // 未ログインなら /login に redirect、認証チェック中はローディング表示。
 //
-// 緊急 ON/OFF スイッチ:
-//   NEXT_PUBLIC_AUTH_ENABLED='1' の時だけ認証必須になる。
-//   未設定 or それ以外なら認証スキップ(全員素通し)。
-//   Phase 1 移行中の "Supabase 側の準備が終わるまで素通し" 用。
+// ローカル mock モード (env 未設定) は素通し。
 // ──────────────────────────────────────────────────────────────
 
 import { useEffect, type ReactNode } from 'react';
@@ -23,10 +20,6 @@ import { useAuthUser } from '../lib/auth';
 //   独自に行うため、 AuthGuard 側では素通しさせる。
 const PUBLIC_PATHS = ['/login', '/auth/callback', '/invite'];
 
-// マルチユーザー化 移行中の緊急スイッチ。
-// Vercel の env で NEXT_PUBLIC_AUTH_ENABLED=1 にした時だけ認証ガードが効く。
-const AUTH_ENABLED = process.env.NEXT_PUBLIC_AUTH_ENABLED === '1';
-
 export default function AuthGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -35,7 +28,6 @@ export default function AuthGuard({ children }: { children: ReactNode }) {
   const isPublic = PUBLIC_PATHS.some(p => pathname === p || pathname?.startsWith(`${p}/`));
 
   useEffect(() => {
-    if (!AUTH_ENABLED) return; // 認証 OFF: スキップ
     if (isMockMode) return; // ローカル mock は認証不要
     if (loading) return;
     if (!user && !isPublic) {
@@ -43,8 +35,6 @@ export default function AuthGuard({ children }: { children: ReactNode }) {
     }
   }, [user, loading, isPublic, pathname, router]);
 
-  // 認証 OFF: 全部素通し(Phase 1 移行中)
-  if (!AUTH_ENABLED) return <>{children}</>;
   // mock mode は素通し
   if (isMockMode) return <>{children}</>;
   // 公開ページは素通し
