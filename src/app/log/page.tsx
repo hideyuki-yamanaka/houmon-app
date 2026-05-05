@@ -354,8 +354,8 @@ export default function LogPage() {
                     className="tabular-nums leading-none text-[#111]"
                     style={{
                       fontSize: 'var(--tune-hero-size, 4rem)',
-                      fontWeight: 'var(--tune-hero-weight, 800)',
-                      letterSpacing: 'var(--tune-hero-tracking, -0.06em)',
+                      fontWeight: 'var(--tune-hero-weight, 700)',
+                      letterSpacing: 'var(--tune-hero-tracking, -0.03em)',
                     }}
                   />
                   <span className="text-sm font-bold text-[#111]">回</span>
@@ -501,8 +501,8 @@ export default function LogPage() {
                     className="tabular-nums leading-none text-[#111]"
                     style={{
                       fontSize: 'var(--tune-hero-size, 4rem)',
-                      fontWeight: 'var(--tune-hero-weight, 800)',
-                      letterSpacing: 'var(--tune-hero-tracking, -0.06em)',
+                      fontWeight: 'var(--tune-hero-weight, 700)',
+                      letterSpacing: 'var(--tune-hero-tracking, -0.03em)',
                     }}
                   />
                   <span className="text-sm font-bold text-[#111]">%</span>

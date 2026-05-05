@@ -67,8 +67,8 @@ const DEFS: TuneDef[] = [
   // ── 家庭訪問の回数 (Hero ナンバー) ──
   { key: 'heroSize',       label: 'Heroナンバーのサイズ',     cssVar: '--tune-hero-size',       unit: 'rem', min: 1.5,  max: 6,    step: 0.125,  default: 4,    group: '家庭訪問の回数' },
   // フォントウェイト (100-900、太字を細かく刻める)
-  { key: 'heroWeight',     label: 'Heroナンバーの太さ (100-900)', cssVar: '--tune-hero-weight', unit: '', min: 100, max: 900, step: 100, default: 800, group: '家庭訪問の回数' },
-  { key: 'heroTracking',   label: 'Heroナンバーの文字間',     cssVar: '--tune-hero-tracking',   unit: 'em',  min: -0.1, max: 0.05, step: 0.005, default: -0.06, group: '家庭訪問の回数' },
+  { key: 'heroWeight',     label: 'Heroナンバーの太さ (100-900)', cssVar: '--tune-hero-weight', unit: '', min: 100, max: 900, step: 100, default: 700, group: '家庭訪問の回数' },
+  { key: 'heroTracking',   label: 'Heroナンバーの文字間',     cssVar: '--tune-hero-tracking',   unit: 'em',  min: -0.1, max: 0.05, step: 0.005, default: -0.03, group: '家庭訪問の回数' },
 
   // ── ランキング (訪問回数 TOP5) ──
   { key: 'rankingRowPad',  label: '行の上下パディング',       cssVar: '--tune-ranking-row-pad', unit: 'rem', min: 0.1,  max: 1,    step: 0.0625, default: 0.725,group: 'ランキング' },

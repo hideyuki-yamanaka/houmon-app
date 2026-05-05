@@ -228,8 +228,15 @@ export default function MembersListSheet({
                 <div className="space-y-1">
                   {grouped.map((group) => (
                     <div key={group.label}>
-                      <div className="text-xs font-bold text-[var(--color-subtext)] bg-white sticky top-0 pt-3 pb-1.5 px-1 z-10">
-                        {group.label}行
+                      {/* 2026-05-06: 案 2 (半透明+ぼかし) ベースを更にコンパクト化。
+                          上にベタ付け (pt-0)、控えめサイズ、backdrop-blur で重なり自然。 */}
+                      <div
+                        className="sticky top-0 z-10 -mx-1 px-1 py-0.5 backdrop-blur-md"
+                        style={{ background: 'rgba(255,255,255,0.75)' }}
+                      >
+                        <span className="text-[10px] font-medium text-[var(--color-subtext)] tracking-wide">
+                          {group.label}
+                        </span>
                       </div>
                       <div className="flex flex-col" style={{ gap: 'var(--tune-mc-gap, 0px)' }}>
                         {group.members.map((m) => (
