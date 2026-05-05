@@ -104,8 +104,6 @@ export default function LogPage() {
   const [members, setMembers] = useState<MemberWithVisitInfo[]>([]);
   const [allVisits, setAllVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(true);
-  // 地区セクションのアコーディオン展開状態 — 9件を超えたら畳む
-  const [expandDistrict, setExpandDistrict] = useState(false);
   // ドリルダウン: 各UIタップで開く メンバー一覧シート
   const [sheetSpec, setSheetSpec] = useState<SheetSpec | null>(null);
   // 2026-05-04 フィルタ: 人 (作成者) + 期間
@@ -660,71 +658,63 @@ export default function LogPage() {
               </div>
             </div>
 
-            {/* ────────────── 地区別タイル ────────────── */}
+            {/* ────────────── 地区別 (ドーナツ × シングルカラム / 案 1) ──────────────
+                2026-05-05: 旧 3 列タイルから「左ドーナツ + 数値右」 1 列リストに刷新。
+                  - 数値が 2〜3 桁になっても折り返さない (右揃え固定幅 + tabular-nums)
+                  - 全地区がスクロールで閲覧可能 ("続きを見る" ボタン廃止)
+                  - 行 = 1 つの地区、タップで MemberBottomSheet を開く */}
             {(() => {
               const allDistricts = Array.from(stats.districtStats.entries());
               allDistricts.sort(([, a], [, b]) => b.visited - a.visited);
-              const visibleDistricts = expandDistrict ? allDistricts : allDistricts.slice(0, 9);
               return (
                 <div
-                  className="ios-card hover:!opacity-100 md:col-span-1 lg:col-span-2"
-                  style={{ padding: 'var(--tune-card-pad, 2.125rem)' }}
+                  className="ios-card hover:!opacity-100 md:col-span-1 lg:col-span-2 flex flex-col"
+                  style={{ padding: 'var(--tune-card-pad, 2.125rem)', maxHeight: 480 }}
                 >
-                  <div className="flex items-baseline gap-2 mb-2.5">
+                  <div className="flex items-baseline gap-2 mb-2.5 shrink-0">
                     <div>
                       <h3 className="text-lg font-bold leading-tight">地区別</h3>
                       <p className="text-xs text-[var(--color-subtext)] mt-0.5">訪問済み人数 ／ 地区の総人数</p>
                     </div>
                     <span className="text-xs text-[var(--color-subtext)] ml-auto">全{allDistricts.length}地区</span>
                   </div>
-                  <div
-                    className="grid grid-cols-3"
-                    style={{ gap: 'var(--tune-district-gap, 0.5rem)' }}
-                  >
-                    {visibleDistricts.map(([district, data]) => {
+                  <ul className="flex-1 overflow-y-auto -mx-1 pr-1 divide-y divide-[#F0F0F0]">
+                    {allDistricts.map(([district, data]) => {
                       const hex = DISTRICT_COLORS[district]?.hex ?? '#6B7280';
-                      // 2026-05-05 正規化後 district は "英雄地区" 等で 単独表示で十分。
-                      // 旧形式 "豊岡部英雄地区" がまだ残ってる場合は念のため部名を剥がす。
+                      // 旧連結形式 "豊岡部英雄地区" の互換 (3 階層化以降は通常剥がし不要)
                       const short = district.replace(/豊岡部|光陽部|豊岡中央支部/g, '');
+                      const percent = data.total > 0 ? Math.min(100, (data.visited / data.total) * 100) : 0;
+                      const r = 14;
+                      const c = 2 * Math.PI * r;
+                      const dash = (percent / 100) * c;
                       return (
-                        <button
-                          key={district}
-                          type="button"
-                          onClick={() => setSheetSpec({ kind: 'district', district })}
-                          aria-label={`${short}のメンバー ${data.total}人を見る`}
-                          className="rounded-xl px-3 py-2.5 flex flex-col justify-between bg-[#F7F7F8] border border-[#EBEBEB] text-left active:opacity-70 transition-opacity"
-                          style={{ aspectRatio: 'var(--tune-district-aspect, 2.3)' }}
-                        >
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: hex }} />
-                            <span className="text-[13px] font-semibold text-[#111] truncate">{short}</span>
-                          </div>
-                          <div className="flex items-baseline gap-1">
-                            <span
-                              className="font-black tabular-nums leading-none text-[#111]"
-                              style={{ fontSize: 'var(--tune-district-num, 1.875rem)' }}
-                            >
-                              {data.visited}
+                        <li key={district}>
+                          <button
+                            type="button"
+                            onClick={() => setSheetSpec({ kind: 'district', district })}
+                            aria-label={`${short}のメンバー ${data.total}人を見る`}
+                            className="w-full flex items-center gap-3 py-2 px-1 text-left active:opacity-60 transition-opacity"
+                          >
+                            <span className="relative shrink-0" style={{ width: 32, height: 32 }}>
+                              <svg viewBox="0 0 32 32" className="w-full h-full -rotate-90">
+                                <circle cx="16" cy="16" r={r} fill="none" stroke="#E5E5E5" strokeWidth="4" />
+                                <circle
+                                  cx="16" cy="16" r={r} fill="none"
+                                  stroke={hex} strokeWidth="4" strokeLinecap="round"
+                                  strokeDasharray={`${dash} ${c}`}
+                                />
+                              </svg>
                             </span>
-                            <span className="text-[11px] font-medium tabular-nums text-[var(--color-subtext)]">
-                              / {data.total}人
+                            <span className="text-[13px] font-semibold flex-1 truncate text-[#111]">{short}</span>
+                            <span className="tabular-nums text-right shrink-0">
+                              <span className="text-[14px] font-bold text-[#111]">{data.visited}</span>
+                              <span className="text-[11px] text-[var(--color-subtext)]"> / {data.total}人</span>
                             </span>
-                          </div>
-                        </button>
+                          </button>
+                        </li>
                       );
                     })}
-                  </div>
-                  {allDistricts.length > 9 && (
-                    <div className="flex justify-center mt-3">
-                      <button
-                        onClick={() => setExpandDistrict(v => !v)}
-                        aria-expanded={expandDistrict}
-                        className="px-4 py-1.5 rounded-full border border-[#D1D5DB] text-[11px] text-[#6B7280] bg-white active:opacity-60 transition-opacity"
-                      >
-                        {expandDistrict ? '閉じる' : '続きを見る'}
-                      </button>
-                    </div>
-                  )}
+                  </ul>
                 </div>
               );
             })()}
