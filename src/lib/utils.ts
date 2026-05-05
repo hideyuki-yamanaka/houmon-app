@@ -126,7 +126,7 @@ const ORG_PLACEHOLDERS: Record<string, string> = {
 };
 
 const ORG_SUFFIX = { honbu: '本部', bu: '部', district: '地区' } as const;
-const ORG_EMPTY = { honbu: '--本部', bu: '--部', district: '--地区' } as const;
+const ORG_EMPTY = { honbu: '??本部', bu: '??部', district: '??地区' } as const;
 
 type OrgKind = keyof typeof ORG_SUFFIX;
 

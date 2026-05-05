@@ -25,8 +25,11 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
   const age = resolveAge(member);
   const showLogs = !!withLogs && Array.isArray(visits) && visits.length > 0;
 
+  // 2026-05-05: 案 1 (縦分割 3 行) を採用。1 行に「組織+ヤング+訪問日」を
+  // 詰め込むと折り返し破綻が起きていたため、組織 / 訪問日 を別行に分離。
+  // ヤングは名前行の末尾に置く (タグ単独で 1 行は使わない)。
   const head = (
-    <div className="px-3 py-2.5 flex items-center gap-3">
+    <div className="px-3 py-2.5 flex items-start gap-3">
       <MemberPin member={member} visited={hasVisits} />
       <div className="flex-1 min-w-0">
         {member.nameKana && (
@@ -37,23 +40,23 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
           {age != null && (
             <span className="text-[11px] font-normal text-[var(--color-subtext)]">({age})</span>
           )}
-          <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0" />
-        </div>
-        <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)]">
-            {formatOrgLabelShort(member)}
-          </span>
           {member.category === 'young' && (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#0EA5E9] text-white leading-none">
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#0EA5E9] text-white leading-none whitespace-nowrap">
               ヤング
             </span>
           )}
-          <span className="flex items-center gap-1 text-[11px] text-[var(--color-subtext)]">
-            <Clock size={12} strokeWidth={1.8} />
-            {member.lastVisitDate
-              ? `${formatDate(member.lastVisitDate, 'yyyy年M月d日')}${member.lastVisitHour !== undefined ? ` ${member.lastVisitHour}時` : ''}(${member.totalVisits}回)`
-              : '----年--月--日'}
+          <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0 ml-auto" />
+        </div>
+        <div className="mt-0.5">
+          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)] inline-block max-w-full truncate">
+            {formatOrgLabelShort(member)}
           </span>
+        </div>
+        <div className="mt-0.5 flex items-center gap-1 text-[11px] text-[var(--color-subtext)]">
+          <Clock size={12} strokeWidth={1.8} />
+          {member.lastVisitDate
+            ? `${formatDate(member.lastVisitDate, 'yyyy年M月d日')}${member.lastVisitHour !== undefined ? ` ${member.lastVisitHour}時` : ''}(${member.totalVisits}回)`
+            : '----年--月--日'}
         </div>
       </div>
     </div>

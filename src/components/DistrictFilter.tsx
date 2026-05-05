@@ -237,7 +237,7 @@ export default function DistrictFilter({ selection, onChange, members, alwaysOpe
                 style={isSel ? { backgroundColor: NONE_HEX, borderColor: NONE_HEX, color: '#fff' } : undefined}
                 title="本部未設定"
               >
-                --本部({counts.honbuNone})
+                ??本部({counts.honbuNone})
               </button>
             );
           })()}
@@ -286,7 +286,7 @@ export default function DistrictFilter({ selection, onChange, members, alwaysOpe
                 style={isSel ? { backgroundColor: NONE_HEX, borderColor: NONE_HEX, color: '#fff' } : undefined}
                 title="部未設定"
               >
-                --部({noneCount})
+                ??部({noneCount})
               </button>
             );
           })()}
@@ -337,7 +337,7 @@ export default function DistrictFilter({ selection, onChange, members, alwaysOpe
                 style={isSel ? { backgroundColor: NONE_HEX, borderColor: NONE_HEX, color: '#fff' } : undefined}
                 title="地区未設定"
               >
-                --地区({noneCount})
+                ??地区({noneCount})
               </button>
             );
           })()}

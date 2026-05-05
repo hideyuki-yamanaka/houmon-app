@@ -76,16 +76,16 @@ const samples: Sample[] = [
 
 // 表示用の組織ラベル整形 (utils.ts の formatOrgLabel と同等の簡易版)
 function orgLabel(s: Sample) {
-  const honbu = s.honbu || '--本部';
-  const bu = s.bu || '--部';
-  const district = s.district || '--地区';
+  const honbu = s.honbu || '??本部';
+  const bu = s.bu || '??部';
+  const district = s.district || '??地区';
   return `${honbu}・${bu}・${district}`;
 }
 function orgParts(s: Sample) {
   return {
-    honbu: s.honbu || '--本部',
-    bu: s.bu || '--部',
-    district: s.district || '--地区',
+    honbu: s.honbu || '??本部',
+    bu: s.bu || '??部',
+    district: s.district || '??地区',
     hasGap: !s.bu || !s.district,
   };
 }
