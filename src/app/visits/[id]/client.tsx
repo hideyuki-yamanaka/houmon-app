@@ -129,7 +129,12 @@ export default function VisitDetailClient() {
                   <span>日付</span>
                   {author.userId && <VisitAuthorChip author={author} />}
                 </div>
-                <div className="text-sm font-medium">{formatDate(visit.visitedAt, 'yyyy年M月d日')}</div>
+                <div className="text-sm font-medium">
+                  {formatDate(visit.visitedAt, 'yyyy年M月d日')}
+                  {visit.visitedHour !== undefined && (
+                    <span className="ml-1.5 text-[var(--color-subtext)] font-normal">{visit.visitedHour}時</span>
+                  )}
+                </div>
               </div>
               <Link
                 href={`/visits/new?memberId=${visit.memberId}&visitId=${visit.id}`}

@@ -46,6 +46,9 @@ function persistMockVisits(): void {
 function applyMockUpdates(current: Visit, updates: Partial<VisitRow>): Visit {
   const next: Visit = { ...current };
   if (updates.visited_at !== undefined) next.visitedAt = updates.visited_at;
+  if (updates.visited_hour !== undefined) {
+    next.visitedHour = updates.visited_hour ?? undefined;
+  }
   if (updates.status !== undefined) next.status = updates.status as VisitStatus;
   if (updates.respondents !== undefined) {
     next.respondents = (updates.respondents as Respondent[] | null) ?? undefined;
@@ -110,6 +113,7 @@ function toVisit(row: VisitRow): Visit {
     id: row.id,
     memberId: row.member_id,
     visitedAt: row.visited_at,
+    visitedHour: row.visited_hour ?? undefined,
     status: row.status as VisitStatus,
     respondents,
     notes: row.notes ?? undefined,
@@ -269,6 +273,9 @@ export async function createVisit(
 ): Promise<Visit> {
   const id = nanoid(12);
   const now = new Date().toISOString();
+  // visited_hour は createVisit では送らない: SQL マイグ未実行な DB でも
+  //   壊れないように optional 扱い。ユーザーが時刻を入力したら updateVisit
+  //   経由で後から セットされる。
   const row: VisitRow = {
     id,
     member_id: memberId,

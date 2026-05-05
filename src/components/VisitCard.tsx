@@ -35,7 +35,12 @@ export default function VisitCard({ visit, highlightQuery }: Props) {
       <div className="ios-card p-4 flex items-center gap-3 active:bg-[#F5F5F5] transition-colors">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-[15px] font-bold">{formatDate(visit.visitedAt, 'yyyy年M月d日')}</span>
+            <span className="text-[15px] font-bold">
+              {formatDate(visit.visitedAt, 'yyyy年M月d日')}
+              {visit.visitedHour !== undefined && (
+                <span className="ml-1 text-[var(--color-subtext)] font-normal">{visit.visitedHour}時</span>
+              )}
+            </span>
             <StatusChip status={visit.status} />
             {author.userId && (
               <span className="ml-auto"><VisitAuthorChip author={author} /></span>

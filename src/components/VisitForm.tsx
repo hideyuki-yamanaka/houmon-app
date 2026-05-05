@@ -21,6 +21,9 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
   const router = useRouter();
   const [visitId, setVisitId] = useState<string | null>(existingVisit?.id ?? null);
   const [date, setDate] = useState(existingVisit?.visitedAt ?? initialDate ?? today());
+  // 訪問時刻 (24時間表記、0-23、整数)。未設定なら undefined。
+  // 2026-05-05 ヒデさん指示で追加。1時間単位で十分との判断。
+  const [hour, setHour] = useState<number | undefined>(existingVisit?.visitedHour);
   const [status, setStatus] = useState<VisitStatus>(existingVisit?.status ?? 'met_self');
   // 対応者(複数選択可) — 旧 single 'respondent' から配列に変更(2026-04-26)
   const [respondents, setRespondents] = useState<Respondent[]>(existingVisit?.respondents ?? []);
@@ -147,6 +150,13 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
     debouncedSave({ visited_at: newDate }, true);
   };
 
+  // 時刻変更 → 即保存。未設定 (空文字) は null を送って DB をクリア。
+  const handleHourChange = (newHourRaw: string) => {
+    const newHour = newHourRaw === '' ? undefined : Number(newHourRaw);
+    setHour(newHour);
+    debouncedSave({ visited_hour: newHour ?? null }, true);
+  };
+
   // メモ変更 → デバウンス保存
   const handleNotesChange = (newNotes: Record<string, unknown>) => {
     setNotes(newNotes);
@@ -257,17 +267,32 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
       <div className="flex-1 overflow-y-auto pb-8">
         <div className="max-w-[1366px] mx-auto px-4 pt-4 space-y-6">
 
-          {/* 日付 (旧: 横に「情報を見る」リンクがあったがヒデさん要望で削除) */}
-          <div>
-            <label className="text-sm font-semibold text-[var(--color-subtext)] block mb-2">日付</label>
-            <div className="inline-flex items-center gap-1.5 bg-white rounded-[10px] h-[44px] px-3">
-              <input
-                type="date"
-                value={date}
-                onChange={e => handleDateChange(e.target.value)}
-                className="bg-transparent outline-none text-[17px] text-[var(--color-text)] [&::-webkit-calendar-picker-indicator]:hidden"
-              />
-              <Calendar size={18} className="text-[var(--color-icon-gray)] shrink-0" />
+          {/* 日付 + 時刻 (時刻は 1時間単位、24時間表記、未設定可) */}
+          <div className="flex flex-wrap items-end gap-4">
+            <div>
+              <label className="text-sm font-semibold text-[var(--color-subtext)] block mb-2">日付</label>
+              <div className="inline-flex items-center gap-1.5 bg-white rounded-[10px] h-[44px] px-3">
+                <input
+                  type="date"
+                  value={date}
+                  onChange={e => handleDateChange(e.target.value)}
+                  className="bg-transparent outline-none text-[17px] text-[var(--color-text)] [&::-webkit-calendar-picker-indicator]:hidden"
+                />
+                <Calendar size={18} className="text-[var(--color-icon-gray)] shrink-0" />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-[var(--color-subtext)] block mb-2">時刻</label>
+              <select
+                value={hour ?? ''}
+                onChange={e => handleHourChange(e.target.value)}
+                className="bg-white rounded-[10px] h-[44px] px-3 text-[17px] text-[var(--color-text)] outline-none"
+              >
+                <option value="">未設定</option>
+                {Array.from({ length: 24 }, (_, i) => i).map(h => (
+                  <option key={h} value={h}>{h}時</option>
+                ))}
+              </select>
             </div>
           </div>
 

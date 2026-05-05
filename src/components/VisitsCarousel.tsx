@@ -96,6 +96,9 @@ export default function VisitsCarousel({ visits, noScroll = false }: Props) {
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="text-[12px] font-bold tabular-nums shrink-0">
                     {formatDate(v.visitedAt, 'yyyy年M月d日')}
+                    {v.visitedHour !== undefined && (
+                      <span className="ml-1 text-[var(--color-subtext)] font-normal">{v.visitedHour}時</span>
+                    )}
                   </span>
                   {author.userId && <VisitAuthorChip author={author} />}
                   <StatusChip status={v.status} />

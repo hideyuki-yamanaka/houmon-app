@@ -55,6 +55,10 @@ export interface Visit {
   id: string;
   memberId: string;
   visitedAt: string; // YYYY-MM-DD
+  /** 訪問した時刻 (24時間表記、0-23、整数)。
+   *  分単位は不要との指示で時間単位のみ。未設定なら undefined。
+   *  2026-05-05 SQL マイグで visits.visited_hour 列を追加。 */
+  visitedHour?: number;
   status: VisitStatus;
   /** 対応者(複数可)。父+母 など同時に対応してくれた場合に複数入る。
    *  2026-04-26 に旧 single respondent から配列化(SQL マイグ済)。 */
@@ -170,6 +174,9 @@ export interface VisitRow {
    *  既存行は user_id をバックフィル済(オーナー本人と見なす)。 */
   created_by?: string | null;
   visited_at: string;
+  /** 24時間表記の時(0-23)。NULL=未設定。2026-05-05 追加。
+   *  SQL マイグ (sql/2026-05-05-visit-hour.sql) 未実行な DB との互換のため optional。 */
+  visited_hour?: number | null;
   status: string;
   /** 旧: 単一対応者。後方互換のため当面残す(新規書き込みは respondents に行う)。 */
   respondent: string | null;
