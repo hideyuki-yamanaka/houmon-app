@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ChevronRight, Clock } from 'lucide-react';
+import { ChevronRight, Clock, MapPin } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit } from '../lib/types';
 import { formatDate, resolveAge, formatOrgLabelShort } from '../lib/utils';
 import MemberPin from './MemberPin';
@@ -52,6 +52,12 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
             {formatOrgLabelShort(member)}
           </span>
         </div>
+        {member.address && (
+          <div className="mt-0.5 flex items-center gap-1 text-[11px] text-[var(--color-subtext)] truncate">
+            <MapPin size={12} strokeWidth={1.8} className="shrink-0" />
+            <span className="truncate">{member.address}</span>
+          </div>
+        )}
         <div className="mt-0.5 flex items-center gap-1 text-[11px] text-[var(--color-subtext)]">
           <Clock size={12} strokeWidth={1.8} />
           {member.lastVisitDate
