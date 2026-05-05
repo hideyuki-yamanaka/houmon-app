@@ -20,15 +20,17 @@ export default function MemberSelector({ members, onSelect }: Props) {
     return members.filter(m =>
       m.name.toLowerCase().includes(q) ||
       m.district.toLowerCase().includes(q) ||
+      (m.bu && m.bu.toLowerCase().includes(q)) ||
+      (m.honbu && m.honbu.toLowerCase().includes(q)) ||
       (m.nameKana && m.nameKana.toLowerCase().includes(q))
     );
   }, [members, query]);
 
-  // 地区ごとにグループ化
+  // 地区ごとにグループ化 (district 単独でグループ化、本部のみの人は honbu 名で)
   const grouped = useMemo(() => {
     const map = new Map<string, Member[]>();
     for (const m of filtered) {
-      const d = m.district.replace(/豊岡部|光陽部|豊岡中央支部/g, '');
+      const d = (m.district && m.district.trim()) || m.honbu || '(不明)';
       const list = map.get(d) ?? [];
       list.push(m);
       map.set(d, list);

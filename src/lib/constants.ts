@@ -11,7 +11,11 @@ import type { VisitStatus, Respondent, MemberCategory } from './types';
 // ========================================
 
 export interface OrgLeaf {
-  key: string;   // 男子部は district の値そのまま。ヤングは地区名（member.district と一致）
+  /** 旧データ互換用の連結キー (例「豊岡部英雄地区」)。マイグ前のレコード参照や
+   *  既存 DISTRICT_COLORS のフラットマップに使う。 */
+  key: string;
+  /** 2026-05-05: 正規化後の district 値 (例「英雄地区」)。 */
+  leafName: string;
   short: string; // ピル表示用の短縮名
   hex: string;   // ピン・タグの基本色
 }
@@ -31,19 +35,19 @@ export interface OrgCategory {
 
 // 男子部の地区を定数化（ヤング豊岡本部からも同じ地区を共有するため）
 const GENERAL_TOYOOKA_LEAVES: OrgLeaf[] = [
-  { key: '豊岡部香城地区', short: '香城', hex: '#059669' },
-  { key: '豊岡部英雄地区', short: '英雄', hex: '#2563EB' },
-  { key: '豊岡部正義地区', short: '正義', hex: '#D97706' },
+  { key: '豊岡部香城地区',     leafName: '香城地区',     short: '香城', hex: '#059669' },
+  { key: '豊岡部英雄地区',     leafName: '英雄地区',     short: '英雄', hex: '#2563EB' },
+  { key: '豊岡部正義地区',     leafName: '正義地区',     short: '正義', hex: '#D97706' },
 ];
 const GENERAL_KOYO_LEAVES: OrgLeaf[] = [
-  { key: '光陽部光陽地区', short: '光陽', hex: '#7C3AED' },
-  { key: '光陽部光輝地区', short: '光輝', hex: '#DC2626' },
-  { key: '光陽部黄金地区', short: '黄金', hex: '#CA8A04' },
+  { key: '光陽部光陽地区',     leafName: '光陽地区',     short: '光陽', hex: '#7C3AED' },
+  { key: '光陽部光輝地区',     leafName: '光輝地区',     short: '光輝', hex: '#DC2626' },
+  { key: '光陽部黄金地区',     leafName: '黄金地区',     short: '黄金', hex: '#CA8A04' },
 ];
 const GENERAL_CHUO_LEAVES: OrgLeaf[] = [
-  { key: '豊岡中央支部歓喜地区', short: '歓喜', hex: '#0891B2' },
-  { key: '豊岡中央支部ナポレオン地区', short: 'ナポレオン', hex: '#4F46E5' },
-  { key: '豊岡中央支部幸福地区', short: '幸福', hex: '#DB2777' },
+  { key: '豊岡中央支部歓喜地区',     leafName: '歓喜地区',     short: '歓喜', hex: '#0891B2' },
+  { key: '豊岡中央支部ナポレオン地区', leafName: 'ナポレオン地区', short: 'ナポレオン', hex: '#4F46E5' },
+  { key: '豊岡中央支部幸福地区',     leafName: '幸福地区',     short: '幸福', hex: '#DB2777' },
 ];
 
 // ──────────────────────────────────────────────────────────────
@@ -84,6 +88,8 @@ export const ORG_HIERARCHY: OrgCategory[] = [
 ];
 
 // ── キー→色のフラットマップ（旧 DISTRICT_COLORS 互換） ──
+// 2026-05-05: 旧連結キー (leaf.key) と 新 leaf 名 (leaf.leafName) の両方を
+// マップに入れる。マイグ前後どちらの district 値でも色が引けるように。
 function buildDistrictColors(): Record<string, { hex: string; bg: string; text: string }> {
   const map: Record<string, { hex: string; bg: string; text: string }> = {};
   for (const cat of ORG_HIERARCHY) {
@@ -92,6 +98,7 @@ function buildDistrictColors(): Record<string, { hex: string; bg: string; text: 
       map[parent.key] = { hex: parent.hex, bg: '', text: '' };
       for (const leaf of parent.children) {
         map[leaf.key] = { hex: leaf.hex, bg: '', text: '' };
+        map[leaf.leafName] = { hex: leaf.hex, bg: '', text: '' };
       }
     }
   }
@@ -103,9 +110,11 @@ export const DISTRICT_COLORS: Record<string, { hex: string; bg: string; text: st
 // ── ユーティリティ ──
 
 /** member の所属する本部/部（parentKey）を返す */
-export function getParentOrgKey(member: { district: string; category?: MemberCategory; honbu?: string }): string | null {
+export function getParentOrgKey(member: { district: string; category?: MemberCategory; honbu?: string; bu?: string }): string | null {
+  // 2026-05-05: 正規化後は member.bu に部/支部が入ってる。最優先で使う。
+  if (member.bu && member.bu.trim()) return member.bu.trim();
   if (member.category === 'young') return member.honbu ?? null;
-  // 男子部は district 文字列から部を推測
+  // 旧データ (district に部が前置されてる) のフォールバック
   for (const cat of ORG_HIERARCHY) {
     if (cat.category !== 'general') continue;
     for (const parent of cat.parents) {
@@ -146,11 +155,13 @@ export function getMemberOrgColor(member: {
   return MEMBER_PIN_FALLBACK_COLOR;
 }
 
-/** district の key（leaf）から OrgLeaf を検索 */
+/** district の key（leaf）から OrgLeaf を検索。
+ *  2026-05-05: 旧連結キー (例「豊岡部英雄地区」) と
+ *  新 leaf 名 (例「英雄地区」) の どちらでも引けるようにマッチ。 */
 export function findOrgLeaf(districtKey: string): OrgLeaf | null {
   for (const cat of ORG_HIERARCHY) {
     for (const parent of cat.parents) {
-      const leaf = parent.children.find(c => c.key === districtKey);
+      const leaf = parent.children.find(c => c.key === districtKey || c.leafName === districtKey);
       if (leaf) return leaf;
     }
   }

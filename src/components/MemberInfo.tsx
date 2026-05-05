@@ -7,7 +7,7 @@ import type { Member, MemberRow } from '../lib/types';
 import { STATUS_GRID_ITEMS, STATUS_LEVEL_DISPLAY, type StatusLevel } from '../lib/constants';
 import { updateMember } from '../lib/storage';
 import { guessKana } from '../lib/kanaGuess';
-import { resolveAge } from '../lib/utils';
+import { resolveAge, formatOrgLabel } from '../lib/utils';
 import Highlight from './Highlight';
 
 interface Props {
@@ -410,7 +410,7 @@ export default function MemberInfo({ member, onUpdate, highlightQuery, highlight
         <div className="flex items-center gap-2 px-4 pt-3 pb-1 min-w-0">
           <h3 className="text-sm font-semibold text-[var(--color-subtext)]">基本情報</h3>
           <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)] truncate">
-            <Highlight text={local.district} query={highlightQuery} />
+            <Highlight text={formatOrgLabel(local)} query={highlightQuery} />
           </span>
         </div>
 

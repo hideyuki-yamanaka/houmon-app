@@ -99,3 +99,47 @@ export function stripBuildingName(address: string): string {
   }
   return trimmed;
 }
+
+// ──────────────────────────────────────────────────────────────
+// 組織情報 (本部 / 部・支部 / 地区) を一行ラベルに整形
+//
+// ヒデさん指示 (2026-05-05):
+//   3階層のうち入ってる項目だけを「・」区切りで連結。値が「仮」「不明」
+//   なら住所と紛れないように 括弧付き「(仮)」「(不明)」で表示。
+//
+// 例:
+//   honbu=豊岡本部, bu=豊岡部, district=英雄地区 → "豊岡本部・豊岡部・英雄地区"
+//   honbu=東栄本部, bu=null, district=null      → "東栄本部"
+//   honbu=豊岡本部, bu=豊岡部, district=仮       → "豊岡本部・豊岡部・(仮)"
+//   全部 null/空                              → "(不明)"
+// ──────────────────────────────────────────────────────────────
+const ORG_PLACEHOLDERS: Record<string, string> = {
+  '仮': '(仮)',
+  '不明': '(不明)',
+};
+function orgPart(v: string | null | undefined): string | null {
+  if (!v) return null;
+  const t = v.trim();
+  if (!t) return null;
+  return ORG_PLACEHOLDERS[t] ?? t;
+}
+export function formatOrgLabel(
+  m: { honbu?: string | null; bu?: string | null; district?: string | null },
+): string {
+  const parts = [orgPart(m.honbu), orgPart(m.bu), orgPart(m.district)].filter((x): x is string => x != null);
+  if (parts.length === 0) return '(不明)';
+  return parts.join('・');
+}
+
+/** 短縮版: 「本部」を省く (ピンの吹き出しなど 横スペース無いとき向け)。
+ *  例: "豊岡本部・豊岡部・英雄地区" の "豊岡本部・" を抜いて "豊岡部・英雄地区"。
+ *      "東栄本部" のように本部だけしか無いケースはそのまま返す。 */
+export function formatOrgLabelShort(
+  m: { honbu?: string | null; bu?: string | null; district?: string | null },
+): string {
+  const bu = orgPart(m.bu);
+  const district = orgPart(m.district);
+  const parts = [bu, district].filter((x): x is string => x != null);
+  if (parts.length > 0) return parts.join('・');
+  return formatOrgLabel(m);
+}

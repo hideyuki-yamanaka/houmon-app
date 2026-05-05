@@ -261,9 +261,10 @@ export default function LogPage() {
     // district: その地区の中で、絞り込みされた訪問が 1件以上あるメンバーだけ
     const visitedIds = new Set(filteredVisits.map(v => v.memberId));
     const list = members.filter(m => m.district === sheetSpec.district && visitedIds.has(m.id));
-    const short = sheetSpec.district.replace(/豊岡部|光陽部|豊岡中央支部/g, '');
+    // 2026-05-05 正規化後 district は "英雄地区" 等で既に末尾に「地区」がついてる。
+    // 重複を避け、何も無ければ「(不明)地区のメンバー」を回避するためそのまま使う。
     return {
-      title: `${short}地区のメンバー`,
+      title: `${sheetSpec.district}のメンバー`,
       members: list,
       visitsByMember: buildVbm(list),
     };
@@ -682,13 +683,15 @@ export default function LogPage() {
                   >
                     {visibleDistricts.map(([district, data]) => {
                       const hex = DISTRICT_COLORS[district]?.hex ?? '#6B7280';
+                      // 2026-05-05 正規化後 district は "英雄地区" 等で 単独表示で十分。
+                      // 旧形式 "豊岡部英雄地区" がまだ残ってる場合は念のため部名を剥がす。
                       const short = district.replace(/豊岡部|光陽部|豊岡中央支部/g, '');
                       return (
                         <button
                           key={district}
                           type="button"
                           onClick={() => setSheetSpec({ kind: 'district', district })}
-                          aria-label={`${short}地区のメンバー ${data.total}人を見る`}
+                          aria-label={`${short}のメンバー ${data.total}人を見る`}
                           className="rounded-xl px-3 py-2.5 flex flex-col justify-between bg-[#F7F7F8] border border-[#EBEBEB] text-left active:opacity-70 transition-opacity"
                           style={{ aspectRatio: 'var(--tune-district-aspect, 2.3)' }}
                         >

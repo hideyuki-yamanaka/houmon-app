@@ -60,12 +60,22 @@ export function searchMembers(
         match: { field: 'nameKana', fieldLabel: 'ふりがな', fieldIcon: User, text: m.nameKana ?? '' },
       });
     }
-    // 地区・住所
-    if (m.district.toLowerCase().includes(q)) {
-      hits.push({
-        member: m,
-        match: { field: 'district', fieldLabel: '地区', fieldIcon: MapPin, text: m.district },
-      });
+    // 地区・部・本部・住所 (2026-05-05 から組織情報は 3 階層: honbu / bu / district)
+    {
+      const orgFields: Array<[string, string]> = [
+        [m.district ?? '', '地区'],
+        [m.bu ?? '', '部'],
+        [m.honbu ?? '', '本部'],
+      ];
+      for (const [text, label] of orgFields) {
+        if (text && text.toLowerCase().includes(q)) {
+          hits.push({
+            member: m,
+            match: { field: 'district', fieldLabel: label, fieldIcon: MapPin, text },
+          });
+          break; // 同じ q が複数階層にヒットしても 1 件に絞る
+        }
+      }
     }
     if ((m.address ?? '').toLowerCase().includes(q)) {
       hits.push({

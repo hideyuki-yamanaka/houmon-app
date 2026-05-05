@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { ChevronRight, Clock } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit } from '../lib/types';
-import { formatDate, resolveAge } from '../lib/utils';
+import { formatDate, resolveAge, formatOrgLabelShort } from '../lib/utils';
 import MemberPin from './MemberPin';
 import VisitsCarousel from './VisitsCarousel';
 
@@ -41,7 +41,7 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
           <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)]">
-            {member.district.replace(/豊岡部|光陽部|豊岡中央支部/g, '')}
+            {formatOrgLabelShort(member)}
           </span>
           {member.category === 'young' && (
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#0EA5E9] text-white leading-none">

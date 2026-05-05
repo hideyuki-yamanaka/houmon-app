@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type Ref, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, MapPin, Clock, Footprints, PencilLine, Star } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit, MemberRow } from '../lib/types';
-import { formatDate, resolveAge, stripBuildingName } from '../lib/utils';
+import { formatDate, resolveAge, stripBuildingName, formatOrgLabelShort } from '../lib/utils';
 import { getVisits, updateMember } from '../lib/storage';
 import SwipeableBottomSheet, { type SheetHandle } from './SwipeableBottomSheet';
 import VisitsCarousel from './VisitsCarousel';
@@ -212,7 +212,7 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
               </div>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)]">
-                  {m.district.replace(/豊岡部|光陽部|豊岡中央支部/g, '')}
+                  {formatOrgLabelShort(m)}
                 </span>
                 {m.category === 'young' && (
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#0EA5E9] text-white leading-none">

@@ -15,6 +15,7 @@ import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import type { SearchHit } from '../lib/search';
 import Highlight from './Highlight';
+import { formatOrgLabel } from '../lib/utils';
 
 interface Props {
   hits: SearchHit[];
@@ -81,7 +82,7 @@ export default function SearchHits({ hits, query, onNavigate, limit = 20 }: Prop
                       <Highlight text={hit.member.name} query={query} />
                     </span>
                     <span className="text-[10px] text-[var(--color-subtext)] truncate">
-                      {hit.member.honbu ? `${hit.member.honbu}/` : ''}{hit.member.district}
+                      {formatOrgLabel(hit.member)}
                     </span>
                   </div>
                   <div className="flex items-center gap-1 mt-0.5 min-w-0">

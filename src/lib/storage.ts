@@ -72,6 +72,7 @@ function toMember(row: MemberRow): Member {
     district: row.district,
     category: (row.category === 'young' ? 'young' : 'general'),
     honbu: row.honbu ?? undefined,
+    bu: row.bu ?? undefined,
     address: row.address ?? undefined,
     lat: row.lat ?? undefined,
     lng: row.lng ?? undefined,

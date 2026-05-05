@@ -6,9 +6,15 @@ export interface Member {
   id: string;
   name: string;
   nameKana?: string;
-  district: string;                  // 男子部: "豊岡部英雄地区" など親+地区結合 / ヤング: "下山地区" など地区のみ
+  // 2026-05-05: 組織情報を 3 階層 (honbu / bu / district) に分離。
+  // 旧データは district に「本部+部+地区」が連結されてたが、normalize-org-fields で
+  // 振り分け済 (honbu="豊岡本部", bu="豊岡部", district="英雄地区" のように)。
+  // 本部のみで地区が無い人は bu/district が空文字 or undefined。
+  // 値として「不明」「仮」も許容(表示時は「(不明)」「(仮)」と括弧付きで出る)。
+  district: string;                  // 地区名 (例「英雄地区」)。本部のみの人は空可
+  bu?: string;                       // 部/支部名 (例「豊岡部」「豊岡中央支部」)
+  honbu?: string;                    // 本部名 (例「豊岡本部」)
   category?: MemberCategory;         // 省略時は 'general' 扱い
-  honbu?: string;                    // ヤング限定: "東栄本部" "豊岡本部" など親組織
   address?: string;
   lat?: number;
   lng?: number;
@@ -121,6 +127,8 @@ export interface MemberRow {
   visit_cycle_days: number;
   category: string;
   honbu: string | null;
+  /** 部/支部名 (2026-05-05 追加。SQL マイグ未実行な DB との互換のため optional)。 */
+  bu?: string | null;
   /** 「行きたい」ブックマーク(ALTER TABLE で後付けカラム。古い行は NULL ありえる) */
   want_to_visit: boolean | null;
   /** マルチユーザー化(2026-05-03)。所有者の auth.users.id。

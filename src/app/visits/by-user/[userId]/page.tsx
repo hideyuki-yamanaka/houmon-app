@@ -19,6 +19,7 @@ import { getMyProfile } from '../../../../lib/profile';
 import type { Member } from '../../../../lib/types';
 import { useSwipeBack } from '../../../../lib/useSwipeBack';
 import { tapHaptic } from '../../../../lib/haptics';
+import { formatOrgLabelShort } from '../../../../lib/utils';
 
 type Range = 'today' | 'week';
 
@@ -119,6 +120,8 @@ export default function VisitsByUserPage() {
                 name: m.name as string,
                 nameKana: (m.name_kana as string | null) ?? undefined,
                 district: m.district as string,
+                bu: (m.bu as string | null) ?? undefined,
+                honbu: (m.honbu as string | null) ?? undefined,
                 address: (m.address as string | null) ?? undefined,
                 lat: (m.lat as number | null) ?? undefined,
                 lng: (m.lng as number | null) ?? undefined,
@@ -201,7 +204,7 @@ export default function VisitsByUserPage() {
                   <div className="flex-1 min-w-0">
                     <div className="text-[15px] font-bold truncate">{member.name}</div>
                     <div className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-2">
-                      <span>{member.district.replace(/豊岡部|光陽部|豊岡中央支部/g, '')}</span>
+                      <span>{formatOrgLabelShort(member)}</span>
                       <span>·</span>
                       <span>{lastVisitedAt}</span>
                       {visitCount > 1 && (
