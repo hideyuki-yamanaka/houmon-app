@@ -21,56 +21,50 @@ type TuneDef = {
   max: number;
   step: number;
   default: number;
-  group: 'カード共通' | '家庭訪問の回数' | '地区別' | '推移グラフ' | 'ランキング' | 'メンバーカード';
+  group: 'メンバーカード' | 'ボトムシート';
   /** 値を CSS 変数文字列に変換するカスタムフォーマッタ。
    *  例: 0/1 → 'none'/'inline-block' でトグル風に使う。 */
   formatValue?: (v: number) => string;
 };
 
-// 調整可能なデザイントークン一覧
+// 調整可能なデザイントークン一覧 (2026-05-05 整理: メンバーカード + ボトムシート に集約)
+//   ダッシュボードページ用の旧トークンは削除。スマホ運用で実際に弄りたいのは
+//   ホーム (メンバーリスト + ボトムシート) なので、その2つに絞る。
+//   旧 CSS 変数は使用箇所側のフォールバック値で動き続ける。
 const DEFS: TuneDef[] = [
-  { key: 'cardPad',        label: 'カード周囲パディング',     cssVar: '--tune-card-pad',        unit: 'rem', min: 0.5,  max: 2.5,  step: 0.125,  default: 2.125,group: 'カード共通' },
-  { key: 'cardGap',        label: 'カード間の隙間',           cssVar: '--tune-card-gap',        unit: 'rem', min: 0.25, max: 2,    step: 0.125,  default: 1,    group: 'カード共通' },
-  { key: 'sectionPadTop',  label: 'コンテンツ上余白',         cssVar: '--tune-section-pad-top', unit: 'rem', min: 0,    max: 2,    step: 0.125,  default: 0.75, group: 'カード共通' },
-
-  { key: 'heroSize',       label: 'Heroナンバーのサイズ',     cssVar: '--tune-hero-size',       unit: 'rem', min: 1.5,  max: 6,    step: 0.125,  default: 4,     group: '家庭訪問の回数' },
-  // letter-spacing(em 単位) — マイナスで詰まる、プラスで広がる。「15」みたいな
-  // 2 桁数字の隙間が広く感じる時にここを動かして調整する。
-  // (default はヒデさんの目視確認で -0.06em に決定 / 2026-04-25)
-  { key: 'heroTracking',   label: 'Heroナンバーの文字間',     cssVar: '--tune-hero-tracking',   unit: 'em',  min: -0.1, max: 0.05, step: 0.005,  default: -0.06, group: '家庭訪問の回数' },
-  { key: 'barH',           label: 'スタックバー高さ',         cssVar: '--tune-bar-h',           unit: 'rem', min: 0.25, max: 4,    step: 0.0625, default: 3,     group: '家庭訪問の回数' },
-  { key: 'legendGapY',     label: 'レジェンド行間',           cssVar: '--tune-legend-gap-y',    unit: 'rem', min: 0,    max: 1.5,  step: 0.0625, default: 0,     group: '家庭訪問の回数' },
-
-  { key: 'districtAspect', label: 'タイルの横長さ（幅/高さ）', cssVar: '--tune-district-aspect', unit: '',    min: 1.5,  max: 3.5,  step: 0.1,    default: 2.3,  group: '地区別' },
-  { key: 'districtGap',    label: 'タイル間の隙間',           cssVar: '--tune-district-gap',    unit: 'rem', min: 0.25, max: 1,    step: 0.0625, default: 0.5,  group: '地区別' },
-  { key: 'districtNumSize',label: '数字のサイズ',             cssVar: '--tune-district-num',    unit: 'rem', min: 1.25, max: 3,    step: 0.125,  default: 1.875,group: '地区別' },
-
-  { key: 'trendMinH',      label: '最小高さ',                 cssVar: '--tune-trend-min-h',     unit: 'px',  min: 120,  max: 360,  step: 10,     default: 280,  group: '推移グラフ' },
-  { key: 'trendStepPx',    label: '月あたりの横幅',           cssVar: '--tune-trend-step',      unit: 'px',  min: 80,   max: 180,  step: 4,      default: 120,  group: '推移グラフ' },
-
-  { key: 'rankingRowPad',  label: '行の上下パディング',       cssVar: '--tune-ranking-row-pad', unit: 'rem', min: 0.1,  max: 1,    step: 0.0625, default: 0.725,group: 'ランキング' },
-  { key: 'rankingNumSize', label: '数字のサイズ（順位・回数）', cssVar: '--tune-ranking-num',     unit: 'rem', min: 0.75, max: 2,    step: 0.0625, default: 1.5,  group: 'ランキング' },
-  { key: 'rankingNameSize',label: 'メンバー名のサイズ',       cssVar: '--tune-ranking-name',    unit: 'rem', min: 0.75, max: 1.5,  step: 0.0625, default: 0.875,group: 'ランキング' },
-
-  // ── メンバーカード (案 1: 左 3px 帯) ──
-  // 2026-05-05: ピンを廃止して左の組織色帯にしたバージョンの調整パラメータ。
-  // ヒデさんが手元で帯の太さやフォントサイズを動かして決められるようにする。
-  { key: 'mcStripeW',      label: '帯の太さ',                 cssVar: '--tune-mc-stripe',       unit: 'px',  min: 0,    max: 16,    step: 1,      default: 3,    group: 'メンバーカード' },
-  { key: 'mcKanaSize',     label: 'ふりがなのサイズ',         cssVar: '--tune-mc-kana',         unit: 'rem', min: 0.5,  max: 1,     step: 0.0625, default: 0.625,group: 'メンバーカード' },
+  // ── メンバーカード (案 1: 左組織色帯) ──
+  { key: 'mcStripeW',      label: '帯の太さ',                 cssVar: '--tune-mc-stripe',       unit: 'px',  min: 0,    max: 16,    step: 1,      default: 8,    group: 'メンバーカード' },
+  { key: 'mcKanaSize',     label: 'ふりがなのサイズ',         cssVar: '--tune-mc-kana',         unit: 'rem', min: 0.5,  max: 1,     step: 0.0625, default: 0.5625,group: 'メンバーカード' },
   { key: 'mcNameSize',     label: '名前のサイズ',             cssVar: '--tune-mc-name',         unit: 'rem', min: 0.75, max: 1.25,  step: 0.0625, default: 0.9375,group: 'メンバーカード' },
   { key: 'mcMetaSize',     label: 'メタ行 (組織/住所/訪問) サイズ', cssVar: '--tune-mc-meta',     unit: 'rem', min: 0.5,  max: 0.875, step: 0.0625, default: 0.6875,group: 'メンバーカード' },
   { key: 'mcPadX',         label: 'カード左右パディング',     cssVar: '--tune-mc-pad-x',        unit: 'rem', min: 0.25, max: 1.5,   step: 0.0625, default: 0.75, group: 'メンバーカード' },
-  { key: 'mcPadY',         label: 'カード上下パディング',     cssVar: '--tune-mc-pad-y',        unit: 'rem', min: 0.25, max: 1.5,   step: 0.0625, default: 0.625,group: 'メンバーカード' },
-  // 0/1 → none/inline-block にマップして chevron の表示切替に使う。
-  // 値は数値だが UI 上は「OFF / ON」感覚で動かせる。
-  { key: 'mcChevron',      label: 'Chevron 表示 (0=隠す/1=表示)', cssVar: '--tune-mc-chevron',  unit: '',    min: 0,    max: 1,     step: 1,      default: 1,    group: 'メンバーカード',
+  { key: 'mcPadY',         label: 'カード上下パディング',     cssVar: '--tune-mc-pad-y',        unit: 'rem', min: 0.25, max: 1.5,   step: 0.0625, default: 1,    group: 'メンバーカード' },
+  // 0/1 → none/inline-block (chevron 表示切替)
+  { key: 'mcChevron',      label: 'Chevron 表示 (0=隠す/1=表示)', cssVar: '--tune-mc-chevron',  unit: '',    min: 0,    max: 1,     step: 1,      default: 0,    group: 'メンバーカード',
     formatValue: (v) => v >= 1 ? 'inline-block' : 'none' },
+  // カード間の隙間 (memberlist の縦 gap)
+  { key: 'mcGap',          label: 'カード間ギャップ',         cssVar: '--tune-mc-gap',          unit: 'px',  min: 0,    max: 24,    step: 1,      default: 0,    group: 'メンバーカード' },
+  // 0=none, 1=sm, 2=md, 3=lg のドロップシャドウ
+  { key: 'mcShadow',       label: 'カード ドロップシャドウ (0=なし/1=弱/2=中/3=強)', cssVar: '--tune-mc-shadow', unit: '', min: 0, max: 3, step: 1, default: 0, group: 'メンバーカード',
+    formatValue: (v) => {
+      if (v >= 3) return '0 4px 12px rgba(0,0,0,0.12)';
+      if (v >= 2) return '0 2px 6px rgba(0,0,0,0.08)';
+      if (v >= 1) return '0 1px 3px rgba(0,0,0,0.06)';
+      return 'none';
+    } },
+
+  // ── ボトムシート背景色 ──
+  // 0 = 真っ白、上に行くほど明度を下げてグレー寄りにする (HSL の lightness を 100→70 で動かす)
+  { key: 'sheetBgGray',    label: 'シート背景の濃さ (0=白)',  cssVar: '--tune-sheet-bg',        unit: '',    min: 0,    max: 30,    step: 1,      default: 0,    group: 'ボトムシート',
+    formatValue: (v) => `hsl(0, 0%, ${100 - v}%)` },
 ];
 
 const STORAGE_KEY = 'houmon-app:design-tuner-v1';
 
 // パネル高さの保存キー (px、ユーザーがドラッグして決めた値)
 const PANEL_HEIGHT_KEY = 'houmon-app:design-tuner-height-v1';
+// パネル位置オフセット (デフォルト位置からの相対 px {dx, dy})
+const PANEL_OFFSET_KEY = 'houmon-app:design-tuner-offset-v1';
 
 export default function DesignTuner() {
   const [open, setOpen] = useState(false);
@@ -80,6 +74,8 @@ export default function DesignTuner() {
   // デフォルト = 約 50vh 相当だが SSR で window 取れないので、初期値は固定 + マウント後に
   // localStorage から復元。最小 200px、最大 = window.innerHeight - 200px くらい。
   const [panelHeight, setPanelHeight] = useState<number>(420);
+  // パネルの位置オフセット (デフォルト = 右下固定。ユーザーがタイトル部をドラッグして移動可能)
+  const [panelOffset, setPanelOffset] = useState<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
   const [values, setValues] = useState<Record<string, number>>(() => {
     const init: Record<string, number> = {};
     DEFS.forEach((d) => (init[d.key] = d.default));
@@ -110,14 +106,50 @@ export default function DesignTuner() {
         setPanelHeight(Math.max(240, Math.min(420, Math.floor(window.innerHeight * 0.5))));
       }
     } catch { /* 無視 */ }
+    // パネルオフセット復元
+    try {
+      const rawOff = window.localStorage.getItem(PANEL_OFFSET_KEY);
+      if (rawOff) {
+        const parsed = JSON.parse(rawOff) as { dx: number; dy: number };
+        if (Number.isFinite(parsed.dx) && Number.isFinite(parsed.dy)) setPanelOffset(parsed);
+      }
+    } catch { /* 無視 */ }
     setHydrated(true);
   }, []);
 
-  // パネル高さを localStorage に保存
+  // パネル高さ + オフセットを localStorage に保存
   useEffect(() => {
     if (!hydrated) return;
     try { window.localStorage.setItem(PANEL_HEIGHT_KEY, String(panelHeight)); } catch { /* 無視 */ }
   }, [panelHeight, hydrated]);
+  useEffect(() => {
+    if (!hydrated) return;
+    try { window.localStorage.setItem(PANEL_OFFSET_KEY, JSON.stringify(panelOffset)); } catch { /* 無視 */ }
+  }, [panelOffset, hydrated]);
+
+  // タイトル部のドラッグでパネル全体を移動。
+  const startMove = useCallback((e: React.PointerEvent) => {
+    e.preventDefault();
+    const startX = e.clientX, startY = e.clientY;
+    const startOff = panelOffset;
+    const prevSel = document.body.style.userSelect;
+    document.body.style.userSelect = 'none';
+    const onMove = (ev: PointerEvent) => {
+      setPanelOffset({
+        dx: startOff.dx + (ev.clientX - startX),
+        dy: startOff.dy + (ev.clientY - startY),
+      });
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      document.body.style.userSelect = prevSel;
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }, [panelOffset]);
 
   // 上端ドラッグでパネル高さを変更するハンドラ。
   // ハンドル要素の onPointerDown から呼ぶ。touch/mouse 両対応のため pointer events 使用。
@@ -254,6 +286,7 @@ export default function DesignTuner() {
             bottom: 'calc(128px + env(safe-area-inset-bottom))',
             height: panelHeight,
             boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
+            transform: `translate(${panelOffset.dx}px, ${panelOffset.dy}px)`,
           }}
         >
           {/* 上端のドラッグハンドル — 上方向にドラッグでパネルを高く、下方向で低く */}
@@ -265,10 +298,26 @@ export default function DesignTuner() {
             <span className="block w-10 h-1 rounded-full bg-[#D1D5DB]" />
           </div>
 
-          {/* ヘッダー (固定) */}
+          {/* ヘッダー (タイトル部はドラッグで移動可能) */}
           <div className="flex items-center justify-between px-3 pb-2 shrink-0">
-            <h4 className="text-[12px] font-bold">デザインチューナー</h4>
+            <h4
+              onPointerDown={startMove}
+              className="text-[12px] font-bold cursor-move select-none touch-none flex-1 mr-2"
+              title="ドラッグでパネルを移動"
+            >
+              デザインチューナー
+            </h4>
             <div className="flex items-center gap-1.5">
+              {(panelOffset.dx !== 0 || panelOffset.dy !== 0) && (
+                <button
+                  type="button"
+                  onClick={() => setPanelOffset({ dx: 0, dy: 0 })}
+                  className="text-[10px] text-[var(--color-subtext)] active:opacity-60"
+                  title="位置を初期化"
+                >
+                  位置↺
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setShowExport((v) => !v)}

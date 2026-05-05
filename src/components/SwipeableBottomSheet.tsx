@@ -375,8 +375,9 @@ export default function SwipeableBottomSheet({ open, onClose, peekHeight, miniHe
 
       {/* 視覚的なシート本体 — ここで bg / 角丸 / overflow clip を担当 */}
       <div
-        className="absolute inset-0 bg-white bottom-sheet"
+        className="absolute inset-0 bottom-sheet"
         style={{
+          background: 'var(--tune-sheet-bg, #ffffff)',
           overflow: 'hidden',
           // GPU レイヤー昇格と独立した paint コンテキスト（内側だけに適用）
           contain: 'layout paint',
