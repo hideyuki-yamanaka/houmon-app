@@ -102,14 +102,14 @@ export const DISPLAY_NAME_MAX = 5;
 export async function updateMyDisplayName(displayName: string): Promise<{ ok: boolean; error?: string }> {
   if (isMockMode) return { ok: false, error: 'mock mode: 更新は無効化されてます' };
   const trimmed = displayName.trim();
-  if (!trimmed) return { ok: false, error: '名前を入力してな' };
+  if (!trimmed) return { ok: false, error: '名前を入力してください' };
   if (trimmed.length > DISPLAY_NAME_MAX) {
-    return { ok: false, error: `${DISPLAY_NAME_MAX} 文字以内で入力してな` };
+    return { ok: false, error: `${DISPLAY_NAME_MAX} 文字以内で入力してください` };
   }
 
   const { data: sess } = await supabase.auth.getUser();
   const me = sess.user;
-  if (!me) return { ok: false, error: 'ログインしてへんで' };
+  if (!me) return { ok: false, error: 'ログインしていません' };
 
   const { error } = await supabase
     .from('profiles')

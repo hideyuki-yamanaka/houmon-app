@@ -215,7 +215,7 @@ export async function sendInviteByEmail(
   const { data: sess } = await supabase.auth.getSession();
   const accessToken = sess.session?.access_token;
   if (!accessToken) {
-    return { ok: false, error: 'ログインしてへんで' };
+    return { ok: false, error: 'ログインしていません' };
   }
 
   try {

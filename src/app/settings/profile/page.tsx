@@ -157,7 +157,7 @@ export default function ProfileSettingsPage() {
                 </div>
 
                 <p className="text-[11px] text-gray-500 leading-relaxed">
-                  ⚠️ <strong>{DISPLAY_NAME_MAX} 文字以内</strong>で入れてな。バッジに収まる長さに統一するためや。
+                  ⚠️ <strong>{DISPLAY_NAME_MAX} 文字以内</strong>で入力してください。バッジに収まる長さに統一するためです。
                 </p>
 
                 {error && (

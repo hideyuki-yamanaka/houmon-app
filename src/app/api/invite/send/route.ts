@@ -50,18 +50,18 @@ export async function POST(req: NextRequest) {
   const email = typeof body.email === 'string' ? body.email.trim() : '';
   const role = body.role === 'editor' || body.role === 'viewer' ? (body.role as TeamRole) : null;
   if (!email || !role) {
-    return NextResponse.json({ error: 'email / role が必要や' }, { status: 400 });
+    return NextResponse.json({ error: 'email / role が必要です' }, { status: 400 });
   }
   // 雑な email 妥当性チェック (server 側でも軽く)
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return NextResponse.json({ error: 'メールアドレスが正しくないで' }, { status: 400 });
+    return NextResponse.json({ error: 'メールアドレスが正しくありません' }, { status: 400 });
   }
 
   // ── 2. Authorization ヘッダから access token 取得 ─────────────
   const auth = req.headers.get('authorization') ?? '';
   const m = /^Bearer\s+(.+)$/i.exec(auth);
   if (!m) {
-    return NextResponse.json({ error: 'ログインしてへんで' }, { status: 401 });
+    return NextResponse.json({ error: 'ログインしていません' }, { status: 401 });
   }
   const accessToken = m[1];
 

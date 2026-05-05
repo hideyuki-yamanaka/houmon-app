@@ -94,20 +94,20 @@ export default function SettingsPage() {
             <div className="flex-1 min-w-0">
               <div className="text-[15px] font-medium text-gray-900">通知を受け取る</div>
               <div className="text-[12px] text-gray-500 mt-0.5">
-                訪問予定のリマインドや 締切の お知らせを送るで
+                訪問予定のリマインドや締切のお知らせを送ります
               </div>
               {status === 'unsupported' && (
                 <div className="mt-2 flex items-start gap-1 text-[12px] text-amber-700">
                   <AlertCircle size={14} className="shrink-0 mt-0.5" />
                   <span>
-                    このブラウザはプッシュ通知に対応してへん (iOS は ホームに追加してから 試してな)
+                    このブラウザはプッシュ通知に対応していません (iOS はホームに追加してから試してください)
                   </span>
                 </div>
               )}
               {status === 'denied' && (
                 <div className="mt-2 flex items-start gap-1 text-[12px] text-amber-700">
                   <AlertCircle size={14} className="shrink-0 mt-0.5" />
-                  <span>過去に拒否してるで。ブラウザの設定から手動で許可し直してな</span>
+                  <span>過去に拒否されています。ブラウザの設定から手動で許可し直してください</span>
                 </div>
               )}
               {error && (
@@ -139,14 +139,14 @@ export default function SettingsPage() {
                     const { supabase } = await import('../../lib/supabase');
                     const { data: sess } = await supabase.auth.getSession();
                     const token = sess.session?.access_token;
-                    if (!token) { setTestResult('ログインしてへんで'); return; }
+                    if (!token) { setTestResult('ログインしていません'); return; }
                     const res = await fetch('/api/notify/test', {
                       method: 'POST',
                       headers: { Authorization: `Bearer ${token}` },
                     });
                     const j = await res.json();
                     if (!res.ok) { setTestResult(j.error ?? `失敗 (${res.status})`); return; }
-                    setTestResult(j.succeeded > 0 ? '送信したで！スマホ見てみ ✅' : '送信先 0 件…購読し直してみて');
+                    setTestResult(j.succeeded > 0 ? '送信しました！スマホをご確認ください ✅' : '送信先 0 件…購読し直してください');
                   } catch (e) {
                     setTestResult(e instanceof Error ? e.message : String(e));
                   } finally {

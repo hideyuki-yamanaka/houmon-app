@@ -49,10 +49,10 @@ export async function getPushSubscriptionStatus(): Promise<PushStatus> {
 export async function subscribeToPush(): Promise<{ ok: true } | { ok: false; reason: string }> {
   if (typeof window === 'undefined') return { ok: false, reason: 'no window' };
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    return { ok: false, reason: 'このブラウザはプッシュ通知に対応してないで' };
+    return { ok: false, reason: 'このブラウザはプッシュ通知に対応していません' };
   }
   if (isMockMode) {
-    return { ok: false, reason: 'mock mode: Supabase 接続が無いから保存できへん' };
+    return { ok: false, reason: 'mock mode: Supabase 接続が無いため保存できません' };
   }
   if (!VAPID_PUBLIC_KEY) {
     return {

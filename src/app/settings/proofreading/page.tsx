@@ -92,7 +92,7 @@ export default function ProofreadingPage() {
       const { data: sess } = await supabase.auth.getSession();
       const accessToken = sess.session?.access_token;
       if (!accessToken) {
-        setError('ログインしてへんで');
+        setError('ログインしていません');
         setPhase('error');
         return;
       }
@@ -125,7 +125,7 @@ export default function ProofreadingPage() {
   const handleApply = useCallback(async (ids: string[]) => {
     tapHaptic();
     if (ids.length === 0) return;
-    if (!confirm(`${ids.length} 件 を上書きするで。ええか?`)) return;
+    if (!confirm(`${ids.length} 件を上書きします。よろしいですか?`)) return;
 
     setPhase('applying');
     setError(null);
@@ -134,7 +134,7 @@ export default function ProofreadingPage() {
       const { data: sess } = await supabase.auth.getSession();
       const accessToken = sess.session?.access_token;
       if (!accessToken) {
-        setError('ログインしてへんで');
+        setError('ログインしていません');
         setPhase('error');
         return;
       }
@@ -312,7 +312,7 @@ export default function ProofreadingPage() {
 
             {totalChangeCount === 0 ? (
               <div className="px-4 py-8 text-center text-[13px] text-gray-500">
-                {phase === 'done' ? '校正案ナシ。全部すでに綺麗な文章やった ✨' : ''}
+                {phase === 'done' ? '校正案なし。すべてすでに綺麗な文章でした ✨' : ''}
               </div>
             ) : (
               <ul className="divide-y divide-black/5">

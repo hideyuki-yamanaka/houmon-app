@@ -209,7 +209,7 @@ export default function DesignTuner() {
             </div>
           </div>
           <p className="text-[10px] text-[var(--color-subtext)] leading-snug mb-3">
-            スライダーを動かすと即反映。値は端末に保存される。『Export』で現在値を Claude 用にコピーできるで。
+            スライダーを動かすと即反映。値は端末に保存されます。『Export』で現在値を Claude 用にコピーできます。
           </p>
 
           {showExport && (
