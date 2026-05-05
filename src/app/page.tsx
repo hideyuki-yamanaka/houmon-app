@@ -11,7 +11,7 @@ import { searchMembers } from '../lib/search';
 import MemberBottomSheet from '../components/MemberBottomSheet';
 import MembersListSheet, { applyAllFilters, type AppliedFilters } from '../components/MembersListSheet';
 import SearchHits from '../components/SearchHits';
-import { type FilterSelection, EMPTY_FILTER } from '../components/DistrictFilter';
+import { type FilterSelection, EMPTY_FILTER, migrateFilter } from '../components/DistrictFilter';
 import type { MapLayerMode } from '../components/MapView';
 import type { SheetHandle } from '../components/SwipeableBottomSheet';
 
@@ -42,7 +42,12 @@ export default function HomePage() {
   // マップピン用の filteredMembers に反映されず「件数0なのにピン残ってる」状態になる。
   const [filter, setFilter] = useState<FilterSelection>(() => {
     if (typeof window === 'undefined') return EMPTY_FILTER;
-    try { const s = localStorage.getItem('houmon_filter'); return s ? JSON.parse(s) : EMPTY_FILTER; } catch { return EMPTY_FILTER; }
+    try {
+      const s = localStorage.getItem('houmon_filter');
+      if (!s) return EMPTY_FILTER;
+      // 旧 {category, parent, leaf} → 新 {category, honbu, bu, district} へ移行
+      return migrateFilter(JSON.parse(s));
+    } catch { return EMPTY_FILTER; }
   });
   const [periodFilter, setPeriodFilter] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;

@@ -14,6 +14,12 @@ export interface Member {
   district: string;                  // 地区名 (例「英雄地区」)。本部のみの人は空可
   bu?: string;                       // 部/支部名 (例「豊岡部」「豊岡中央支部」)
   honbu?: string;                    // 本部名 (例「豊岡本部」)
+  // 2026-05-05 phase A: 各値が「推測で入れたもの」かどうかのフラグ。
+  // true なら表示時に括弧付き「(仮)」を値の中に挿入する (例「英雄(仮)地区」)。
+  // 名簿エクセル等で確定済みの値は false (or undefined)。
+  districtInferred?: boolean;
+  buInferred?: boolean;
+  honbuInferred?: boolean;
   category?: MemberCategory;         // 省略時は 'general' 扱い
   address?: string;
   lat?: number;
@@ -129,6 +135,11 @@ export interface MemberRow {
   honbu: string | null;
   /** 部/支部名 (2026-05-05 追加。SQL マイグ未実行な DB との互換のため optional)。 */
   bu?: string | null;
+  /** 各組織値が推測かどうか (2026-05-05 phase A 追加。SQL マイグ未実行 DB との互換のため optional)。
+   *  true → UI で「(仮)」を値の中に挿入して表示する。 */
+  district_inferred?: boolean | null;
+  bu_inferred?: boolean | null;
+  honbu_inferred?: boolean | null;
   /** 「行きたい」ブックマーク(ALTER TABLE で後付けカラム。古い行は NULL ありえる) */
   want_to_visit: boolean | null;
   /** マルチユーザー化(2026-05-03)。所有者の auth.users.id。

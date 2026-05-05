@@ -1,104 +1,122 @@
 import type { VisitStatus, Respondent, MemberCategory } from './types';
 
 // ========================================
-// 組織階層（2層構造）
-// - 男子部: 部 → 地区（district は "豊岡部英雄地区" のように結合文字列）
-// - ヤング: 本部 → 地区
-//     豊岡本部のヤングは男子部の地区を共有（同じ district キーを使う）
-//     東栄/旭創価/東旭川 本部はヤング名簿しかなく地区情報が無いため、
-//     leaf 無しの本部のみ（chip では本部全員にしぼれるだけ）
-//     地区が不明なヤングは district = 本部名 で格納し、備考(notes)に「仮」を入れる
+// 組織階層（3階層構造: 本部 → 部 → 地区）
+//   2026-05-05 phase C で 3 階層化。member は (honbu, bu, district) を独立に持つ。
+//   category(young/general) は組織階層と直交する別軸。
+//
+//   ・東旭川/旭創価/東栄 本部は地区情報がまだ無い → districts は空配列
+//     (該当 bu を選ぶと bu レベルで全員ヒット)
+//   ・豊岡本部だけ統監名簿があり、3 部 × 3 地区 = 9 地区が確定
+//
+//   旧 ORG_HIERARCHY (2 階層 + category 軸) は ORG_TREE に置き換え。
+//   getParentOrgKey/findParentOrg などのユーティリティは新ツリーから組み直し。
 // ========================================
 
-export interface OrgLeaf {
-  /** 旧データ互換用の連結キー (例「豊岡部英雄地区」)。マイグ前のレコード参照や
-   *  既存 DISTRICT_COLORS のフラットマップに使う。 */
-  key: string;
-  /** 2026-05-05: 正規化後の district 値 (例「英雄地区」)。 */
-  leafName: string;
-  short: string; // ピル表示用の短縮名
-  hex: string;   // ピン・タグの基本色
+export interface OrgDistrictNode {
+  key: string;   // district 名 (例「英雄地区」) と完全一致
+  short: string; // チップ短縮名
+  hex: string;   // ピン/チップ色
 }
 
-export interface OrgParent {
-  key: string;   // 部名 or 本部名
+export interface OrgBuNode {
+  key: string;   // bu 名 (例「豊岡部」)
   short: string;
-  hex: string;   // 親組織の代表色
-  children: OrgLeaf[];
+  hex: string;
+  districts: OrgDistrictNode[]; // district が無い bu は空配列
 }
 
-export interface OrgCategory {
-  category: MemberCategory;
-  label: string; // "男子部" / "ヤング"
-  parents: OrgParent[];
+export interface OrgHonbuNode {
+  key: string;   // honbu 名 (例「豊岡本部」)
+  short: string;
+  hex: string;
+  bus: OrgBuNode[];
 }
 
-// 男子部の地区を定数化（ヤング豊岡本部からも同じ地区を共有するため）
-const GENERAL_TOYOOKA_LEAVES: OrgLeaf[] = [
-  { key: '豊岡部香城地区',     leafName: '香城地区',     short: '香城', hex: '#059669' },
-  { key: '豊岡部英雄地区',     leafName: '英雄地区',     short: '英雄', hex: '#2563EB' },
-  { key: '豊岡部正義地区',     leafName: '正義地区',     short: '正義', hex: '#D97706' },
-];
-const GENERAL_KOYO_LEAVES: OrgLeaf[] = [
-  { key: '光陽部光陽地区',     leafName: '光陽地区',     short: '光陽', hex: '#7C3AED' },
-  { key: '光陽部光輝地区',     leafName: '光輝地区',     short: '光輝', hex: '#DC2626' },
-  { key: '光陽部黄金地区',     leafName: '黄金地区',     short: '黄金', hex: '#CA8A04' },
-];
-const GENERAL_CHUO_LEAVES: OrgLeaf[] = [
-  { key: '豊岡中央支部歓喜地区',     leafName: '歓喜地区',     short: '歓喜', hex: '#0891B2' },
-  { key: '豊岡中央支部ナポレオン地区', leafName: 'ナポレオン地区', short: 'ナポレオン', hex: '#4F46E5' },
-  { key: '豊岡中央支部幸福地区',     leafName: '幸福地区',     short: '幸福', hex: '#DB2777' },
-];
-
-// ──────────────────────────────────────────────────────────────
-// 色設計メモ（ピン/フィルターで被らないように全部ユニーク）
-// leaves(9): #059669 #2563EB #D97706 / #7C3AED #DC2626 #CA8A04 / #0891B2 #4F46E5 #DB2777
-// general parents(3): #1E3A8A #4C1D95 #134E4A  ← leaves と被らない深色
-// young parents(4):   #0D9488 #C2410C #65A30D #9F1239  ← ぜんぶ別系統
-// ──────────────────────────────────────────────────────────────
-export const ORG_HIERARCHY: OrgCategory[] = [
+export const ORG_TREE: OrgHonbuNode[] = [
   {
-    category: 'young',
-    label: 'ヤング',
-    parents: [
-      // 東栄/旭創価/東旭川 本部はヤング名簿のみで地区情報なし → leaf 空
-      { key: '東栄本部',   short: '東栄',   hex: '#0D9488', children: [] },
-      // 豊岡本部のヤングは男子部の9地区を共有する
+    key: '東旭川本部', short: '東旭川', hex: '#9F1239',
+    bus: [
+      { key: '東旭川部', short: '東旭川', hex: '#9F1239', districts: [] },
+      { key: '千代田部', short: '千代田', hex: '#7F1D1D', districts: [] },
+    ],
+  },
+  {
+    key: '豊岡本部', short: '豊岡', hex: '#C2410C',
+    bus: [
       {
-        key: '豊岡本部', short: '豊岡', hex: '#C2410C',
-        children: [
-          ...GENERAL_TOYOOKA_LEAVES,
-          ...GENERAL_KOYO_LEAVES,
-          ...GENERAL_CHUO_LEAVES,
+        key: '豊岡部', short: '豊岡部', hex: '#1E3A8A',
+        districts: [
+          { key: '英雄地区', short: '英雄', hex: '#2563EB' },
+          { key: '香城地区', short: '香城', hex: '#059669' },
+          { key: '正義地区', short: '正義', hex: '#D97706' },
         ],
       },
-      { key: '旭創価本部', short: '旭創価', hex: '#65A30D', children: [] },
-      { key: '東旭川本部', short: '東旭川', hex: '#9F1239', children: [] },
+      {
+        key: '光陽部', short: '光陽部', hex: '#4C1D95',
+        districts: [
+          { key: '光陽地区', short: '光陽', hex: '#7C3AED' },
+          { key: '光輝地区', short: '光輝', hex: '#DC2626' },
+          { key: '黄金地区', short: '黄金', hex: '#CA8A04' },
+        ],
+      },
+      {
+        key: '豊岡中央支部', short: '中央', hex: '#134E4A',
+        districts: [
+          { key: '歓喜地区',     short: '歓喜',     hex: '#0891B2' },
+          { key: 'ナポレオン地区', short: 'ナポレオン', hex: '#4F46E5' },
+          { key: '幸福地区',     short: '幸福',     hex: '#DB2777' },
+        ],
+      },
     ],
   },
   {
-    category: 'general',
-    label: '男子部',
-    parents: [
-      { key: '豊岡部',       short: '豊岡部', hex: '#1E3A8A', children: GENERAL_TOYOOKA_LEAVES },
-      { key: '光陽部',       short: '光陽部', hex: '#4C1D95', children: GENERAL_KOYO_LEAVES },
-      { key: '豊岡中央支部', short: '中央',   hex: '#134E4A', children: GENERAL_CHUO_LEAVES },
+    key: '旭創価本部', short: '旭創価', hex: '#65A30D',
+    bus: [
+      { key: '東川部', short: '東川', hex: '#65A30D', districts: [] },
+      { key: '空港部', short: '空港', hex: '#4D7C0F', districts: [] },
+    ],
+  },
+  {
+    key: '東栄本部', short: '東栄', hex: '#0D9488',
+    bus: [
+      { key: '東栄部', short: '東栄', hex: '#0D9488', districts: [] },
+      { key: '緑東部', short: '緑東', hex: '#0F766E', districts: [] },
     ],
   },
 ];
 
-// ── キー→色のフラットマップ（旧 DISTRICT_COLORS 互換） ──
-// 2026-05-05: 旧連結キー (leaf.key) と 新 leaf 名 (leaf.leafName) の両方を
-// マップに入れる。マイグ前後どちらの district 値でも色が引けるように。
+// ── 旧 OrgLeaf/OrgParent 互換 (削除予定の callers 用) ──
+// 既存コード (MapView, MemberCard など) が findOrgLeaf/getParentOrgKey 経由で
+// 色を引いてるので、新ツリーから OrgLeaf/OrgParent 形式の配列も派生させておく。
+export interface OrgLeaf { key: string; leafName: string; short: string; hex: string; }
+export interface OrgParent { key: string; short: string; hex: string; children: OrgLeaf[]; }
+
+function flatBus(): OrgParent[] {
+  const out: OrgParent[] = [];
+  for (const honbu of ORG_TREE) {
+    for (const bu of honbu.bus) {
+      out.push({
+        key: bu.key, short: bu.short, hex: bu.hex,
+        children: bu.districts.map(d => ({ key: d.key, leafName: d.key, short: d.short, hex: d.hex })),
+      });
+    }
+  }
+  return out;
+}
+const ALL_BUS: OrgParent[] = flatBus();
+
+// ── キー→色のフラットマップ ──
 function buildDistrictColors(): Record<string, { hex: string; bg: string; text: string }> {
   const map: Record<string, { hex: string; bg: string; text: string }> = {};
-  for (const cat of ORG_HIERARCHY) {
-    for (const parent of cat.parents) {
-      // 親組織キー（"豊岡部" など）自体も参照できるように
-      map[parent.key] = { hex: parent.hex, bg: '', text: '' };
-      for (const leaf of parent.children) {
-        map[leaf.key] = { hex: leaf.hex, bg: '', text: '' };
-        map[leaf.leafName] = { hex: leaf.hex, bg: '', text: '' };
+  for (const honbu of ORG_TREE) {
+    map[honbu.key] = { hex: honbu.hex, bg: '', text: '' };
+    for (const bu of honbu.bus) {
+      map[bu.key] = { hex: bu.hex, bg: '', text: '' };
+      for (const d of bu.districts) {
+        map[d.key] = { hex: d.hex, bg: '', text: '' };
+        // 旧連結キー (例「豊岡部英雄地区」) も登録 (古い district 値の互換)
+        map[bu.key + d.key] = { hex: d.hex, bg: '', text: '' };
       }
     }
   }
@@ -109,26 +127,34 @@ export const DISTRICT_COLORS: Record<string, { hex: string; bg: string; text: st
 
 // ── ユーティリティ ──
 
-/** member の所属する本部/部（parentKey）を返す */
-export function getParentOrgKey(member: { district: string; category?: MemberCategory; honbu?: string; bu?: string }): string | null {
-  // 2026-05-05: 正規化後は member.bu に部/支部が入ってる。最優先で使う。
+/** member の所属する 部 or 本部 を返す (色決定/バッジ用)。
+ *  bu があれば bu、無ければ honbu。両方無ければ null。 */
+export function getParentOrgKey(member: { district?: string; category?: MemberCategory; honbu?: string; bu?: string }): string | null {
   if (member.bu && member.bu.trim()) return member.bu.trim();
-  if (member.category === 'young') return member.honbu ?? null;
+  if (member.honbu && member.honbu.trim()) return member.honbu.trim();
   // 旧データ (district に部が前置されてる) のフォールバック
-  for (const cat of ORG_HIERARCHY) {
-    if (cat.category !== 'general') continue;
-    for (const parent of cat.parents) {
-      if (member.district.startsWith(parent.key)) return parent.key;
+  if (member.district) {
+    for (const bu of ALL_BUS) {
+      if (member.district.startsWith(bu.key)) return bu.key;
     }
   }
   return null;
 }
 
-/** 親キー（部 or 本部）から OrgParent を検索 */
+/** 親キー (部 or 本部) から OrgParent 互換オブジェクトを検索 */
 export function findParentOrg(parentKey: string): OrgParent | null {
-  for (const cat of ORG_HIERARCHY) {
-    const p = cat.parents.find(p => p.key === parentKey);
-    if (p) return p;
+  // bu レベルで検索
+  const bu = ALL_BUS.find(p => p.key === parentKey);
+  if (bu) return bu;
+  // honbu レベルで検索 (children には その honbu 配下の全 district を入れる)
+  const honbu = ORG_TREE.find(h => h.key === parentKey);
+  if (honbu) {
+    return {
+      key: honbu.key, short: honbu.short, hex: honbu.hex,
+      children: honbu.bus.flatMap(b => b.districts.map(d => ({
+        key: d.key, leafName: d.key, short: d.short, hex: d.hex,
+      }))),
+    };
   }
   return null;
 }
@@ -155,23 +181,20 @@ export function getMemberOrgColor(member: {
   return MEMBER_PIN_FALLBACK_COLOR;
 }
 
-/** district の key（leaf）から OrgLeaf を検索。
- *  2026-05-05: 旧連結キー (例「豊岡部英雄地区」) と
- *  新 leaf 名 (例「英雄地区」) の どちらでも引けるようにマッチ。 */
+/** district の key (例「英雄地区」) から OrgLeaf 互換を検索。
+ *  旧連結キー (例「豊岡部英雄地区」) も後方互換でマッチ。 */
 export function findOrgLeaf(districtKey: string): OrgLeaf | null {
-  for (const cat of ORG_HIERARCHY) {
-    for (const parent of cat.parents) {
-      const leaf = parent.children.find(c => c.key === districtKey || c.leafName === districtKey);
-      if (leaf) return leaf;
+  for (const honbu of ORG_TREE) {
+    for (const bu of honbu.bus) {
+      const d = bu.districts.find(x => x.key === districtKey || (bu.key + x.key) === districtKey);
+      if (d) return { key: d.key, leafName: d.key, short: d.short, hex: d.hex };
     }
   }
   return null;
 }
 
-/** ヤング本部一覧（後方互換用） */
-export const YOUNG_HONBU_KEYS = ORG_HIERARCHY
-  .find(c => c.category === 'young')!
-  .parents.map(p => p.key);
+/** 本部一覧 (4 本部) */
+export const YOUNG_HONBU_KEYS = ORG_TREE.map(h => h.key);
 
 // ── 訪問カテゴリ ──
 // 2026-04-26: 旧 met を met_self/met_family に分割 → 同 26 日にカラーシステムを

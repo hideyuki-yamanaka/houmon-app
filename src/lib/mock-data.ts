@@ -4,7 +4,8 @@ const now = new Date().toISOString();
 
 export const MOCK_MEMBERS: Member[] = [
   {
-    id: 'member-001', name: '渡辺 信行', district: '豊岡中央支部幸福地区',
+    id: 'member-001', name: '渡辺 信行',
+    honbu: '豊岡本部', bu: '豊岡中央支部', district: '幸福地区',
     address: '旭川市豊岡4条5丁目', lat: 43.7665, lng: 142.4015,
     phone: '0166-31-XXXX', age: 72, role: '地区部長',
     altarStatus: 'お形木', dailyPractice: '○', newspaper: 'マイ聖教',
@@ -12,7 +13,8 @@ export const MOCK_MEMBERS: Member[] = [
     visitCycleDays: 30, createdAt: now, updatedAt: now,
   },
   {
-    id: 'member-002', name: '鈴木 恵子', district: '豊岡部英雄地区',
+    id: 'member-002', name: '鈴木 恵子',
+    honbu: '豊岡本部', bu: '豊岡部', district: '英雄地区',
     address: '旭川市豊岡6条3丁目', lat: 43.7690, lng: 142.3985,
     phone: '0166-32-XXXX', age: 65, role: '白ゆり長',
     altarStatus: 'お守り', dailyPractice: '○', newspaper: '家族購読',
@@ -20,14 +22,18 @@ export const MOCK_MEMBERS: Member[] = [
     visitCycleDays: 30, createdAt: now, updatedAt: now,
   },
   {
-    id: 'member-003', name: '竹内 義男', district: '光陽部光陽地区',
+    // 推測例: 住所から district を推測 (仮フラグ)
+    id: 'member-003', name: '竹内 義男',
+    honbu: '豊岡本部', bu: '光陽部', district: '光陽地区',
+    districtInferred: true,
     address: '旭川市豊岡3条7丁目', lat: 43.7635, lng: 142.4080,
     phone: '0166-33-XXXX', age: 80,
     altarStatus: '（不明）', activityStatus: '会えない',
     visitCycleDays: 30, createdAt: now, updatedAt: now,
   },
   {
-    id: 'member-004', name: '高橋 美咲', district: '豊岡部香城地区',
+    id: 'member-004', name: '高橋 美咲',
+    honbu: '豊岡本部', bu: '豊岡部', district: '香城地区',
     address: '旭川市豊岡5条2丁目', lat: 43.7678, lng: 142.3950,
     age: 45, role: '女性部員',
     altarStatus: 'お形木', dailyPractice: '○', newspaper: 'マイ聖教',
@@ -35,14 +41,18 @@ export const MOCK_MEMBERS: Member[] = [
     youthGroup: 'S期', visitCycleDays: 30, createdAt: now, updatedAt: now,
   },
   {
-    id: 'member-005', name: '佐藤 一郎', district: '光陽部光輝地区',
+    // 推測例: bu/district どちらも推測 (ヤング名簿で本部しか判らないケース)
+    id: 'member-005', name: '佐藤 一郎',
+    honbu: '豊岡本部', bu: '光陽部', district: '光輝地区',
+    buInferred: true, districtInferred: true,
     address: '旭川市豊岡7条4丁目', lat: 43.7710, lng: 142.4035,
     age: 58,
     altarStatus: 'お形木', dailyPractice: '○', newspaper: '未購読',
     activityStatus: '会える', visitCycleDays: 30, createdAt: now, updatedAt: now,
   },
   {
-    id: 'member-006', name: '山田 花子', district: '豊岡部正義地区',
+    id: 'member-006', name: '山田 花子',
+    honbu: '豊岡本部', bu: '豊岡部', district: '正義地区',
     address: '旭川市豊岡2条6丁目', lat: 43.7620, lng: 142.4060,
     age: 70, role: '副白ゆり長',
     altarStatus: 'お守り', dailyPractice: '○', newspaper: '家族購読',
@@ -50,13 +60,16 @@ export const MOCK_MEMBERS: Member[] = [
     visitCycleDays: 30, createdAt: now, updatedAt: now,
   },
   {
-    id: 'member-007', name: '田中 正雄', district: '光陽部黄金地区',
+    // 空例: bu/district 不明 (本部のみ確定)
+    id: 'member-007', name: '田中 正雄',
+    honbu: '豊岡本部', district: '',
     address: '旭川市豊岡8条1丁目', lat: 43.7730, lng: 142.3920,
     age: 62,
     visitCycleDays: 30, createdAt: now, updatedAt: now,
   },
   {
-    id: 'member-008', name: '小林 美智子', district: '豊岡中央支部歓喜地区',
+    id: 'member-008', name: '小林 美智子',
+    honbu: '豊岡本部', bu: '豊岡中央支部', district: '歓喜地区',
     address: '旭川市豊岡1条8丁目', lat: 43.7600, lng: 142.4100,
     age: 55, role: '地区女性部長',
     altarStatus: 'お形木', dailyPractice: '○', newspaper: 'マイ聖教',
@@ -64,14 +77,16 @@ export const MOCK_MEMBERS: Member[] = [
     visitCycleDays: 30, createdAt: now, updatedAt: now,
   },
   {
-    id: 'member-009', name: '伊藤 健太', district: '豊岡中央支部ナポレオン地区',
+    id: 'member-009', name: '伊藤 健太',
+    honbu: '豊岡本部', bu: '豊岡中央支部', district: 'ナポレオン地区',
     address: '旭川市豊岡9条5丁目', lat: 43.7745, lng: 142.4010,
     age: 38,
     altarStatus: 'お形木', dailyPractice: '○', activityStatus: '会える',
     visitCycleDays: 30, createdAt: now, updatedAt: now,
   },
   {
-    id: 'member-010', name: '中村 洋子', district: '豊岡部英雄地区',
+    id: 'member-010', name: '中村 洋子',
+    honbu: '豊岡本部', bu: '豊岡部', district: '英雄地区',
     address: '旭川市豊岡5条7丁目', lat: 43.7680, lng: 142.4085,
     age: 68,
     altarStatus: 'お形木', dailyPractice: '○', newspaper: 'マイ聖教',

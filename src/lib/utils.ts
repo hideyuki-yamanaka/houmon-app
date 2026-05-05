@@ -103,43 +103,86 @@ export function stripBuildingName(address: string): string {
 // ──────────────────────────────────────────────────────────────
 // 組織情報 (本部 / 部・支部 / 地区) を一行ラベルに整形
 //
-// ヒデさん指示 (2026-05-05):
-//   3階層のうち入ってる項目だけを「・」区切りで連結。値が「仮」「不明」
-//   なら住所と紛れないように 括弧付き「(仮)」「(不明)」で表示。
+// ヒデさん指示 (2026-05-05 更新):
+//   3階層を必ず 3 つ表示する。空なら "--本部 / --部 / --地区" の
+//   placeholder を入れて、どの項目が埋まってないか一目でわかるように。
+//   値が推測 (xxxInferred=true) のときは値の中に「(仮)」を挿入する。
+//   例「英雄(仮)地区」「豊岡(仮)部」「豊岡(仮)本部」。
 //
 // 例:
-//   honbu=豊岡本部, bu=豊岡部, district=英雄地区 → "豊岡本部・豊岡部・英雄地区"
-//   honbu=東栄本部, bu=null, district=null      → "東栄本部"
-//   honbu=豊岡本部, bu=豊岡部, district=仮       → "豊岡本部・豊岡部・(仮)"
-//   全部 null/空                              → "(不明)"
+//   honbu=豊岡本部, bu=豊岡部, district=英雄地区 (全部確定)
+//      → "豊岡本部・豊岡部・英雄地区"
+//   honbu=東栄本部, bu=null, district=null
+//      → "東栄本部・--部・--地区"
+//   honbu=豊岡本部, bu=豊岡部, district=英雄地区 (district が推測)
+//      → "豊岡本部・豊岡部・英雄(仮)地区"
+//   全部 null/空                              → "--本部・--部・--地区"
+//
+// 旧仕様で値そのものが「仮」「不明」だったケースは括弧付きで表示 (互換)。
 // ──────────────────────────────────────────────────────────────
 const ORG_PLACEHOLDERS: Record<string, string> = {
   '仮': '(仮)',
   '不明': '(不明)',
 };
-function orgPart(v: string | null | undefined): string | null {
-  if (!v) return null;
-  const t = v.trim();
-  if (!t) return null;
-  return ORG_PLACEHOLDERS[t] ?? t;
-}
-export function formatOrgLabel(
-  m: { honbu?: string | null; bu?: string | null; district?: string | null },
-): string {
-  const parts = [orgPart(m.honbu), orgPart(m.bu), orgPart(m.district)].filter((x): x is string => x != null);
-  if (parts.length === 0) return '(不明)';
-  return parts.join('・');
+
+const ORG_SUFFIX = { honbu: '本部', bu: '部', district: '地区' } as const;
+const ORG_EMPTY = { honbu: '--本部', bu: '--部', district: '--地区' } as const;
+
+type OrgKind = keyof typeof ORG_SUFFIX;
+
+/** 値+推測フラグから 1 部品の表示文字列を作る。
+ *  - 空 → "--本部" 等の placeholder
+ *  - 値そのものが「仮」「不明」 → "(仮)" "(不明)"
+ *  - 推測フラグ true → 値の語尾 (本部/部/支部/地区) の手前に "(仮)" を挿入
+ *    例: "英雄地区" + inferred=true → "英雄(仮)地区"
+ *    例: "豊岡中央支部" + inferred=true → "豊岡中央(仮)支部"
+ *    例: 語尾が見つからなければ末尾に "(仮)" を付加 → "XX(仮)" */
+function orgPart(kind: OrgKind, value: string | null | undefined, inferred: boolean): string {
+  if (!value || !value.trim()) return ORG_EMPTY[kind];
+  const t = value.trim();
+  const placeholder = ORG_PLACEHOLDERS[t];
+  if (placeholder) return placeholder;
+  if (!inferred) return t;
+  // 推測フラグ true → 語尾の手前に「(仮)」を挿入
+  // 「部」より「支部」を優先 (長い接尾辞を先にチェック)
+  const SUFFIXES = kind === 'bu' ? ['支部', '部'] : [ORG_SUFFIX[kind]];
+  for (const s of SUFFIXES) {
+    if (t.endsWith(s) && t.length > s.length) {
+      return t.slice(0, -s.length) + '(仮)' + s;
+    }
+  }
+  return t + '(仮)';
 }
 
-/** 短縮版: 「本部」を省く (ピンの吹き出しなど 横スペース無いとき向け)。
- *  例: "豊岡本部・豊岡部・英雄地区" の "豊岡本部・" を抜いて "豊岡部・英雄地区"。
- *      "東栄本部" のように本部だけしか無いケースはそのまま返す。 */
-export function formatOrgLabelShort(
-  m: { honbu?: string | null; bu?: string | null; district?: string | null },
+export function formatOrgLabel(
+  m: {
+    honbu?: string | null;
+    bu?: string | null;
+    district?: string | null;
+    honbuInferred?: boolean;
+    buInferred?: boolean;
+    districtInferred?: boolean;
+  },
 ): string {
-  const bu = orgPart(m.bu);
-  const district = orgPart(m.district);
-  const parts = [bu, district].filter((x): x is string => x != null);
-  if (parts.length > 0) return parts.join('・');
+  return [
+    orgPart('honbu', m.honbu, m.honbuInferred ?? false),
+    orgPart('bu', m.bu, m.buInferred ?? false),
+    orgPart('district', m.district, m.districtInferred ?? false),
+  ].join('・');
+}
+
+/** 短縮版エイリアス: ヒデさん指示 (2026-05-05) で「本部・部・地区を必ず ・ 区切りで
+ *  3つとも見せて」となったので フル版と同じ出力に統一。呼び出し側互換のため
+ *  関数自体は残す。 */
+export function formatOrgLabelShort(
+  m: {
+    honbu?: string | null;
+    bu?: string | null;
+    district?: string | null;
+    honbuInferred?: boolean;
+    buInferred?: boolean;
+    districtInferred?: boolean;
+  },
+): string {
   return formatOrgLabel(m);
 }
