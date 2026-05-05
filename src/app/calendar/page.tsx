@@ -1,14 +1,10 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
-import Link from 'next/link';
-import type { Visit } from '../../lib/types';
-import { getAllVisits, getVisitsByDate } from '../../lib/storage';
-import { extractMemoText } from '../../lib/utils';
+import type { Visit, MemberWithVisitInfo } from '../../lib/types';
+import { getAllVisits, getVisitsByDate, getMembersWithVisitInfo } from '../../lib/storage';
 import CalendarGrid from '../../components/CalendarGrid';
-import StatusChip from '../../components/StatusChip';
-import { VisitAuthorChip } from '../../components/VisitAuthorChip';
-import { useTeamProfiles } from '../../lib/useTeamProfiles';
+import MemberCard from '../../components/MemberCard';
 
 // ──────────────────────────────────────────────────────────────
 // v2.1 でタブ名を「メンバー」→「カレンダー」に変更。
@@ -26,10 +22,18 @@ export default function CalendarPage() {
   );
   const [allVisits, setAllVisits] = useState<Visit[]>([]);
   const [dayVisits, setDayVisits] = useState<(Visit & { memberName: string; memberDistrict: string })[]>([]);
-  const { lookup } = useTeamProfiles();
+  // 訪問ログの表示を MemberCard に統一するため、メンバー一覧も取得しておく。
+  // memberId をキーに引いて、その日のログ + 全メンバー情報を結合表示する。
+  const [members, setMembers] = useState<MemberWithVisitInfo[]>([]);
+  const memberById = useMemo(() => {
+    const m = new Map<string, MemberWithVisitInfo>();
+    for (const x of members) m.set(x.id, x);
+    return m;
+  }, [members]);
 
   useEffect(() => {
     getAllVisits().then(setAllVisits).catch(() => setAllVisits([]));
+    getMembersWithVisitInfo().then(setMembers).catch(() => setMembers([]));
   }, []);
 
   useEffect(() => {
@@ -72,30 +76,21 @@ export default function CalendarPage() {
           <p className="text-xs text-[var(--color-subtext)] mt-1 opacity-70">訪問した日はカレンダーに印が付くで</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {/* 訪問ログのカード (白背景, マップタブの VisitsCarousel と同じ並び・2行表示)
-              1行目: 名前 + 作者チップ + ステータス
-              2行目: メモ (extractMemoText で 旧 summary / 新 notes 両対応, 2行省略) */}
-          {dayVisits.map(v => {
-            const author = lookup(v.createdBy);
-            const memo = extractMemoText(v);
+        <div className="flex flex-col" style={{ gap: 'var(--tune-mc-gap, 8px)' }}>
+          {/* 2026-05-06 統一: ホームのメンバー一覧と同じ MemberCard で表示。
+              該当メンバー情報を members から引いて、その日の visit を 1 件だけ
+              withLogs 経由で渡す (VisitsCarousel と同じステータスチップ + メモ)。
+              memberById に未登録 (削除済み等) の場合はスキップ。 */}
+          {dayVisits.map((v) => {
+            const member = memberById.get(v.memberId);
+            if (!member) return null;
             return (
-              <Link
+              <MemberCard
                 key={v.id}
-                href={`/visits/${v.id}`}
-                className="block ios-card px-4 py-3 active:bg-[#F5F5F5] transition-colors"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-[13px] font-bold truncate">{v.memberName}</span>
-                  {author.userId && <VisitAuthorChip author={author} />}
-                  <StatusChip status={v.status} />
-                </div>
-                {memo && (
-                  <p className="text-[11px] text-[#374151] leading-snug line-clamp-2 whitespace-pre-line">
-                    {memo}
-                  </p>
-                )}
-              </Link>
+                member={member}
+                withLogs
+                visits={[v]}
+              />
             );
           })}
         </div>

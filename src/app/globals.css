@@ -49,10 +49,13 @@ body {
 }
 
 /* ── カード ── */
+/* 2026-05-06: メンバーカードと統一感を出すため、box-shadow を全 ios-card に適用。
+   メンバーカード側 (--tune-mc-shadow) と同じ強さの影。白背景の上で浮き上がる。 */
 .ios-card {
   background: var(--color-card);
   border-radius: 6px;
   border: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   transition: opacity 0.15s ease;
 }
 .ios-card:hover {
