@@ -44,8 +44,8 @@ const DEFS: TuneDef[] = [
     formatValue: (v) => v >= 1 ? 'inline-block' : 'none' },
   // カード間の隙間 (memberlist の縦 gap)
   { key: 'mcGap',          label: 'カード間ギャップ',         cssVar: '--tune-mc-gap',          unit: 'px',  min: 0,    max: 24,    step: 1,      default: 0,    group: 'メンバーカード' },
-  // 0=none, 1=sm, 2=md, 3=lg のドロップシャドウ
-  { key: 'mcShadow',       label: 'カード ドロップシャドウ (0=なし/1=弱/2=中/3=強)', cssVar: '--tune-mc-shadow', unit: '', min: 0, max: 3, step: 1, default: 0, group: 'メンバーカード',
+  // 0=none, 1=sm, 2=md, 3=lg のドロップシャドウ。デフォルト 3 (案 4 採用)
+  { key: 'mcShadow',       label: 'カード ドロップシャドウ (0=なし/1=弱/2=中/3=強)', cssVar: '--tune-mc-shadow', unit: '', min: 0, max: 3, step: 1, default: 3, group: 'メンバーカード',
     formatValue: (v) => {
       if (v >= 3) return '0 4px 12px rgba(0,0,0,0.12)';
       if (v >= 2) return '0 2px 6px rgba(0,0,0,0.08)';

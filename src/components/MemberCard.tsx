@@ -109,7 +109,7 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
   // ログ無し or withLogs=false → 帯付き 1 段カード
   if (!showLogs) {
     const inner = (
-      <div className="ios-card overflow-hidden flex" style={{ boxShadow: 'var(--tune-mc-shadow, none)' }}>
+      <div className="ios-card overflow-hidden flex" style={{ boxShadow: 'var(--tune-mc-shadow, 0 4px 12px rgba(0,0,0,0.12))' }}>
         {stripe}
         <div className="flex-1 min-w-0">{head}</div>
       </div>
@@ -130,7 +130,7 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
 
   // ログあり → 帯 + (ヘッダー + グレーカルーセル) の 2 段カード
   const card = (
-    <div className="ios-card overflow-hidden flex" style={{ boxShadow: 'var(--tune-mc-shadow, none)' }}>
+    <div className="ios-card overflow-hidden flex" style={{ boxShadow: 'var(--tune-mc-shadow, 0 4px 12px rgba(0,0,0,0.12))' }}>
       {stripe}
       <div className="flex-1 min-w-0">
         {/* メンバーヘッダー部だけクリック可能領域に */}
