@@ -18,10 +18,11 @@ import DistrictFilter, { type FilterSelection } from './DistrictFilter';
 // ──────────────────────────────────────────────────────────────
 
 export const PERIOD_FILTERS: { key: string; label: string; minDays: number; maxDays: number }[] = [
-  { key: 'this_week', label: '今週', minDays: 0, maxDays: 7 },
-  { key: 'last_week', label: '先週', minDays: 8, maxDays: 14 },
+  { key: 'today',     label: '本日',    minDays: 0,  maxDays: 0  },
+  { key: 'this_week', label: '今週',    minDays: 0,  maxDays: 7  },
+  { key: 'last_week', label: '先週',    minDays: 8,  maxDays: 14 },
   { key: 'two_weeks', label: '2週間前', minDays: 15, maxDays: 21 },
-  { key: 'one_month', label: '1ヶ月', minDays: 0, maxDays: 30 },
+  { key: 'one_month', label: '1ヶ月',   minDays: 0,  maxDays: 30 },
 ];
 
 export const CATEGORY_FILTERS: { key: string; label: string }[] = [

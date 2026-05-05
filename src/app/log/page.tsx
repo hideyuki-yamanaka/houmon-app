@@ -33,16 +33,17 @@ const STATUS_HEX: Record<VisitStatus, string> = {
 // ── 期間フィルタ (2026-05-04 ヒデさん指示で追加) ──
 //   全期間 (デフォルト) では「直近 12 週固定」をやめて 訪問のあった全期間を見せる。
 //   特定期間を選ぶと そこに絞り込み、全カード(回数 / 内訳 / 地区 / TOP5) に効く。
-type PeriodFilter = 'all' | 'this_week' | 'last_week' | '1m' | '6m' | '1y';
+type PeriodFilter = 'all' | 'today' | 'this_week' | 'last_week' | '1m' | '6m' | '1y';
 const PERIOD_LABEL: Record<PeriodFilter, string> = {
   all:       '全期間',
+  today:     '本日',
   this_week: '今週',
   last_week: '先週',
   '1m':      '直近1ヶ月',
   '6m':      '直近半年',
   '1y':      '直近1年',
 };
-const PERIOD_ORDER: PeriodFilter[] = ['all', 'this_week', 'last_week', '1m', '6m', '1y'];
+const PERIOD_ORDER: PeriodFilter[] = ['all', 'today', 'this_week', 'last_week', '1m', '6m', '1y'];
 
 // 月曜始まり週バケット
 function mondayOf(d: Date): Date {
@@ -80,6 +81,9 @@ function periodRange(p: PeriodFilter): { start: string; end: string } {
   const todayStr = fmtDate(today);
   if (p === 'all') return { start: '', end: todayStr };
 
+  if (p === 'today') {
+    return { start: todayStr, end: todayStr };
+  }
   if (p === 'this_week') {
     return { start: fmtDate(mondayOf(today)), end: todayStr };
   }
@@ -725,15 +729,34 @@ export default function LogPage() {
             {/* ────────────── 訪問した回数が多い人 ────────────── */}
             {(() => {
               // 2026-05-04: filteredVisits から再集計 (人/期間 フィルタを反映)
+              // 2026-05-05: 同率順位対応 (count が同じ人は 同率N位 表記)。
+              //   競技順位方式 (1, 1, 3, 4) で rank を計算し、同じ count が
+              //   2人以上いる場合は ラベルに 「同率」 プレフィックスを付ける。
               const countByMember = new Map<string, number>();
               for (const v of filteredVisits) {
                 countByMember.set(v.memberId, (countByMember.get(v.memberId) ?? 0) + 1);
               }
-              const ranked = members
+              const sorted = members
                 .map(m => ({ m, count: countByMember.get(m.id) ?? 0 }))
                 .filter(x => x.count > 0)
-                .sort((a, b) => b.count - a.count)
-                .slice(0, 5);
+                .sort((a, b) => b.count - a.count);
+              // 競技順位 (skip-rank): count が同じなら同 rank、次の順位は飛ぶ
+              let curRank = 0;
+              let prevCount = -1;
+              const withRank = sorted.map((entry, idx) => {
+                if (entry.count !== prevCount) {
+                  curRank = idx + 1;
+                  prevCount = entry.count;
+                }
+                return { ...entry, rank: curRank };
+              });
+              // 全件における 同 rank の人数 (TOP5 で切る前に数える: 6人目以降に
+              //   タイがいても TOP5 内の人は 同率 表記する)
+              const rankCount = new Map<number, number>();
+              for (const r of withRank) {
+                rankCount.set(r.rank, (rankCount.get(r.rank) ?? 0) + 1);
+              }
+              const ranked = withRank.slice(0, 5);
               return (
                 <div
                   className="ios-card hover:!opacity-100 md:col-span-1 lg:col-span-2"
@@ -746,8 +769,11 @@ export default function LogPage() {
                     </div>
                   </div>
                   <div>
-                    {ranked.map(({ m, count }, i) => {
-                      const medalColor = i === 0 ? '#D97706' : i === 1 ? '#9CA3AF' : i === 2 ? '#B45309' : '#9CA3AF';
+                    {ranked.map(({ m, count, rank }) => {
+                      // メダル色: 順位 1=金 / 2=銀 / 3=銅 / 4以下=灰。
+                      // タイ (同率) でも順位ベースで色を揃える。
+                      const medalColor = rank === 1 ? '#D97706' : rank === 2 ? '#9CA3AF' : rank === 3 ? '#B45309' : '#9CA3AF';
+                      const isTie = (rankCount.get(rank) ?? 0) >= 2;
                       return (
                         <Link
                           key={m.id}
@@ -759,13 +785,21 @@ export default function LogPage() {
                           }}
                         >
                           <span
-                            className="tabular-nums w-7 text-center shrink-0 leading-none font-black"
+                            className="shrink-0 leading-none font-black flex flex-col items-center justify-center"
                             style={{
                               color: medalColor,
-                              fontSize: 'var(--tune-ranking-num, 1.5rem)',
+                              minWidth: isTie ? 36 : 28,
                             }}
                           >
-                            {i + 1}
+                            {isTie && (
+                              <span className="text-[9px] font-bold leading-none mb-0.5">同率</span>
+                            )}
+                            <span
+                              className="tabular-nums leading-none"
+                              style={{ fontSize: 'var(--tune-ranking-num, 1.5rem)' }}
+                            >
+                              {rank}
+                            </span>
                           </span>
                           <span
                             className="flex-1 truncate"
@@ -785,7 +819,7 @@ export default function LogPage() {
                       );
                     })}
                     {ranked.length === 0 && (
-                      <p className="text-sm text-[var(--color-subtext)] py-2">訪問実績のあるメンバーはまだおらん</p>
+                      <p className="text-sm text-[var(--color-subtext)] py-2">訪問実績のあるメンバーはまだいません</p>
                     )}
                   </div>
                 </div>
