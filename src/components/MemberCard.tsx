@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { ChevronRight, Clock, MapPin } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit } from '../lib/types';
 import { formatDate, resolveAge, formatOrgLabelShort } from '../lib/utils';
-import MemberPin from './MemberPin';
+import { getMemberOrgColor } from '../lib/constants';
 import VisitsCarousel from './VisitsCarousel';
 
 interface Props {
@@ -18,25 +18,38 @@ interface Props {
 
 // VisitsCarousel は components/VisitsCarousel.tsx に切り出し済み
 // (MemberBottomSheet でも同じ見た目で使うため。2026-05-03 v3 ヒデさん指示)
+//
+// 2026-05-05: ピンを廃止して左 3px の組織色帯にリニューアル (ヒデさん指示・案 1)。
+//   サイズ・パディング・帯太さ・chevron 表示は DesignTuner の CSS 変数で
+//   実機で微調整できるようにしてある (--tune-mc-* 系)。
 
 export default function MemberCard({ member, onSelect, visits, withLogs }: Props) {
   const hasVisits = member.totalVisits > 0;
   // 生年月日があれば毎年自動で加齢、無ければ保存済み age をフォールバック
   const age = resolveAge(member);
   const showLogs = !!withLogs && Array.isArray(visits) && visits.length > 0;
+  const orgColor = getMemberOrgColor(member);
 
-  // 2026-05-05: 案 1 (縦分割 3 行) を採用。1 行に「組織+ヤング+訪問日」を
-  // 詰め込むと折り返し破綻が起きていたため、組織 / 訪問日 を別行に分離。
-  // ヤングは名前行の末尾に置く (タグ単独で 1 行は使わない)。
   const head = (
-    <div className="px-3 py-2.5 flex items-start gap-3">
-      <MemberPin member={member} visited={hasVisits} />
+    <div
+      className="flex items-start"
+      style={{
+        padding: 'var(--tune-mc-pad-y, 0.625rem) var(--tune-mc-pad-x, 0.75rem)',
+      }}
+    >
       <div className="flex-1 min-w-0">
         {member.nameKana && (
-          <span className="text-[10px] text-[var(--color-subtext)] block leading-tight">{member.nameKana}</span>
+          <span
+            className="text-[var(--color-subtext)] block leading-tight"
+            style={{ fontSize: 'var(--tune-mc-kana, 0.625rem)' }}
+          >
+            {member.nameKana}
+          </span>
         )}
         <div className="flex items-center gap-1.5">
-          <span className="font-bold text-[15px]">{member.name}</span>
+          <span className="font-bold" style={{ fontSize: 'var(--tune-mc-name, 0.9375rem)' }}>
+            {member.name}
+          </span>
           {age != null && (
             <span className="text-[11px] font-normal text-[var(--color-subtext)]">({age})</span>
           )}
@@ -45,20 +58,33 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
               ヤング
             </span>
           )}
-          <ChevronRight size={20} className="text-[var(--color-icon-gray)] shrink-0 ml-auto" />
+          <ChevronRight
+            size={20}
+            className="text-[var(--color-icon-gray)] shrink-0 ml-auto"
+            style={{ display: 'var(--tune-mc-chevron, inline-block)' }}
+          />
         </div>
         <div className="mt-0.5">
-          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)] inline-block max-w-full truncate">
+          <span
+            className="font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)] inline-block max-w-full truncate"
+            style={{ fontSize: 'var(--tune-mc-meta, 0.6875rem)' }}
+          >
             {formatOrgLabelShort(member)}
           </span>
         </div>
         {member.address && (
-          <div className="mt-0.5 flex items-center gap-1 text-[11px] text-[var(--color-subtext)] truncate">
+          <div
+            className="mt-0.5 flex items-center gap-1 text-[var(--color-subtext)] truncate"
+            style={{ fontSize: 'var(--tune-mc-meta, 0.6875rem)' }}
+          >
             <MapPin size={12} strokeWidth={1.8} className="shrink-0" />
             <span className="truncate">{member.address}</span>
           </div>
         )}
-        <div className="mt-0.5 flex items-center gap-1 text-[11px] text-[var(--color-subtext)]">
+        <div
+          className="mt-0.5 flex items-center gap-1 text-[var(--color-subtext)]"
+          style={{ fontSize: 'var(--tune-mc-meta, 0.6875rem)' }}
+        >
           <Clock size={12} strokeWidth={1.8} />
           {member.lastVisitDate
             ? `${formatDate(member.lastVisitDate, 'yyyy年M月d日')}${member.lastVisitHour !== undefined ? ` ${member.lastVisitHour}時` : ''}(${member.totalVisits}回)`
@@ -68,9 +94,26 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
     </div>
   );
 
-  // ログ無し or withLogs=false → 従来の ios-card レイアウト(完全に互換維持)
+  // 左の組織色帯 (案 1)。訪問済みは塗り、未訪問はうっすら塗り。
+  // 太さは --tune-mc-stripe で動的に変える (0px で帯を消すこともできる)。
+  const stripe = (
+    <span
+      className="shrink-0 self-stretch"
+      style={{
+        width: 'var(--tune-mc-stripe, 3px)',
+        background: hasVisits ? orgColor : `${orgColor}55`,
+      }}
+    />
+  );
+
+  // ログ無し or withLogs=false → 帯付き 1 段カード
   if (!showLogs) {
-    const inner = <div className="ios-card">{head}</div>;
+    const inner = (
+      <div className="ios-card overflow-hidden flex">
+        {stripe}
+        <div className="flex-1 min-w-0">{head}</div>
+      </div>
+    );
     if (onSelect) {
       return (
         <button type="button" onClick={() => onSelect(member.id)} className="block w-full text-left">
@@ -85,29 +128,30 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
     );
   }
 
-  // ログあり → ヘッダー + グレーカルーセル の 2 段カード
-  // ⚠ カルーセル内部は touch をシート側に伝えないよう、stopPropagation を使ってもいいが
-  //   現状は shape-only で問題ない。スワイプ干渉が出たら検討。
+  // ログあり → 帯 + (ヘッダー + グレーカルーセル) の 2 段カード
   const card = (
-    <div className="ios-card overflow-hidden">
-      {/* メンバーヘッダー部だけクリック可能領域に */}
-      {onSelect ? (
-        <button
-          type="button"
-          onClick={() => onSelect(member.id)}
-          className="block w-full text-left"
-        >
-          {head}
-        </button>
-      ) : (
-        <Link href={`/members/${member.id}`} className="block">
-          {head}
-        </Link>
-      )}
-      {/* 訪問ログカルーセル(B 案、本実装)。
-          mx-3 で カードの左右パディングと整合、mt-1/mb-1.5 で head との縦余白 */}
-      <div className="mx-3 mt-1 mb-1.5">
-        <VisitsCarousel visits={visits!} />
+    <div className="ios-card overflow-hidden flex">
+      {stripe}
+      <div className="flex-1 min-w-0">
+        {/* メンバーヘッダー部だけクリック可能領域に */}
+        {onSelect ? (
+          <button
+            type="button"
+            onClick={() => onSelect(member.id)}
+            className="block w-full text-left"
+          >
+            {head}
+          </button>
+        ) : (
+          <Link href={`/members/${member.id}`} className="block">
+            {head}
+          </Link>
+        )}
+        {/* 訪問ログカルーセル(B 案、本実装)。
+            mx-3 で カードの左右パディングと整合、mt-1/mb-1.5 で head との縦余白 */}
+        <div className="mx-3 mt-1 mb-1.5">
+          <VisitsCarousel visits={visits!} />
+        </div>
       </div>
     </div>
   );

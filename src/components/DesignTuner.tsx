@@ -21,7 +21,10 @@ type TuneDef = {
   max: number;
   step: number;
   default: number;
-  group: 'カード共通' | '家庭訪問の回数' | '地区別' | '推移グラフ' | 'ランキング';
+  group: 'カード共通' | '家庭訪問の回数' | '地区別' | '推移グラフ' | 'ランキング' | 'メンバーカード';
+  /** 値を CSS 変数文字列に変換するカスタムフォーマッタ。
+   *  例: 0/1 → 'none'/'inline-block' でトグル風に使う。 */
+  formatValue?: (v: number) => string;
 };
 
 // 調整可能なデザイントークン一覧
@@ -48,6 +51,20 @@ const DEFS: TuneDef[] = [
   { key: 'rankingRowPad',  label: '行の上下パディング',       cssVar: '--tune-ranking-row-pad', unit: 'rem', min: 0.1,  max: 1,    step: 0.0625, default: 0.725,group: 'ランキング' },
   { key: 'rankingNumSize', label: '数字のサイズ（順位・回数）', cssVar: '--tune-ranking-num',     unit: 'rem', min: 0.75, max: 2,    step: 0.0625, default: 1.5,  group: 'ランキング' },
   { key: 'rankingNameSize',label: 'メンバー名のサイズ',       cssVar: '--tune-ranking-name',    unit: 'rem', min: 0.75, max: 1.5,  step: 0.0625, default: 0.875,group: 'ランキング' },
+
+  // ── メンバーカード (案 1: 左 3px 帯) ──
+  // 2026-05-05: ピンを廃止して左の組織色帯にしたバージョンの調整パラメータ。
+  // ヒデさんが手元で帯の太さやフォントサイズを動かして決められるようにする。
+  { key: 'mcStripeW',      label: '帯の太さ',                 cssVar: '--tune-mc-stripe',       unit: 'px',  min: 0,    max: 16,    step: 1,      default: 3,    group: 'メンバーカード' },
+  { key: 'mcKanaSize',     label: 'ふりがなのサイズ',         cssVar: '--tune-mc-kana',         unit: 'rem', min: 0.5,  max: 1,     step: 0.0625, default: 0.625,group: 'メンバーカード' },
+  { key: 'mcNameSize',     label: '名前のサイズ',             cssVar: '--tune-mc-name',         unit: 'rem', min: 0.75, max: 1.25,  step: 0.0625, default: 0.9375,group: 'メンバーカード' },
+  { key: 'mcMetaSize',     label: 'メタ行 (組織/住所/訪問) サイズ', cssVar: '--tune-mc-meta',     unit: 'rem', min: 0.5,  max: 0.875, step: 0.0625, default: 0.6875,group: 'メンバーカード' },
+  { key: 'mcPadX',         label: 'カード左右パディング',     cssVar: '--tune-mc-pad-x',        unit: 'rem', min: 0.25, max: 1.5,   step: 0.0625, default: 0.75, group: 'メンバーカード' },
+  { key: 'mcPadY',         label: 'カード上下パディング',     cssVar: '--tune-mc-pad-y',        unit: 'rem', min: 0.25, max: 1.5,   step: 0.0625, default: 0.625,group: 'メンバーカード' },
+  // 0/1 → none/inline-block にマップして chevron の表示切替に使う。
+  // 値は数値だが UI 上は「OFF / ON」感覚で動かせる。
+  { key: 'mcChevron',      label: 'Chevron 表示 (0=隠す/1=表示)', cssVar: '--tune-mc-chevron',  unit: '',    min: 0,    max: 1,     step: 1,      default: 1,    group: 'メンバーカード',
+    formatValue: (v) => v >= 1 ? 'inline-block' : 'none' },
 ];
 
 const STORAGE_KEY = 'houmon-app:design-tuner-v1';
@@ -84,7 +101,8 @@ export default function DesignTuner() {
     const root = document.documentElement;
     DEFS.forEach((d) => {
       const v = values[d.key];
-      root.style.setProperty(d.cssVar, d.unit ? `${v}${d.unit}` : `${v}`);
+      const cssValue = d.formatValue ? d.formatValue(v) : (d.unit ? `${v}${d.unit}` : `${v}`);
+      root.style.setProperty(d.cssVar, cssValue);
     });
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
