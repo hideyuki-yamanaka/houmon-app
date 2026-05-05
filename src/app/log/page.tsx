@@ -351,9 +351,10 @@ export default function LogPage() {
                 <div className="flex items-baseline gap-1">
                   <RollupNum
                     value={visitWeekCount}
-                    className="font-extrabold tabular-nums leading-none text-[#111]"
+                    className="tabular-nums leading-none text-[#111]"
                     style={{
                       fontSize: 'var(--tune-hero-size, 4rem)',
+                      fontWeight: 'var(--tune-hero-weight, 800)',
                       letterSpacing: 'var(--tune-hero-tracking, -0.06em)',
                     }}
                   />
@@ -497,9 +498,10 @@ export default function LogPage() {
                   </span>
                   <RollupNum
                     value={breakdownStats.metRate}
-                    className="font-extrabold tabular-nums leading-none text-[#111]"
+                    className="tabular-nums leading-none text-[#111]"
                     style={{
                       fontSize: 'var(--tune-hero-size, 4rem)',
+                      fontWeight: 'var(--tune-hero-weight, 800)',
                       letterSpacing: 'var(--tune-hero-tracking, -0.06em)',
                     }}
                   />

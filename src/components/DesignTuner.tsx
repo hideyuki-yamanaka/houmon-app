@@ -21,7 +21,7 @@ type TuneDef = {
   max: number;
   step: number;
   default: number;
-  group: 'メンバーカード' | 'ボトムシート';
+  group: 'メンバーカード' | 'ボトムシート' | 'ダッシュボード共通' | '家庭訪問の回数' | 'ランキング';
   /** 値を CSS 変数文字列に変換するカスタムフォーマッタ。
    *  例: 0/1 → 'none'/'inline-block' でトグル風に使う。 */
   formatValue?: (v: number) => string;
@@ -33,17 +33,18 @@ type TuneDef = {
 //   旧 CSS 変数は使用箇所側のフォールバック値で動き続ける。
 const DEFS: TuneDef[] = [
   // ── メンバーカード (案 1: 左組織色帯) ──
+  // デフォルト値はヒデさんが実機調整して決めた値 (2026-05-06 スクショ反映)
   { key: 'mcStripeW',      label: '帯の太さ',                 cssVar: '--tune-mc-stripe',       unit: 'px',  min: 0,    max: 16,    step: 1,      default: 8,    group: 'メンバーカード' },
   { key: 'mcKanaSize',     label: 'ふりがなのサイズ',         cssVar: '--tune-mc-kana',         unit: 'rem', min: 0.5,  max: 1,     step: 0.0625, default: 0.5625,group: 'メンバーカード' },
-  { key: 'mcNameSize',     label: '名前のサイズ',             cssVar: '--tune-mc-name',         unit: 'rem', min: 0.75, max: 1.25,  step: 0.0625, default: 0.9375,group: 'メンバーカード' },
-  { key: 'mcMetaSize',     label: 'メタ行 (組織/住所/訪問) サイズ', cssVar: '--tune-mc-meta',     unit: 'rem', min: 0.5,  max: 0.875, step: 0.0625, default: 0.6875,group: 'メンバーカード' },
+  { key: 'mcNameSize',     label: '名前のサイズ',             cssVar: '--tune-mc-name',         unit: 'rem', min: 0.75, max: 1.25,  step: 0.0625, default: 1,    group: 'メンバーカード' },
+  { key: 'mcMetaSize',     label: 'メタ行 (組織/住所/訪問) サイズ', cssVar: '--tune-mc-meta',     unit: 'rem', min: 0.5,  max: 0.875, step: 0.0625, default: 0.625,group: 'メンバーカード' },
   { key: 'mcPadX',         label: 'カード左右パディング',     cssVar: '--tune-mc-pad-x',        unit: 'rem', min: 0.25, max: 1.5,   step: 0.0625, default: 0.75, group: 'メンバーカード' },
-  { key: 'mcPadY',         label: 'カード上下パディング',     cssVar: '--tune-mc-pad-y',        unit: 'rem', min: 0.25, max: 1.5,   step: 0.0625, default: 1,    group: 'メンバーカード' },
+  { key: 'mcPadY',         label: 'カード上下パディング',     cssVar: '--tune-mc-pad-y',        unit: 'rem', min: 0.25, max: 1.5,   step: 0.0625, default: 0.9375,group: 'メンバーカード' },
   // 0/1 → none/inline-block (chevron 表示切替)
   { key: 'mcChevron',      label: 'Chevron 表示 (0=隠す/1=表示)', cssVar: '--tune-mc-chevron',  unit: '',    min: 0,    max: 1,     step: 1,      default: 0,    group: 'メンバーカード',
     formatValue: (v) => v >= 1 ? 'inline-block' : 'none' },
   // カード間の隙間 (memberlist の縦 gap)
-  { key: 'mcGap',          label: 'カード間ギャップ',         cssVar: '--tune-mc-gap',          unit: 'px',  min: 0,    max: 24,    step: 1,      default: 0,    group: 'メンバーカード' },
+  { key: 'mcGap',          label: 'カード間ギャップ',         cssVar: '--tune-mc-gap',          unit: 'px',  min: 0,    max: 24,    step: 1,      default: 8,    group: 'メンバーカード' },
   // 0=none, 1=sm, 2=md, 3=lg のドロップシャドウ。デフォルト 3 (案 4 採用)
   { key: 'mcShadow',       label: 'カード ドロップシャドウ (0=なし/1=弱/2=中/3=強)', cssVar: '--tune-mc-shadow', unit: '', min: 0, max: 3, step: 1, default: 3, group: 'メンバーカード',
     formatValue: (v) => {
@@ -57,6 +58,22 @@ const DEFS: TuneDef[] = [
   // 0 = 真っ白、上に行くほど明度を下げてグレー寄りにする (HSL の lightness を 100→70 で動かす)
   { key: 'sheetBgGray',    label: 'シート背景の濃さ (0=白)',  cssVar: '--tune-sheet-bg',        unit: '',    min: 0,    max: 30,    step: 1,      default: 0,    group: 'ボトムシート',
     formatValue: (v) => `hsl(0, 0%, ${100 - v}%)` },
+
+  // ── ダッシュボード共通 (/log ページのカード周り) ──
+  { key: 'cardPad',        label: 'カード周囲パディング',     cssVar: '--tune-card-pad',        unit: 'rem', min: 0.5,  max: 2.5,  step: 0.125,  default: 2.125,group: 'ダッシュボード共通' },
+  { key: 'cardGap',        label: 'カード間の隙間',           cssVar: '--tune-card-gap',        unit: 'rem', min: 0.25, max: 2,    step: 0.125,  default: 1,    group: 'ダッシュボード共通' },
+  { key: 'sectionPadTop',  label: 'コンテンツ上余白',         cssVar: '--tune-section-pad-top', unit: 'rem', min: 0,    max: 2,    step: 0.125,  default: 0.75, group: 'ダッシュボード共通' },
+
+  // ── 家庭訪問の回数 (Hero ナンバー) ──
+  { key: 'heroSize',       label: 'Heroナンバーのサイズ',     cssVar: '--tune-hero-size',       unit: 'rem', min: 1.5,  max: 6,    step: 0.125,  default: 4,    group: '家庭訪問の回数' },
+  // フォントウェイト (100-900、太字を細かく刻める)
+  { key: 'heroWeight',     label: 'Heroナンバーの太さ (100-900)', cssVar: '--tune-hero-weight', unit: '', min: 100, max: 900, step: 100, default: 800, group: '家庭訪問の回数' },
+  { key: 'heroTracking',   label: 'Heroナンバーの文字間',     cssVar: '--tune-hero-tracking',   unit: 'em',  min: -0.1, max: 0.05, step: 0.005, default: -0.06, group: '家庭訪問の回数' },
+
+  // ── ランキング (訪問回数 TOP5) ──
+  { key: 'rankingRowPad',  label: '行の上下パディング',       cssVar: '--tune-ranking-row-pad', unit: 'rem', min: 0.1,  max: 1,    step: 0.0625, default: 0.725,group: 'ランキング' },
+  { key: 'rankingNumSize', label: '数字のサイズ (順位/回数)', cssVar: '--tune-ranking-num',     unit: 'rem', min: 0.75, max: 2,    step: 0.0625, default: 1.5,  group: 'ランキング' },
+  { key: 'rankingNameSize',label: 'メンバー名のサイズ',       cssVar: '--tune-ranking-name',    unit: 'rem', min: 0.75, max: 1.5,  step: 0.0625, default: 0.875,group: 'ランキング' },
 ];
 
 const STORAGE_KEY = 'houmon-app:design-tuner-v1';
