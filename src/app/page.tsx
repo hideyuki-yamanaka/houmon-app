@@ -195,17 +195,29 @@ export default function HomePage() {
     [members, selectedId]
   );
 
-  // 現在地ボタン（両シートの renderAbove に渡してシート上端右に追従させる）
+  // 現在地ボタン + 設定 (歯車) ボタン
+  // 両シートの renderAbove に渡して シート上端右に縦積みで追従させる。
+  // 設定ボタンは ヒデさん指示 (2026-05-06) で 現在地ボタンの真上に配置。
   const renderLocateButton = useCallback(() => (
-    <button
-      onClick={handleLocate}
-      disabled={locating}
-      aria-label="現在地"
-      className="w-12 h-12 rounded-full bg-white text-[#111] flex items-center justify-center shadow-[0_3px_10px_rgba(0,0,0,0.22)] active:scale-95 transition-transform disabled:opacity-70"
-    >
-      <LocateFixed size={22} className={locating ? 'animate-spin' : ''} />
-    </button>
-  ), [handleLocate, locating]);
+    <div className="flex flex-col items-end gap-2">
+      <button
+        type="button"
+        onClick={() => router.push('/settings')}
+        aria-label="設定"
+        className="w-11 h-11 rounded-full bg-white shadow-[0_3px_10px_rgba(0,0,0,0.22)] flex items-center justify-center active:scale-95 transition-transform"
+      >
+        <Settings size={20} className="text-[#5F6368]" strokeWidth={2} />
+      </button>
+      <button
+        onClick={handleLocate}
+        disabled={locating}
+        aria-label="現在地"
+        className="w-12 h-12 rounded-full bg-white text-[#111] flex items-center justify-center shadow-[0_3px_10px_rgba(0,0,0,0.22)] active:scale-95 transition-transform disabled:opacity-70"
+      >
+        <LocateFixed size={22} className={locating ? 'animate-spin' : ''} />
+      </button>
+    </div>
+  ), [handleLocate, locating, router]);
 
   // フィルター3点（地区/期間/カテゴリ）を全部適用した後のメンバー。
   // これがマップピンとリスト両方の "唯一の真実" になる。
@@ -306,17 +318,9 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* 右端アクション: 設定(歯車) + レイヤー切替（フィルターはシート内に移動済み） */}
+        {/* 右端アクション: レイヤー切替のみ。
+            (歯車アイコンは ヒデさん指示 2026-05-06 で renderLocateButton 内・現在地ボタンの真上に移動) */}
         <div className="mt-2 px-3 pointer-events-auto flex items-center justify-end gap-2">
-          {/* 歯車アイコン: 設定画面へ */}
-          <button
-            type="button"
-            onClick={() => router.push('/settings')}
-            aria-label="設定"
-            className="shrink-0 w-11 h-11 rounded-full bg-white shadow-[0_2px_6px_rgba(0,0,0,0.15)] flex items-center justify-center active:scale-95 transition-transform"
-          >
-            <Settings size={20} className="text-[#5F6368]" strokeWidth={2} />
-          </button>
           <button
             type="button"
             onClick={() => setLayerMode(m => (m === 'standard' ? 'satellite' : 'standard'))}
