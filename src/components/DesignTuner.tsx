@@ -57,35 +57,60 @@ const SHADOW_PRESETS: Array<{ id: string; name: string; desc: string; value: str
 const SHADOW_DEFAULT = SHADOW_PRESETS[1].value; // B 標準
 const SHADOW_STORAGE_KEY = 'houmon-app:design-tuner-shadow-v1';
 
-// ── 枠線スタイル プリセット (2026-05-06 ヒデさん指示) ──
+// ── 枠線スタイル プリセット + スライダー (2026-05-06 ヒデさん指示) ──
 //   メンバーカード(と全 .ios-card) を「もう少しくっきり」見せるため、
-//   グレー枠線中心の 10 案。ドロップシャドウ プリセットと組み合わせ可能で、
-//   box-shadow に多重指定して描画する: var(--tune-mc-border) , var(--tune-mc-shadow)。
-//   デフォルト = "なし" (透明、現状維持)。
-const BORDER_PRESETS: Array<{ id: string; name: string; desc: string; value: string }> = [
+//   枠線とその後ろのドロップシャドウを {太さ・濃さ・影Y・影ぼかし・影濃さ} の
+//   5 値に分解。プリセットは「とりあえずの一発」、その後スライダーで微調整できる。
+//   組み立て後の値は --tune-mc-border に流し、--tune-mc-shadow と box-shadow で重ねる。
+type BorderTune = {
+  w: number;      // 枠線の太さ (px, 0-3)
+  a: number;      // 枠線の濃さ (% of black, 0-30)
+  sY: number;     // 後ろ影の Y オフセット (px, 0-12)
+  sBlur: number;  // 後ろ影のぼかし (px, 0-30)
+  sAlpha: number; // 後ろ影の濃さ (% of black, 0-25)
+};
+const BORDER_PRESETS: Array<{ id: string; name: string; desc: string } & BorderTune> = [
   { id: 'B0', name: 'なし (現在のデフォルト)', desc: '枠線なし、シャドウのみ',
-    value: '0 0 #0000' },
+    w: 0,   a: 0,  sY: 0, sBlur: 0,  sAlpha: 0 },
   { id: 'B1', name: 'グレー細枠 薄',     desc: '1px ヘアライン (透明度8%)',
-    value: '0 0 0 1px rgba(0,0,0,0.08)' },
+    w: 1,   a: 8,  sY: 0, sBlur: 0,  sAlpha: 0 },
   { id: 'B2', name: 'グレー細枠 標準',   desc: '1px ヘアライン (透明度12%)',
-    value: '0 0 0 1px rgba(0,0,0,0.12)' },
+    w: 1,   a: 12, sY: 0, sBlur: 0,  sAlpha: 0 },
   { id: 'B3', name: 'グレー細枠 濃',     desc: '1px ヘアライン (透明度18%)',
-    value: '0 0 0 1px rgba(0,0,0,0.18)' },
+    w: 1,   a: 18, sY: 0, sBlur: 0,  sAlpha: 0 },
   { id: 'B4', name: 'グレー1.5px枠',      desc: '1.5px のしっかりめ枠',
-    value: '0 0 0 1.5px rgba(0,0,0,0.12)' },
+    w: 1.5, a: 12, sY: 0, sBlur: 0,  sAlpha: 0 },
   { id: 'B5', name: 'グレー細枠 + 薄影', desc: '1px 枠 + ふんわり影',
-    value: '0 0 0 1px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.06)' },
+    w: 1,   a: 8,  sY: 2, sBlur: 6,  sAlpha: 6 },
   { id: 'B6', name: 'グレー細枠 + 中影', desc: '1px 枠 + 中ぐらいの影',
-    value: '0 0 0 1px rgba(0,0,0,0.10), 0 4px 10px rgba(0,0,0,0.08)' },
+    w: 1,   a: 10, sY: 4, sBlur: 10, sAlpha: 8 },
   { id: 'B7', name: 'グレー細枠 + 強影', desc: '1px 枠 + 立体感のある影',
-    value: '0 0 0 1px rgba(0,0,0,0.12), 0 8px 20px rgba(0,0,0,0.12)' },
+    w: 1,   a: 12, sY: 8, sBlur: 20, sAlpha: 12 },
   { id: 'B8', name: '1.5px枠 + 薄影',     desc: '1.5px 枠 + 軽い影',
-    value: '0 0 0 1.5px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06)' },
-  { id: 'B9', name: 'ダブル枠 (白+グレー)', desc: '内側白 + 外側グレー、Apple系の二重枠',
-    value: '0 0 0 1px rgba(255,255,255,0.9), 0 0 0 2px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.05)' },
+    w: 1.5, a: 10, sY: 2, sBlur: 4,  sAlpha: 6 },
+  { id: 'B9', name: '太枠 + 強影',         desc: '2px 枠 + しっかりめの影',
+    w: 2,   a: 10, sY: 6, sBlur: 16, sAlpha: 10 },
 ];
-const BORDER_DEFAULT = BORDER_PRESETS[0].value; // B0 なし
+const BORDER_DEFAULT_TUNE: BorderTune = BORDER_PRESETS[0];
 const BORDER_STORAGE_KEY = 'houmon-app:design-tuner-border-v1';
+
+// BorderTune を box-shadow の値に組み立てる。
+// 全部 0 なら no-op の透明値 (他の box-shadow レイヤーと併用するため空文字は不可)。
+function composeBorder(t: BorderTune): string {
+  const parts: string[] = [];
+  if (t.w > 0 && t.a > 0) {
+    parts.push(`0 0 0 ${t.w}px rgba(0,0,0,${(t.a / 100).toFixed(2)})`);
+  }
+  if (t.sAlpha > 0) {
+    parts.push(`0 ${t.sY}px ${t.sBlur}px rgba(0,0,0,${(t.sAlpha / 100).toFixed(2)})`);
+  }
+  return parts.length > 0 ? parts.join(', ') : '0 0 #0000';
+}
+
+// 5 値が同じプリセットがあれば返す (見つからなければ undefined → "カスタム" 表示)
+function findBorderPreset(t: BorderTune) {
+  return BORDER_PRESETS.find((p) => p.w === t.w && p.a === t.a && p.sY === t.sY && p.sBlur === t.sBlur && p.sAlpha === t.sAlpha);
+}
 
 type TuneDef = {
   key: string;
@@ -184,8 +209,9 @@ export default function DesignTuner() {
   const [copied, setCopied] = useState(false);
   // 選択中のシャドウ案 (CSS 値そのまま保存)。デフォルトは B (標準)。
   const [shadowValue, setShadowValue] = useState<string>(SHADOW_DEFAULT);
-  // 選択中の枠線案 (CSS 値そのまま保存)。デフォルトは B0 なし (透明)。
-  const [borderValue, setBorderValue] = useState<string>(BORDER_DEFAULT);
+  // 枠線スタイル: 太さ/濃さ/後ろ影オフセY/後ろ影ぼかし/後ろ影濃さ の 5 値。
+  // プリセットでも 5 値が一括セットされる。デフォルトは B0 (全部 0 = 枠線なし)。
+  const [borderTune, setBorderTune] = useState<BorderTune>({ ...BORDER_DEFAULT_TUNE });
 
   // localStorage から復元（初回のみ）
   useEffect(() => {
@@ -203,10 +229,20 @@ export default function DesignTuner() {
       const rawShadow = window.localStorage.getItem(SHADOW_STORAGE_KEY);
       if (rawShadow) setShadowValue(rawShadow);
     } catch { /* 無視 */ }
-    // 枠線案も復元
+    // 枠線案も復元 (新形式: BorderTune JSON)。
+    // 旧形式 (CSS 文字列) で保存されていた場合は無視してデフォルトに戻す。
     try {
       const rawBorder = window.localStorage.getItem(BORDER_STORAGE_KEY);
-      if (rawBorder) setBorderValue(rawBorder);
+      if (rawBorder && rawBorder.trim().startsWith('{')) {
+        const parsed = JSON.parse(rawBorder) as Partial<BorderTune>;
+        setBorderTune({
+          w:      typeof parsed.w === 'number'      ? parsed.w      : BORDER_DEFAULT_TUNE.w,
+          a:      typeof parsed.a === 'number'      ? parsed.a      : BORDER_DEFAULT_TUNE.a,
+          sY:     typeof parsed.sY === 'number'     ? parsed.sY     : BORDER_DEFAULT_TUNE.sY,
+          sBlur:  typeof parsed.sBlur === 'number'  ? parsed.sBlur  : BORDER_DEFAULT_TUNE.sBlur,
+          sAlpha: typeof parsed.sAlpha === 'number' ? parsed.sAlpha : BORDER_DEFAULT_TUNE.sAlpha,
+        });
+      }
     } catch { /* 無視 */ }
     // パネル高さ復元 (なければデフォルト 420px、画面が小さければ 50vh で調整)
     try {
@@ -301,22 +337,22 @@ export default function DesignTuner() {
     });
     // シャドウ値・枠線値も適用
     root.style.setProperty('--tune-mc-shadow', shadowValue);
-    root.style.setProperty('--tune-mc-border', borderValue);
+    root.style.setProperty('--tune-mc-border', composeBorder(borderTune));
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
       window.localStorage.setItem(SHADOW_STORAGE_KEY, shadowValue);
-      window.localStorage.setItem(BORDER_STORAGE_KEY, borderValue);
+      window.localStorage.setItem(BORDER_STORAGE_KEY, JSON.stringify(borderTune));
     } catch {
       // 容量オーバー等は無視
     }
-  }, [values, shadowValue, borderValue, hydrated]);
+  }, [values, shadowValue, borderTune, hydrated]);
 
   const reset = useCallback(() => {
     const init: Record<string, number> = {};
     DEFS.forEach((d) => (init[d.key] = d.default));
     setValues(init);
     setShadowValue(SHADOW_DEFAULT);
-    setBorderValue(BORDER_DEFAULT);
+    setBorderTune({ ...BORDER_DEFAULT_TUNE });
   }, []);
 
   const resetGroup = useCallback((group: string) => {
@@ -329,7 +365,7 @@ export default function DesignTuner() {
     });
     if (group === 'メンバーカード') {
       setShadowValue(SHADOW_DEFAULT);
-      setBorderValue(BORDER_DEFAULT);
+      setBorderTune({ ...BORDER_DEFAULT_TUNE });
     }
   }, []);
 
@@ -350,9 +386,11 @@ export default function DesignTuner() {
     // ドロップシャドウ (案カード選択)
     const sp = SHADOW_PRESETS.find((p) => p.value === shadowValue);
     lines.push(`- カード ドロップシャドウ (--tune-mc-shadow): ${sp ? `${sp.id} ${sp.name}` : 'カスタム'} = ${shadowValue}`);
-    // 枠線スタイル (案カード選択)
-    const bp = BORDER_PRESETS.find((p) => p.value === borderValue);
-    lines.push(`- カード 枠線スタイル (--tune-mc-border): ${bp ? `${bp.id} ${bp.name}` : 'カスタム'} = ${borderValue}`);
+    // 枠線スタイル (案カード選択 + 5 値スライダー)
+    const bp = findBorderPreset(borderTune);
+    const borderCss = composeBorder(borderTune);
+    lines.push(`- カード 枠線スタイル (--tune-mc-border): ${bp ? `${bp.id} ${bp.name}` : 'カスタム'} = ${borderCss}`);
+    lines.push(`  枠線太さ=${borderTune.w}px / 濃さ=${borderTune.a}% / 影Y=${borderTune.sY}px / 影ぼかし=${borderTune.sBlur}px / 影濃さ=${borderTune.sAlpha}%`);
     lines.push('\n## JSON');
     lines.push('```json');
     lines.push(JSON.stringify(values, null, 2));
@@ -562,53 +600,88 @@ export default function DesignTuner() {
                           })}
                         </div>
                       )}
-                      {/* 枠線スタイル 10 案 — シャドウと組合せ可能 (2026-05-06 ヒデさん指示) */}
-                      {g.name === 'メンバーカード' && (
-                        <div className="rounded-md bg-[#F5F5F5] p-2 space-y-2">
-                          <div className="flex items-baseline justify-between">
-                            <span className="text-[10px] font-semibold">カード 枠線スタイル ({BORDER_PRESETS.length}案)</span>
-                            {(() => {
-                              const bp = BORDER_PRESETS.find((p) => p.value === borderValue);
+                      {/* 枠線スタイル: プリセット 10 案 + スライダー 5 本で微調整 (2026-05-06) */}
+                      {g.name === 'メンバーカード' && (() => {
+                        const matched = findBorderPreset(borderTune);
+                        const bt = borderTune;
+                        // スライダー定義 (label, key, min, max, step, unit, 値の取り方)
+                        const borderSliders: Array<{
+                          label: string; key: keyof BorderTune;
+                          min: number; max: number; step: number; unit: string;
+                        }> = [
+                          { label: '枠線の太さ',         key: 'w',      min: 0, max: 3,  step: 0.5, unit: 'px' },
+                          { label: '枠線の濃さ (グレー)', key: 'a',      min: 0, max: 30, step: 1,   unit: '%'  },
+                          { label: '後ろ影 オフセットY', key: 'sY',     min: 0, max: 12, step: 1,   unit: 'px' },
+                          { label: '後ろ影 ぼかし',      key: 'sBlur',  min: 0, max: 30, step: 1,   unit: 'px' },
+                          { label: '後ろ影 濃さ',        key: 'sAlpha', min: 0, max: 25, step: 1,   unit: '%'  },
+                        ];
+                        return (
+                          <div className="rounded-md bg-[#F5F5F5] p-2 space-y-2">
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-[10px] font-semibold">カード 枠線スタイル ({BORDER_PRESETS.length}案 + 微調整)</span>
+                              <span className="text-[9px] text-[var(--color-subtext)]">
+                                選択中: {matched ? `${matched.id} ${matched.name}` : 'カスタム'}
+                              </span>
+                            </div>
+                            <p className="text-[9px] text-[var(--color-subtext)] leading-tight">
+                              プリセットでまず雰囲気を選び、下のスライダーで太さ・濃さ・後ろ影を微調整できます。シャドウ案と重なって表示されます。
+                            </p>
+                            {BORDER_PRESETS.map((p) => {
+                              const active = matched?.id === p.id;
+                              const previewShadow = composeBorder(p);
+                              const safePreview = previewShadow === '0 0 #0000'
+                                ? '0 1px 2px rgba(0,0,0,0.06)'
+                                : previewShadow;
                               return (
-                                <span className="text-[9px] text-[var(--color-subtext)]">
-                                  選択中: {bp ? `${bp.id} ${bp.name}` : 'カスタム'}
-                                </span>
-                              );
-                            })()}
-                          </div>
-                          <p className="text-[9px] text-[var(--color-subtext)] leading-tight">
-                            上のシャドウ案と組み合わせて表示されます。
-                          </p>
-                          {BORDER_PRESETS.map((p) => {
-                            const active = borderValue === p.value;
-                            // プレビューはシャドウ案と同じく box-shadow に直接当てる。
-                            // B0 (なし) は枠線も影もない見た目を示すため、軽い影で輪郭を補助。
-                            const previewShadow = p.value === '0 0 #0000'
-                              ? '0 1px 2px rgba(0,0,0,0.06)'
-                              : p.value;
-                            return (
-                              <button
-                                key={p.id}
-                                type="button"
-                                onClick={() => setBorderValue(p.value)}
-                                className={`w-full flex items-stretch bg-white rounded-md overflow-hidden text-left transition-transform active:scale-[0.99] ${
-                                  active ? 'ring-2 ring-[#0EA5E9]' : ''
-                                }`}
-                                style={{ boxShadow: previewShadow }}
-                              >
-                                <span className="w-1.5 shrink-0" style={{ background: '#0891B2' }} />
-                                <div className="flex-1 px-2 py-1.5 min-w-0">
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-[11px] font-bold leading-tight">{p.id}. {p.name}</span>
-                                    {active && <Check size={11} className="text-[#0EA5E9]" />}
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => setBorderTune({ w: p.w, a: p.a, sY: p.sY, sBlur: p.sBlur, sAlpha: p.sAlpha })}
+                                  className={`w-full flex items-stretch bg-white rounded-md overflow-hidden text-left transition-transform active:scale-[0.99] ${
+                                    active ? 'ring-2 ring-[#0EA5E9]' : ''
+                                  }`}
+                                  style={{ boxShadow: safePreview }}
+                                >
+                                  <span className="w-1.5 shrink-0" style={{ background: '#0891B2' }} />
+                                  <div className="flex-1 px-2 py-1.5 min-w-0">
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-[11px] font-bold leading-tight">{p.id}. {p.name}</span>
+                                      {active && <Check size={11} className="text-[#0EA5E9]" />}
+                                    </div>
+                                    <div className="text-[9px] text-[var(--color-subtext)] leading-tight truncate">{p.desc}</div>
                                   </div>
-                                  <div className="text-[9px] text-[var(--color-subtext)] leading-tight truncate">{p.desc}</div>
+                                </button>
+                              );
+                            })}
+                            {/* 5 本のスライダーで微調整 */}
+                            <div className="bg-white rounded-md p-2 space-y-1.5 mt-1">
+                              <div className="text-[10px] font-semibold mb-0.5">微調整</div>
+                              {borderSliders.map((s) => (
+                                <div key={s.key}>
+                                  <div className="flex items-baseline justify-between mb-0.5 gap-2">
+                                    <label className="text-[10px] font-semibold leading-tight truncate">{s.label}</label>
+                                    <span className="text-[10px] tabular-nums text-[var(--color-subtext)] shrink-0">
+                                      {bt[s.key]}{s.unit}
+                                    </span>
+                                  </div>
+                                  <input
+                                    type="range"
+                                    min={s.min}
+                                    max={s.max}
+                                    step={s.step}
+                                    value={bt[s.key]}
+                                    onChange={(e) => {
+                                      const v = Number(e.target.value);
+                                      setBorderTune((prev) => ({ ...prev, [s.key]: v }));
+                                    }}
+                                    className="w-full accent-[#111]"
+                                  />
                                 </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
                       {g.items.map((d) => (
                         <div key={d.key}>
                           <div className="flex items-baseline justify-between mb-0.5 gap-2">
