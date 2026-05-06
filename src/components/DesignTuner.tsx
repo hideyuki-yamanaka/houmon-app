@@ -54,6 +54,11 @@ const DEFS: TuneDef[] = [
       if (v >= 1) return '0 1px 3px rgba(0,0,0,0.06)';
       return 'none';
     } },
+  // 訪問ログカルーセル (2 段カード時の下半分) との縦余白。
+  // ヘッダー (氏名+組織+住所+時刻) と訪問ログの間。
+  { key: 'mcLogGapTop',    label: 'ヘッダーと訪問ログの隙間',  cssVar: '--tune-mc-log-gap-top',  unit: 'px',  min: 0,    max: 20,   step: 1,      default: 4,    group: 'メンバーカード' },
+  // 訪問ログカルーセル下、カード下端との余白。
+  { key: 'mcLogGapBottom', label: '訪問ログとカード下端の隙間', cssVar: '--tune-mc-log-gap-bottom', unit: 'px', min: 0,   max: 20,   step: 1,      default: 6,    group: 'メンバーカード' },
 
   // ── ボトムシート背景色 ──
   // 0 = 真っ白、上に行くほど明度を下げてグレー寄りにする (HSL の lightness を 100→70 で動かす)

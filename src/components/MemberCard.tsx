@@ -148,8 +148,14 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
           </Link>
         )}
         {/* 訪問ログカルーセル(B 案、本実装)。
-            mx-3 で カードの左右パディングと整合、mt-1/mb-1.5 で head との縦余白 */}
-        <div className="mx-3 mt-1 mb-1.5">
+            mx-3 で カードの左右パディングと整合、上下余白は DesignTuner で調整可能。 */}
+        <div
+          className="mx-3"
+          style={{
+            marginTop: 'var(--tune-mc-log-gap-top, 4px)',
+            marginBottom: 'var(--tune-mc-log-gap-bottom, 6px)',
+          }}
+        >
           <VisitsCarousel visits={visits!} />
         </div>
       </div>
