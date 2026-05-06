@@ -91,18 +91,30 @@ const BORDER_PRESETS: Array<{ id: string; name: string; desc: string } & BorderT
   { id: 'B9', name: '太枠 + 強影',         desc: '2px 枠 + しっかりめの影',
     w: 2,   a: 10, sY: 6, sBlur: 16, sAlpha: 10 },
 ];
-const BORDER_DEFAULT_TUNE: BorderTune = BORDER_PRESETS[0];
+// BORDER_PRESETS[0] は { id, name, desc } も持つので spread 経由で
+// BorderTune に取り出すと余計なフィールドが state/localStorage に紛れる。
+// ここで素のオブジェクトを定義して default として使う。
+const BORDER_DEFAULT_TUNE: BorderTune = { w: 0, a: 0, sY: 0, sBlur: 0, sAlpha: 0 };
 const BORDER_STORAGE_KEY = 'houmon-app:design-tuner-border-v1';
 
 // BorderTune を box-shadow の値に組み立てる。
 // 全部 0 なら no-op の透明値 (他の box-shadow レイヤーと併用するため空文字は不可)。
+//
+// 重要: 1 本だけスライダーを動かしても見た目が変わるよう、
+// 濃さ/ぼかしが未指定でも安全側のデフォルトでフォールバックして描画する。
+//   - 枠線: w > 0 なら描画。a が 0 なら 12% (B 標準濃さ) で代替。
+//   - 影:   sY/sBlur/sAlpha のいずれかが > 0 なら描画。0 のものは
+//           それぞれ sBlur=8, sAlpha=8 にフォールバック (sY=0 はそのまま)。
 function composeBorder(t: BorderTune): string {
   const parts: string[] = [];
-  if (t.w > 0 && t.a > 0) {
-    parts.push(`0 0 0 ${t.w}px rgba(0,0,0,${(t.a / 100).toFixed(2)})`);
+  if (t.w > 0) {
+    const a = t.a > 0 ? t.a : 12;
+    parts.push(`0 0 0 ${t.w}px rgba(0,0,0,${(a / 100).toFixed(2)})`);
   }
-  if (t.sAlpha > 0) {
-    parts.push(`0 ${t.sY}px ${t.sBlur}px rgba(0,0,0,${(t.sAlpha / 100).toFixed(2)})`);
+  if (t.sY > 0 || t.sBlur > 0 || t.sAlpha > 0) {
+    const sBlur = t.sBlur > 0 ? t.sBlur : 8;
+    const sAlpha = t.sAlpha > 0 ? t.sAlpha : 8;
+    parts.push(`0 ${t.sY}px ${sBlur}px rgba(0,0,0,${(sAlpha / 100).toFixed(2)})`);
   }
   return parts.length > 0 ? parts.join(', ') : '0 0 #0000';
 }
