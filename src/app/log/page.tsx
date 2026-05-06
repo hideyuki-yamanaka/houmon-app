@@ -345,7 +345,7 @@ export default function LogPage() {
                 <div>
                   <h3 className="text-lg font-bold leading-tight">家庭訪問の回数</h3>
                   {thisWeekVisited && (
-                    <p className="text-xs mt-0.5 text-[#10B981] font-bold">今週も訪問済み</p>
+                    <p className="text-xs mt-0.5 text-[#111] font-bold">今週も訪問済み</p>
                   )}
                 </div>
                 <div className="flex items-baseline gap-1">
@@ -403,7 +403,7 @@ export default function LogPage() {
                             {w.agoIdx === 0 && (
                               <span
                                 className="text-[10px] px-2 py-[3px] rounded-full font-bold tracking-wide"
-                                style={{ color: '#FFFFFF', background: '#10B981' }}
+                                style={{ color: '#FFFFFF', background: '#111' }}
                               >
                                 今週
                               </span>
@@ -422,7 +422,7 @@ export default function LogPage() {
                               className={`h-full rounded-md flex items-center justify-end px-2 ${hit ? 'animate-bar-stagger' : ''}`}
                               style={{
                                 width: `${widthPct}%`,
-                                background: hit ? '#10B981' : '#F3F4F6',
+                                background: hit ? '#111' : '#F3F4F6',
                                 animationDelay: hit ? animDelay : undefined,
                               }}
                             >
@@ -531,8 +531,8 @@ export default function LogPage() {
                       label: '会えた',
                       count: c.met_self + c.met_family + c.refused,
                       sub: `本人 ${c.met_self} / 家族 ${c.met_family} / 拒否 ${c.refused}`,
-                      fg: '#10B981',
-                      bg: '#ECFDF5',
+                      fg: '#111',
+                      bg: '#F3F4F6',
                       statuses: ['met_self', 'met_family', 'refused'],
                     },
                     {

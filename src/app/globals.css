@@ -50,13 +50,15 @@ body {
 
 /* ── カード ── */
 /* 2026-05-06: メンバーカード/カレンダー/ダッシュボードを 1 つの変数で統一。
-   --tune-mc-shadow は DesignTuner の SHADOW_PRESETS で切り替え可能。
-   フォールバックは B 標準 (= 0 4px 12px rgba(0,0,0,0.12)) でヒデさん指示の現行デフォルト。 */
+   --tune-mc-border  = 枠線 (BORDER_PRESETS, デフォルトは透明 = なし)
+   --tune-mc-shadow  = ドロップシャドウ (SHADOW_PRESETS, デフォルトは B 標準)
+   box-shadow にカンマ区切りで多重指定すれば、枠線と影を同時に重ねられる。
+   それぞれ DesignTuner で切り替え可能。 */
 .ios-card {
   background: var(--color-card);
   border-radius: 6px;
   border: none;
-  box-shadow: var(--tune-mc-shadow, 0 4px 12px rgba(0, 0, 0, 0.12));
+  box-shadow: var(--tune-mc-border, 0 0 #0000), var(--tune-mc-shadow, 0 4px 12px rgba(0, 0, 0, 0.12));
   transition: opacity 0.15s ease;
 }
 .ios-card:hover {

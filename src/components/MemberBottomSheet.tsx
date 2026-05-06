@@ -141,8 +141,9 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
         return (
           <div className="flex flex-col">
             {/* 2026-05-06: ボトムシート個別表示。レイアウト構造は MemberCard 踏襲、
-                ただし ボトムシート用に: 左帯なし / Chevron なし / フォント大きめ /
-                星+記録 釦は横並び (ヒデさん指示)。 */}
+                ただし ボトムシート用に: 左帯なし / フォント大きめ /
+                星+記録 釦は横並び (ヒデさん指示)。
+                Chevron は 2026-05-06 復活: タップで詳細ページへ行けるサインを残す。 */}
             <div className="px-4 pt-1.5 pb-3">
               <div className="flex items-start justify-between gap-3">
                 <button
@@ -165,6 +166,11 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                         ヤング
                       </span>
                     )}
+                    <ChevronRight
+                      size={18}
+                      className="ml-auto text-[var(--color-icon-gray)] shrink-0"
+                      aria-hidden
+                    />
                   </div>
                 </button>
                 {/* 星 + 記録 ボタン を 横並び */}

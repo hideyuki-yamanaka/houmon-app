@@ -57,6 +57,36 @@ const SHADOW_PRESETS: Array<{ id: string; name: string; desc: string; value: str
 const SHADOW_DEFAULT = SHADOW_PRESETS[1].value; // B 標準
 const SHADOW_STORAGE_KEY = 'houmon-app:design-tuner-shadow-v1';
 
+// ── 枠線スタイル プリセット (2026-05-06 ヒデさん指示) ──
+//   メンバーカード(と全 .ios-card) を「もう少しくっきり」見せるため、
+//   グレー枠線中心の 10 案。ドロップシャドウ プリセットと組み合わせ可能で、
+//   box-shadow に多重指定して描画する: var(--tune-mc-border) , var(--tune-mc-shadow)。
+//   デフォルト = "なし" (透明、現状維持)。
+const BORDER_PRESETS: Array<{ id: string; name: string; desc: string; value: string }> = [
+  { id: 'B0', name: 'なし (現在のデフォルト)', desc: '枠線なし、シャドウのみ',
+    value: '0 0 #0000' },
+  { id: 'B1', name: 'グレー細枠 薄',     desc: '1px ヘアライン (透明度8%)',
+    value: '0 0 0 1px rgba(0,0,0,0.08)' },
+  { id: 'B2', name: 'グレー細枠 標準',   desc: '1px ヘアライン (透明度12%)',
+    value: '0 0 0 1px rgba(0,0,0,0.12)' },
+  { id: 'B3', name: 'グレー細枠 濃',     desc: '1px ヘアライン (透明度18%)',
+    value: '0 0 0 1px rgba(0,0,0,0.18)' },
+  { id: 'B4', name: 'グレー1.5px枠',      desc: '1.5px のしっかりめ枠',
+    value: '0 0 0 1.5px rgba(0,0,0,0.12)' },
+  { id: 'B5', name: 'グレー細枠 + 薄影', desc: '1px 枠 + ふんわり影',
+    value: '0 0 0 1px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.06)' },
+  { id: 'B6', name: 'グレー細枠 + 中影', desc: '1px 枠 + 中ぐらいの影',
+    value: '0 0 0 1px rgba(0,0,0,0.10), 0 4px 10px rgba(0,0,0,0.08)' },
+  { id: 'B7', name: 'グレー細枠 + 強影', desc: '1px 枠 + 立体感のある影',
+    value: '0 0 0 1px rgba(0,0,0,0.12), 0 8px 20px rgba(0,0,0,0.12)' },
+  { id: 'B8', name: '1.5px枠 + 薄影',     desc: '1.5px 枠 + 軽い影',
+    value: '0 0 0 1.5px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06)' },
+  { id: 'B9', name: 'ダブル枠 (白+グレー)', desc: '内側白 + 外側グレー、Apple系の二重枠',
+    value: '0 0 0 1px rgba(255,255,255,0.9), 0 0 0 2px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.05)' },
+];
+const BORDER_DEFAULT = BORDER_PRESETS[0].value; // B0 なし
+const BORDER_STORAGE_KEY = 'houmon-app:design-tuner-border-v1';
+
 type TuneDef = {
   key: string;
   label: string;
@@ -152,8 +182,10 @@ export default function DesignTuner() {
   const [hydrated, setHydrated] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [copied, setCopied] = useState(false);
-  // 選択中のシャドウ案 (CSS 値そのまま保存)。デフォルトは C (立体)。
+  // 選択中のシャドウ案 (CSS 値そのまま保存)。デフォルトは B (標準)。
   const [shadowValue, setShadowValue] = useState<string>(SHADOW_DEFAULT);
+  // 選択中の枠線案 (CSS 値そのまま保存)。デフォルトは B0 なし (透明)。
+  const [borderValue, setBorderValue] = useState<string>(BORDER_DEFAULT);
 
   // localStorage から復元（初回のみ）
   useEffect(() => {
@@ -170,6 +202,11 @@ export default function DesignTuner() {
     try {
       const rawShadow = window.localStorage.getItem(SHADOW_STORAGE_KEY);
       if (rawShadow) setShadowValue(rawShadow);
+    } catch { /* 無視 */ }
+    // 枠線案も復元
+    try {
+      const rawBorder = window.localStorage.getItem(BORDER_STORAGE_KEY);
+      if (rawBorder) setBorderValue(rawBorder);
     } catch { /* 無視 */ }
     // パネル高さ復元 (なければデフォルト 420px、画面が小さければ 50vh で調整)
     try {
@@ -262,21 +299,24 @@ export default function DesignTuner() {
       const cssValue = d.formatValue ? d.formatValue(v) : (d.unit ? `${v}${d.unit}` : `${v}`);
       root.style.setProperty(d.cssVar, cssValue);
     });
-    // シャドウ値も適用
+    // シャドウ値・枠線値も適用
     root.style.setProperty('--tune-mc-shadow', shadowValue);
+    root.style.setProperty('--tune-mc-border', borderValue);
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
       window.localStorage.setItem(SHADOW_STORAGE_KEY, shadowValue);
+      window.localStorage.setItem(BORDER_STORAGE_KEY, borderValue);
     } catch {
       // 容量オーバー等は無視
     }
-  }, [values, shadowValue, hydrated]);
+  }, [values, shadowValue, borderValue, hydrated]);
 
   const reset = useCallback(() => {
     const init: Record<string, number> = {};
     DEFS.forEach((d) => (init[d.key] = d.default));
     setValues(init);
     setShadowValue(SHADOW_DEFAULT);
+    setBorderValue(BORDER_DEFAULT);
   }, []);
 
   const resetGroup = useCallback((group: string) => {
@@ -287,7 +327,10 @@ export default function DesignTuner() {
       });
       return next;
     });
-    if (group === 'メンバーカード') setShadowValue(SHADOW_DEFAULT);
+    if (group === 'メンバーカード') {
+      setShadowValue(SHADOW_DEFAULT);
+      setBorderValue(BORDER_DEFAULT);
+    }
   }, []);
 
   // エクスポート用：現在値を人間が読みやすい形式で文字列化（Claude に貼り付けて伝える用）
@@ -307,6 +350,9 @@ export default function DesignTuner() {
     // ドロップシャドウ (案カード選択)
     const sp = SHADOW_PRESETS.find((p) => p.value === shadowValue);
     lines.push(`- カード ドロップシャドウ (--tune-mc-shadow): ${sp ? `${sp.id} ${sp.name}` : 'カスタム'} = ${shadowValue}`);
+    // 枠線スタイル (案カード選択)
+    const bp = BORDER_PRESETS.find((p) => p.value === borderValue);
+    lines.push(`- カード 枠線スタイル (--tune-mc-border): ${bp ? `${bp.id} ${bp.name}` : 'カスタム'} = ${borderValue}`);
     lines.push('\n## JSON');
     lines.push('```json');
     lines.push(JSON.stringify(values, null, 2));
@@ -502,6 +548,53 @@ export default function DesignTuner() {
                                   active ? 'ring-2 ring-[#0EA5E9]' : ''
                                 }`}
                                 style={{ boxShadow: p.value }}
+                              >
+                                <span className="w-1.5 shrink-0" style={{ background: '#0891B2' }} />
+                                <div className="flex-1 px-2 py-1.5 min-w-0">
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-[11px] font-bold leading-tight">{p.id}. {p.name}</span>
+                                    {active && <Check size={11} className="text-[#0EA5E9]" />}
+                                  </div>
+                                  <div className="text-[9px] text-[var(--color-subtext)] leading-tight truncate">{p.desc}</div>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {/* 枠線スタイル 10 案 — シャドウと組合せ可能 (2026-05-06 ヒデさん指示) */}
+                      {g.name === 'メンバーカード' && (
+                        <div className="rounded-md bg-[#F5F5F5] p-2 space-y-2">
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-[10px] font-semibold">カード 枠線スタイル ({BORDER_PRESETS.length}案)</span>
+                            {(() => {
+                              const bp = BORDER_PRESETS.find((p) => p.value === borderValue);
+                              return (
+                                <span className="text-[9px] text-[var(--color-subtext)]">
+                                  選択中: {bp ? `${bp.id} ${bp.name}` : 'カスタム'}
+                                </span>
+                              );
+                            })()}
+                          </div>
+                          <p className="text-[9px] text-[var(--color-subtext)] leading-tight">
+                            上のシャドウ案と組み合わせて表示されます。
+                          </p>
+                          {BORDER_PRESETS.map((p) => {
+                            const active = borderValue === p.value;
+                            // プレビューはシャドウ案と同じく box-shadow に直接当てる。
+                            // B0 (なし) は枠線も影もない見た目を示すため、軽い影で輪郭を補助。
+                            const previewShadow = p.value === '0 0 #0000'
+                              ? '0 1px 2px rgba(0,0,0,0.06)'
+                              : p.value;
+                            return (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => setBorderValue(p.value)}
+                                className={`w-full flex items-stretch bg-white rounded-md overflow-hidden text-left transition-transform active:scale-[0.99] ${
+                                  active ? 'ring-2 ring-[#0EA5E9]' : ''
+                                }`}
+                                style={{ boxShadow: previewShadow }}
                               >
                                 <span className="w-1.5 shrink-0" style={{ background: '#0891B2' }} />
                                 <div className="flex-1 px-2 py-1.5 min-w-0">
