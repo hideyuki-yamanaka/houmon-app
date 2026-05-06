@@ -10,7 +10,19 @@
 // ---------------------------------------------------
 
 import { useEffect, useState, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import { Settings2, X, RotateCcw, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
+
+// 各グループが「どのページで関係するか」のマップ。関係ないページでは非表示にして
+// パネルをコンパクトに保つ (2026-05-06 ヒデさん指示)。
+type GroupName = 'メンバーカード' | 'ボトムシート' | 'ダッシュボード共通' | '家庭訪問の回数' | 'ランキング';
+const GROUP_PAGES: Record<GroupName, RegExp[]> = {
+  'メンバーカード':       [/^\/$/, /^\/calendar/, /^\/members/],
+  'ボトムシート':         [/^\/$/, /^\/calendar/, /^\/members/],
+  'ダッシュボード共通':   [/^\/log/],
+  '家庭訪問の回数':       [/^\/log/],
+  'ランキング':           [/^\/log/],
+};
 
 type TuneDef = {
   key: string;
@@ -38,9 +50,9 @@ const DEFS: TuneDef[] = [
   { key: 'mcKanaSize',     label: 'ふりがなのサイズ',         cssVar: '--tune-mc-kana',         unit: 'rem', min: 0.5,  max: 1,     step: 0.0625, default: 0.5625,group: 'メンバーカード' },
   { key: 'mcNameSize',     label: '名前のサイズ',             cssVar: '--tune-mc-name',         unit: 'rem', min: 0.75, max: 1.25,  step: 0.0625, default: 1,    group: 'メンバーカード' },
   { key: 'mcMetaSize',     label: 'メタ行 (組織/住所/訪問) サイズ', cssVar: '--tune-mc-meta',     unit: 'rem', min: 0.5,  max: 0.875, step: 0.0625, default: 0.625,group: 'メンバーカード' },
-  { key: 'mcPadX',         label: 'カード左右パディング',     cssVar: '--tune-mc-pad-x',        unit: 'rem', min: 0.25, max: 1.5,   step: 0.0625, default: 0.75, group: 'メンバーカード' },
-  { key: 'mcPadTop',       label: 'カード上パディング',       cssVar: '--tune-mc-pad-top',      unit: 'rem', min: 0.25, max: 1.5,   step: 0.0625, default: 0.9375,group: 'メンバーカード' },
-  { key: 'mcPadY',         label: 'カード下パディング',       cssVar: '--tune-mc-pad-y',        unit: 'rem', min: 0.25, max: 1.5,   step: 0.0625, default: 0.9375,group: 'メンバーカード' },
+  { key: 'mcPadX',         label: 'カード左右パディング',     cssVar: '--tune-mc-pad-x',        unit: 'rem', min: 0,    max: 1.5,   step: 0.0625, default: 0.75, group: 'メンバーカード' },
+  { key: 'mcPadTop',       label: 'カード上パディング',       cssVar: '--tune-mc-pad-top',      unit: 'rem', min: 0,    max: 1.5,   step: 0.0625, default: 0.9375,group: 'メンバーカード' },
+  { key: 'mcPadY',         label: 'カード下パディング',       cssVar: '--tune-mc-pad-y',        unit: 'rem', min: 0,    max: 1.5,   step: 0.0625, default: 0.9375,group: 'メンバーカード' },
   // 0/1 → none/inline-block (chevron 表示切替)
   { key: 'mcChevron',      label: 'Chevron 表示 (0=隠す/1=表示)', cssVar: '--tune-mc-chevron',  unit: '',    min: 0,    max: 1,     step: 1,      default: 0,    group: 'メンバーカード',
     formatValue: (v) => v >= 1 ? 'inline-block' : 'none' },
@@ -91,6 +103,7 @@ const PANEL_HEIGHT_KEY = 'houmon-app:design-tuner-height-v1';
 const PANEL_OFFSET_KEY = 'houmon-app:design-tuner-offset-v1';
 
 export default function DesignTuner() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   // グループ単位の折りたたみ (個別に開閉可能。デフォルト全展開)。
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
@@ -277,9 +290,13 @@ export default function DesignTuner() {
     new URLSearchParams(window.location.search).has('tuner');
   if (!isDev && !isTunerQuery) return null;
 
-  // グループごとに DEFS をまとめる（表示順を維持）
+  // グループごとに DEFS をまとめる（表示順を維持）。
+  // 現在のページに関係ないグループは除外して、パネルをコンパクトに保つ。
   const groups: { name: string; items: TuneDef[] }[] = [];
   for (const d of DEFS) {
+    const matchers = GROUP_PAGES[d.group];
+    const isRelevant = matchers ? matchers.some((re) => re.test(pathname ?? '')) : true;
+    if (!isRelevant) continue;
     let g = groups.find((x) => x.name === d.group);
     if (!g) {
       g = { name: d.group, items: [] };
