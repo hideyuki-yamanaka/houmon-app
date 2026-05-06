@@ -50,16 +50,21 @@ body {
 
 /* ── カード ── */
 /* 2026-05-06: メンバーカード/カレンダー/ダッシュボードを 1 つの変数で統一。
-   重要: 標準の 1px グレー枠線は CSS の border プロパティで描く。
-   こうすると JS (DesignTuner) が走らない / 古い JS が読み込まれていても
-   必ず枠線が出る。iPhone PWA の SW キャッシュ問題の影響も受けない。
-   --tune-mc-border  = 追加の枠線レイヤー (任意。デフォルトは透明)
-   --tune-mc-shadow  = ドロップシャドウ (SHADOW_PRESETS, デフォルトは B 標準) */
+   2026-05-06 v2: 案 4 (Notion風) + 案 A+C 採用 (ヒデさん指示)。
+     - 角丸 12px (旧 6px)
+     - border は none (シャドウだけで輪郭を出す方針に切替)
+     - シャドウ = 上向き極細影 + 近距離 + 遠距離 の 3 層
+       上向き影で「最上端カードの上端 fade」問題を解決。
+     - シート背景 #FAFAFA (SwipeableBottomSheet 側) でコントラスト補強。
+   --tune-mc-radius        = border-radius (DesignTuner で上書き可)
+   --tune-mc-border-style  = CSS border (DesignTuner で上書き可、デフォルト none)
+   --tune-mc-border        = 追加の枠線レイヤー (任意の box-shadow、デフォルト透明)
+   --tune-mc-shadow        = ドロップシャドウ */
 .ios-card {
   background: var(--color-card);
-  border-radius: var(--tune-mc-radius, 6px);
-  border: var(--tune-mc-border-style, 1px solid rgba(0, 0, 0, 0.08));
-  box-shadow: var(--tune-mc-border, 0 0 #0000), var(--tune-mc-shadow, 0 1px 3px rgba(0, 0, 0, 0.06));
+  border-radius: var(--tune-mc-radius, 12px);
+  border: var(--tune-mc-border-style, none);
+  box-shadow: var(--tune-mc-border, 0 0 #0000), var(--tune-mc-shadow, 0 -1px 2px rgba(0, 0, 0, 0.04), 0 1px 1px rgba(0, 0, 0, 0.03), 0 8px 24px rgba(0, 0, 0, 0.09));
   transition: opacity 0.15s ease;
 }
 /* hover はマウス系デバイスでのみ。タッチでは tap 後に hover 状態が残って

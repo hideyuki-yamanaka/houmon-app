@@ -54,9 +54,9 @@ const SHADOW_PRESETS: Array<{ id: string; name: string; desc: string; value: str
   { id: 'J', name: 'ふわっと大きめ', desc: '大ボケ + 近接の薄影で奥行きを出す',
     value: '0 16px 40px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.04)' },
 ];
-// 2026-05-06 ヒデさん指示で B 標準 → A 弱 に変更。
-// 1px グレー枠線を CSS で出すようにしたので、シャドウは控えめでよくなった。
-const SHADOW_DEFAULT = SHADOW_PRESETS[0].value; // A 弱
+// 2026-05-06 ヒデさん採用: A+C (Notion 二段 + 上向き極細影)。
+// 上向き影 0 -1px 2px rgba(.04) を加えて、最上端カードの上端 fade を解決。
+const SHADOW_DEFAULT = '0 -1px 2px rgba(0,0,0,0.04), 0 1px 1px rgba(0,0,0,0.03), 0 8px 24px rgba(0,0,0,0.09)';
 const SHADOW_STORAGE_KEY = 'houmon-app:design-tuner-shadow-v1';
 
 // ── 枠線スタイル プリセット + スライダー (2026-05-06 ヒデさん指示) ──
@@ -192,7 +192,7 @@ const DEFS: TuneDef[] = [
 
   // ── ボトムシート背景色 ──
   // 0 = 真っ白、上に行くほど明度を下げてグレー寄りにする (HSL の lightness を 100→70 で動かす)
-  { key: 'sheetBgGray',    label: 'シート背景の濃さ (0=白)',  cssVar: '--tune-sheet-bg',        unit: '',    min: 0,    max: 30,    step: 1,      default: 0,    group: 'ボトムシート',
+  { key: 'sheetBgGray',    label: 'シート背景の濃さ (0=白)',  cssVar: '--tune-sheet-bg',        unit: '',    min: 0,    max: 30,    step: 1,      default: 2,    group: 'ボトムシート',
     formatValue: (v) => `hsl(0, 0%, ${100 - v}%)` },
 
   // ── ダッシュボード共通 (/log ページのカード周り) ──
@@ -230,9 +230,11 @@ const PANEL_OFFSET_KEY = 'houmon-app:design-tuner-offset-v1';
 //   v5        : 2026-05-06 枠線を CSS border に変更、JS デフォルトは 0 に
 //   v6        : 2026-05-06 シャドウを B 標準 → A 弱 に控えめ化
 //   v7        : 2026-05-06 デザインパターン 10 案を導入 (radius / border-style 追加)
-//   v8 (現行) : 2026-05-06 デザインパターン 10 案を multi-layer 強濃版 v2 に総入替 +
+//   v8        : 2026-05-06 デザインパターン 10 案を multi-layer 強濃版 v2 に総入替 +
 //               iPhone 用パネル位置修正 (top anchor 化のため panelHeight/panelOffset を一旦リセット)
-const SETTINGS_VERSION = 8;
+//   v9 (現行) : 2026-05-06 案 A+C 採用 (Notion 二段 + 上向き極細影 + シート背景 #FAFAFA)
+//               最上端カード上端 fade 問題への対応。SHADOW_DEFAULT と sheetBgGray default を変更。
+const SETTINGS_VERSION = 9;
 const SETTINGS_VERSION_KEY = 'houmon-app:design-tuner-version';
 
 export default function DesignTuner() {
