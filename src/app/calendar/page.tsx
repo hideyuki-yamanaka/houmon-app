@@ -109,9 +109,9 @@ export default function CalendarPage() {
 
       {/* md 未満: カレンダーは固定で訪問ログ部分だけスクロール
           md 以上: 左カレンダー + 右訪問ログカードの2カラム */}
-      {/* モバイル: カレンダー固定領域 */}
-      <div className="px-4 pt-3 shrink-0 md:hidden">
-        <div className="bg-white rounded-xl p-2">
+      {/* モバイル: カレンダー固定領域 (コンパクト化で訪問ログの一覧性 UP) */}
+      <div className="px-3 pt-2 shrink-0 md:hidden">
+        <div className="bg-white rounded-xl p-1">
           <CalendarGrid
             year={year}
             month={month}
@@ -120,6 +120,7 @@ export default function CalendarPage() {
             onSelectDate={setSelectedDate}
             onPrevMonth={handlePrevMonth}
             onNextMonth={handleNextMonth}
+            compact
           />
         </div>
       </div>

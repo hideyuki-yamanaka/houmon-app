@@ -72,7 +72,7 @@ export default function CalendarGrid({
       {/* 日付グリッド — Airbnb風: 円形、選択時は黒塗り */}
       <div className="grid grid-cols-7">
         {days.map((day, i) => {
-          if (day === null) return <div key={`empty-${i}`} className="aspect-square" />;
+          if (day === null) return <div key={`empty-${i}`} className={compact ? 'h-9' : 'aspect-square'} />;
 
           const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           const isSelected = dateStr === selectedDate;
@@ -86,7 +86,7 @@ export default function CalendarGrid({
           const isRangeEdge = isRangeStart || isRangeEnd;
 
           return (
-            <div key={dateStr} className="aspect-square relative flex items-center justify-center">
+            <div key={dateStr} className={`${compact ? 'h-9' : 'aspect-square'} relative flex items-center justify-center`}>
               {/* 範囲背景（選択中の日付以外） */}
               {inRange && !isRangeEdge && (
                 <div className="absolute inset-y-1 inset-x-0 bg-[#F0F0F0]" />
