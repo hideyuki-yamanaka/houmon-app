@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import AuthShell from "../components/AuthShell";
-import DesignTuner from "../components/DesignTuner";
+import DesignTunerGate from "../components/DesignTunerGate";
 import ServiceWorkerRegistration from "../components/ServiceWorkerRegistration";
 
 export const metadata: Metadata = {
@@ -73,12 +73,12 @@ export default function RootLayout({
         <div className="h-full max-w-[1366px] mx-auto pb-[calc(60px+env(safe-area-inset-bottom))] relative">
           <AuthShell>{children}</AuthShell>
         </div>
-        {/* 開発環境専用のデザイン調整パネル。
-            本番ビルド (NODE_ENV=production) では一切レンダリングされない。
-            これにより本番では localStorage の旧 CSS 変数が読み込まれず、
-            MemberCard.tsx / globals.css の fallback (= コードの最新値) が
-            常に適用される。 */}
-        {process.env.NODE_ENV !== 'production' && <DesignTuner />}
+        {/* DesignTuner は Gate で出し分け：
+            - dev: 常に表示
+            - 本番: URL に ?tuner=1 を付けた時だけ有効化 (localStorage 記憶)
+            - 一般ユーザー (本番 + tuner なし) には表示されず、コード fallback が
+              そのまま適用される。 */}
+        <DesignTunerGate />
         {/* PWA: Service Worker 登録 (本番ビルドのみ動作) */}
         <ServiceWorkerRegistration />
       </body>
