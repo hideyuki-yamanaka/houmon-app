@@ -34,7 +34,10 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
     <div
       className="flex items-start"
       style={{
-        padding: 'var(--tune-mc-pad-y, 0.9375rem) var(--tune-mc-pad-x, 0.75rem)',
+        paddingTop: 'var(--tune-mc-pad-top, 0.9375rem)',
+        paddingRight: 'var(--tune-mc-pad-x, 0.75rem)',
+        paddingBottom: 'var(--tune-mc-pad-y, 0.9375rem)',
+        paddingLeft: 'var(--tune-mc-pad-x, 0.75rem)',
       }}
     >
       <div className="flex-1 min-w-0">

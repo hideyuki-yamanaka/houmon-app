@@ -39,7 +39,8 @@ const DEFS: TuneDef[] = [
   { key: 'mcNameSize',     label: '名前のサイズ',             cssVar: '--tune-mc-name',         unit: 'rem', min: 0.75, max: 1.25,  step: 0.0625, default: 1,    group: 'メンバーカード' },
   { key: 'mcMetaSize',     label: 'メタ行 (組織/住所/訪問) サイズ', cssVar: '--tune-mc-meta',     unit: 'rem', min: 0.5,  max: 0.875, step: 0.0625, default: 0.625,group: 'メンバーカード' },
   { key: 'mcPadX',         label: 'カード左右パディング',     cssVar: '--tune-mc-pad-x',        unit: 'rem', min: 0.25, max: 1.5,   step: 0.0625, default: 0.75, group: 'メンバーカード' },
-  { key: 'mcPadY',         label: 'カード上下パディング',     cssVar: '--tune-mc-pad-y',        unit: 'rem', min: 0.25, max: 1.5,   step: 0.0625, default: 0.9375,group: 'メンバーカード' },
+  { key: 'mcPadTop',       label: 'カード上パディング',       cssVar: '--tune-mc-pad-top',      unit: 'rem', min: 0.25, max: 1.5,   step: 0.0625, default: 0.9375,group: 'メンバーカード' },
+  { key: 'mcPadY',         label: 'カード下パディング',       cssVar: '--tune-mc-pad-y',        unit: 'rem', min: 0.25, max: 1.5,   step: 0.0625, default: 0.9375,group: 'メンバーカード' },
   // 0/1 → none/inline-block (chevron 表示切替)
   { key: 'mcChevron',      label: 'Chevron 表示 (0=隠す/1=表示)', cssVar: '--tune-mc-chevron',  unit: '',    min: 0,    max: 1,     step: 1,      default: 0,    group: 'メンバーカード',
     formatValue: (v) => v >= 1 ? 'inline-block' : 'none' },
