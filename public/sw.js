@@ -17,7 +17,8 @@
 // 2026-05-06 v4: 枠線さらに濃く (25%) を iPhone PWA に確実に届けるためバージョン上げ
 // 2026-05-06 v5: 枠線を CSS border 化 (JS 不要で確実に出る) のためバージョン上げ
 // 2026-05-06 v6: シャドウを B 標準 → A 弱 に控えめ化
-const CACHE_VERSION = 'v6-2026-05-06';
+// 2026-05-06 v7: hover 透過を タッチデバイスでは無効化
+const CACHE_VERSION = 'v7-2026-05-06';
 const STATIC_CACHE = `houmon-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `houmon-runtime-${CACHE_VERSION}`;
 

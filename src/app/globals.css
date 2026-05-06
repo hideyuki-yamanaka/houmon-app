@@ -62,8 +62,12 @@ body {
   box-shadow: var(--tune-mc-border, 0 0 #0000), var(--tune-mc-shadow, 0 1px 3px rgba(0, 0, 0, 0.06));
   transition: opacity 0.15s ease;
 }
-.ios-card:hover {
-  opacity: 0.7;
+/* hover はマウス系デバイスでのみ。タッチでは tap 後に hover 状態が残って
+   カードが薄く見え続ける問題があるので、media query で除外。 */
+@media (hover: hover) and (pointer: fine) {
+  .ios-card:hover {
+    opacity: 0.7;
+  }
 }
 
 /* ── リストアイテム（タップ領域＝全体） ── */
@@ -77,8 +81,10 @@ body {
   transition: opacity 0.15s ease;
   cursor: pointer;
 }
-.ios-list-item:hover {
-  opacity: 0.7;
+@media (hover: hover) and (pointer: fine) {
+  .ios-list-item:hover {
+    opacity: 0.7;
+  }
 }
 .ios-list-item:active {
   opacity: 0.5;
@@ -98,8 +104,10 @@ body {
   width: 100%;
   cursor: pointer;
 }
-.ios-button:hover {
-  opacity: 0.7;
+@media (hover: hover) and (pointer: fine) {
+  .ios-button:hover {
+    opacity: 0.7;
+  }
 }
 .ios-button:active {
   opacity: 0.5;
