@@ -57,8 +57,8 @@ body {
    --tune-mc-shadow  = ドロップシャドウ (SHADOW_PRESETS, デフォルトは B 標準) */
 .ios-card {
   background: var(--color-card);
-  border-radius: 6px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: var(--tune-mc-radius, 6px);
+  border: var(--tune-mc-border-style, 1px solid rgba(0, 0, 0, 0.08));
   box-shadow: var(--tune-mc-border, 0 0 #0000), var(--tune-mc-shadow, 0 1px 3px rgba(0, 0, 0, 0.06));
   transition: opacity 0.15s ease;
 }

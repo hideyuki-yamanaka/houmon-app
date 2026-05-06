@@ -1,48 +1,80 @@
 'use client';
 
-// メンバーカード 枠線 + シャドウ 5 案 共有ロジック。
-// App Store / Airbnb 風の「ミニマムだけど立体感」を狙う 5 パターン。
-// 各案ページから import して使う。
+// メンバーカード 枠線 + シャドウ 10 案 共有ロジック (v2)。
+//
+// v1 (5 案) は独自に組んだダミーカードだったが、ヒデさん指示でリアルな
+// MemberCard コンポーネントに当て込む形に変更。
+// 各案ごとに以下を CSS 変数で渡し、.ios-card の見た目だけ差し替える:
+//   --tune-mc-radius        (角丸)
+//   --tune-mc-border-style  (border ショートハンド or 'none')
+//   --tune-mc-shadow        (box-shadow)
+//
+// 10 案の出典/参考は STYLES の inspiration / desc に記載。
+// 「ミニマムだけど立体感」を狙った実在アプリの典型的な elevation を採集。
 
-import { ChevronRight, Clock, MapPin } from 'lucide-react';
+import MemberCard from '../../../components/MemberCard';
+import type { MemberWithVisitInfo } from '../../../lib/types';
 
-export type Sample = {
-  id: string;
-  name: string;
-  nameKana: string;
-  age: number;
-  org: string;
-  category?: 'young' | 'general';
-  visited: boolean;
-  lastVisitText?: string;
-  address?: string;
-  hex: string;
-};
+const now = new Date().toISOString();
 
-export const samples: Sample[] = [
+// ヒデさん運用と整合したサンプル 3 件 (ヤング含む)。
+// 組織色は MemberCard 内で district から取られるが、見た目を安定させるため
+// 既存のサンプル住所/組織を使ってリアルな見た目に近づける。
+export const samples: MemberWithVisitInfo[] = [
   {
-    id: '1', name: '朝日 涼太', nameKana: 'あさひりょうた', age: 25,
-    org: '豊岡本部・豊岡中央支部・歓喜地区',
-    category: 'young', visited: false, address: '旭川市豊岡5条7丁目1-10', hex: '#0891B2',
+    id: 'sample-1',
+    name: '朝日 涼太',
+    nameKana: 'あさひりょうた',
+    honbu: '豊岡本部',
+    bu: '豊岡中央支部',
+    district: '歓喜地区',
+    category: 'young',
+    address: '旭川市豊岡5条7丁目1-10',
+    age: 25,
+    visitCycleDays: 60,
+    createdAt: now,
+    updatedAt: now,
+    totalVisits: 0,
+    isOverdue: false,
   },
   {
-    id: '2', name: '伊藤 直樹', nameKana: 'いとうなおき', age: 27,
-    org: '東旭川本部・??部・??地区',
-    category: 'young', visited: true, address: '旭川市東光6条8丁目',
-    lastVisitText: '2026年5月5日 14時(1回)', hex: '#9F1239',
+    id: 'sample-2',
+    name: '伊藤 直樹',
+    nameKana: 'いとうなおき',
+    honbu: '東旭川本部',
+    bu: '?',
+    district: '?',
+    category: 'young',
+    address: '旭川市東光6条8丁目',
+    age: 27,
+    visitCycleDays: 60,
+    createdAt: now,
+    updatedAt: now,
+    totalVisits: 1,
+    isOverdue: false,
+    lastVisitDate: '2026-05-05',
+    lastVisitHour: 14,
   },
   {
-    id: '3', name: '加藤 寿希也', nameKana: 'かとうじゅきや', age: 26,
-    org: '豊岡本部・豊岡部・香城地区',
-    category: 'young', visited: false, address: '旭川市豊岡14条6丁目', hex: '#059669',
+    id: 'sample-3',
+    name: '加藤 寿希也',
+    nameKana: 'かとうじゅきや',
+    honbu: '豊岡本部',
+    bu: '豊岡部',
+    district: '香城地区',
+    category: 'young',
+    address: '旭川市豊岡14条6丁目',
+    age: 26,
+    visitCycleDays: 60,
+    createdAt: now,
+    updatedAt: now,
+    totalVisits: 0,
+    isOverdue: false,
   },
 ];
 
-const youngBadge =
-  'text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#0EA5E9] text-white leading-none whitespace-nowrap';
-
 export type CardStyle = {
-  /** カード自体の border。"none" or CSS 値 */
+  /** border ショートハンド ('none' or '1px solid rgba(...)') */
   border: string;
   /** box-shadow */
   shadow: string;
@@ -50,123 +82,196 @@ export type CardStyle = {
   radius: string;
 };
 
-export const STYLES: Record<1 | 2 | 3 | 4 | 5, { title: string; tagline: string; desc: string; style: CardStyle }> = {
-  1: {
-    title: '案 1: ボーダーレス + 柔らか二重シャドウ (App Store風)',
-    tagline: 'App Store のアプリリストに寄せた、枠線なし + 近距離 & 遠距離の二重影',
-    desc: 'border なし。box-shadow を「1px 近距離 + 12px 遠距離」の二重に重ねて、空気感のある柔らかい立体に。radius 12px。',
+export type StyleEntry = {
+  num: number;
+  title: string;
+  inspiration: string;
+  rationale: string;
+  style: CardStyle;
+};
+
+// 10 案: 実在アプリの elevation/shadow パターンを研究して採集。
+// 「ミニマム + ちょっと立体感」のスペクトラムを、控えめ→強め、
+// シャドウ単独 → ボーダー+シャドウ → 着色シャドウ → ガラス、と幅を持って並べた。
+export const STYLES: StyleEntry[] = [
+  {
+    num: 1,
+    title: 'App Store 風 二重シャドウ',
+    inspiration: 'iOS App Store / Today タブの大型カード',
+    rationale:
+      '近距離 1px (接地感) + 遠距離 6-16px (空気感) を重ねて、輪郭は影の濃淡だけで形成。border は 0。これが Apple 純正の elevation の基本形。',
     style: {
       border: 'none',
       shadow: '0 1px 2px rgba(0,0,0,0.04), 0 6px 16px rgba(0,0,0,0.06)',
       radius: '12px',
     },
   },
-  2: {
-    title: '案 2: 極薄ボーダー + 控えめシャドウ (Airbnb風)',
-    tagline: 'Airbnb の宿カードに寄せた、ヘアライン枠線 + 控えめ影',
-    desc: '1px の極薄ボーダー (rgba 0.04) で輪郭をうっすら出しつつ、影は 0 2px 8px と控えめ。やぼったくならず輪郭が見える。radius 12px。',
+  {
+    num: 2,
+    title: 'Airbnb 風 ヘアライン+控えめ影',
+    inspiration: 'Airbnb 宿泊カード / プロフィールカード',
+    rationale:
+      '1px 極薄ボーダー (rgba 0.04) で輪郭をかすかに出しつつ、影は 0 2px 8px と控えめ。線が薄いのでやぼったくならず、一覧で並べたとき境界がスッと見える。',
     style: {
       border: '1px solid rgba(0,0,0,0.04)',
       shadow: '0 2px 8px rgba(0,0,0,0.05)',
       radius: '12px',
     },
   },
-  3: {
-    title: '案 3: ボーダーレス + 拡散シャドウ (浮遊感)',
-    tagline: '輪郭を捨てて、影だけで立体感を表現',
-    desc: 'border なし。0 4px 14px の拡散影一発で、白背景にふわっと浮く。シンプルだが立体感あり。radius 14px (角を少し大きめ)。',
+  {
+    num: 3,
+    title: 'Apple Health 風 単一拡散影',
+    inspiration: 'Apple Health / Fitness のカード',
+    rationale:
+      'border なし、影だけで浮かせる。0 4px 14px の単発拡散影で柔らかく浮く。角丸を 14px と少し大きめに取って Apple 系の優しさを出す。',
     style: {
       border: 'none',
       shadow: '0 4px 14px rgba(0,0,0,0.08)',
       radius: '14px',
     },
   },
-  4: {
-    title: '案 4: 二段シャドウ Notion風 (奥行き)',
-    tagline: '近距離 (1px) + 遠距離 (24px) を強めにかけて、はっきり浮かせる',
-    desc: '近接の 1px シャドウで境界を補強しつつ、24px の長い遠距離影で奥行き。Notion のカードに近い「しっかり浮く」感じ。radius 12px。',
+  {
+    num: 4,
+    title: 'Notion 風 二段 elevation',
+    inspiration: 'Notion のカードビュー / ポップオーバー',
+    rationale:
+      '近距離 1px (シャープな接地) + 遠距離 24px (大きく拡散) の二段で奥行き。影は離れた位置まで伸び、はっきり「浮いてる」感じが出る。',
     style: {
       border: 'none',
       shadow: '0 1px 1px rgba(0,0,0,0.03), 0 8px 24px rgba(0,0,0,0.09)',
       radius: '12px',
     },
   },
-  5: {
-    title: '案 5: 上ハイライト + 拡散影 (ガラス風)',
-    tagline: '上端に 1px の白いインセットハイライトを入れて、エッジを上品に光らせる',
-    desc: 'inset 0 1px 0 rgba(255,255,255,0.9) で上端に白いハイライト + 0 4px 14px の拡散影。光が当たっているような上品さ。radius 12px。',
+  {
+    num: 5,
+    title: 'iOS Control Center 風 上ハイライト',
+    inspiration: 'iOS コントロールセンター / ウィジェット',
+    rationale:
+      '上端 1px に inset の白いハイライトを入れて、光が当たっているような上品さ。+ 拡散影で浮遊感。ガラス・タイル感のあるリッチな仕上がり。',
     style: {
       border: 'none',
       shadow: 'inset 0 1px 0 rgba(255,255,255,0.9), 0 4px 14px rgba(0,0,0,0.07)',
       radius: '12px',
     },
   },
-};
+  {
+    num: 6,
+    title: 'Linear 風 シャープ枠線',
+    inspiration: 'Linear / Vercel ダッシュボードのカード',
+    rationale:
+      '影は捨てて、1px のクリスプな border (rgba 0.06) だけで分離。フラット & クリーン。情報量の多い画面で「サクサクしてる」感じを出すのに有効。',
+    style: {
+      border: '1px solid rgba(0,0,0,0.06)',
+      shadow: 'none',
+      radius: '8px',
+    },
+  },
+  {
+    num: 7,
+    title: 'Material Elevation 2dp',
+    inspiration: 'Google Material Design / Gmail / Calendar カード',
+    rationale:
+      'Material の elevation 2 を踏襲。0 1px 2px (輪郭) + 0 2px 4px (近距離) を重ねて、角は 8px と保守的。Google プロダクト系の堅実な elevation。',
+    style: {
+      border: 'none',
+      shadow: '0 1px 2px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06)',
+      radius: '8px',
+    },
+  },
+  {
+    num: 8,
+    title: 'Stripe 風 ヘアライン+極小影',
+    inspiration: 'Stripe Dashboard / Vercel UI',
+    rationale:
+      '1px 薄ボーダー (rgba 0.05) + 0 1px 3px の極小シャドウ。境界はビシッとあるが、シャドウが控えめなのでフラット寄りの印象。情報密度の高い管理画面向け。',
+    style: {
+      border: '1px solid rgba(0,0,0,0.05)',
+      shadow: '0 1px 3px rgba(0,0,0,0.04)',
+      radius: '8px',
+    },
+  },
+  {
+    num: 9,
+    title: 'Spotify 風 広拡散影',
+    inspiration: 'Spotify アルバムカード / Apple Music',
+    rationale:
+      '0 8px 32px と広く拡散させて「グワッ」と浮かせる。角丸 8px と引き締めることで、影の存在感とコントラストを強調。タップしたくなるリッチ感。',
+    style: {
+      border: 'none',
+      shadow: '0 8px 32px rgba(0,0,0,0.08)',
+      radius: '8px',
+    },
+  },
+  {
+    num: 10,
+    title: 'Cool Tint 影 (Vercel系)',
+    inspiration: 'Vercel / Linear (ダーク寄り背景下のカード)',
+    rationale:
+      'シャドウの色を純黒ではなく、わずかに青みを帯びた濃紺 (rgba 17,24,39,*) にする。背景白でも空気感が「冷たく澄んだ」印象になり、テック寄りの上品さが出る。',
+    style: {
+      border: 'none',
+      shadow: '0 1px 2px rgba(17,24,39,0.04), 0 6px 18px rgba(17,24,39,0.08)',
+      radius: '12px',
+    },
+  },
+];
 
-export function StyledCard({ s, style }: { s: Sample; style: CardStyle }) {
+/** 各案のスタイルを CSS 変数として渡すラッパー。
+ *  内部の .ios-card がこの変数を拾って描画される。 */
+export function StyleScope({
+  style,
+  children,
+}: {
+  style: CardStyle;
+  children: React.ReactNode;
+}) {
   return (
     <div
-      className="bg-white overflow-hidden flex"
-      style={{
-        borderRadius: style.radius,
-        border: style.border,
-        boxShadow: style.shadow,
-      }}
+      style={
+        {
+          '--tune-mc-radius': style.radius,
+          '--tune-mc-border-style': style.border,
+          '--tune-mc-shadow': style.shadow,
+        } as React.CSSProperties
+      }
     >
-      <span className="w-[6px] shrink-0 self-stretch" style={{ background: s.hex }} />
-      <div className="flex-1 min-w-0 px-3 py-3">
-        <span className="text-[10px] text-[#6B6B6B] block leading-tight">{s.nameKana}</span>
-        <div className="flex items-center gap-1.5">
-          <span className="font-bold text-[15px]">{s.name}</span>
-          <span className="text-[11px] text-[#6B6B6B]">({s.age})</span>
-          {s.category === 'young' && <span className={youngBadge}>ヤング</span>}
-          <ChevronRight size={20} className="text-[#9CA3AF] shrink-0 ml-auto" />
-        </div>
-        <div className="mt-0.5">
-          <span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[#6B6B6B] inline-block max-w-full truncate">
-            {s.org}
-          </span>
-        </div>
-        {s.address && (
-          <div className="mt-0.5 flex items-center gap-1 text-[11px] text-[#6B6B6B] truncate">
-            <MapPin size={12} strokeWidth={1.8} className="shrink-0" />
-            <span className="truncate">{s.address}</span>
-          </div>
-        )}
-        <div className="mt-0.5 flex items-center gap-1 text-[11px] text-[#6B6B6B]">
-          <Clock size={12} strokeWidth={1.8} />
-          {s.lastVisitText ?? '----年--月--日'}
-        </div>
-      </div>
+      {children}
     </div>
   );
 }
 
 export function StyleVariantSheet({
-  variant,
+  entry,
   showSpec = true,
 }: {
-  variant: 1 | 2 | 3 | 4 | 5;
+  entry: StyleEntry;
   showSpec?: boolean;
 }) {
-  const v = STYLES[variant];
   return (
     <section>
       <div className="mb-2 px-1">
-        <h2 className="text-[15px] font-bold">{v.title}</h2>
-        <p className="text-[11px] text-[#6B6B6B] mt-0.5 leading-snug">{v.tagline}</p>
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <h2 className="text-[15px] font-bold">案 {entry.num}: {entry.title}</h2>
+        </div>
+        <p className="text-[11px] text-[#0EA5E9] mt-0.5 leading-snug">
+          参考: {entry.inspiration}
+        </p>
         {showSpec && (
-          <p className="text-[10px] text-[#9CA3AF] mt-1 leading-snug">{v.desc}</p>
+          <p className="text-[11px] text-[#6B6B6B] mt-1 leading-relaxed">
+            {entry.rationale}
+          </p>
         )}
       </div>
-      {/* ボトムシート風: 白背景 + 角丸 + 余白 */}
+      {/* ボトムシート風: 白背景 + 角丸 + 余白 (実際の MembersListSheet 内と同じ条件) */}
       <div className="bg-white rounded-2xl pt-3 pb-4 px-3 space-y-2.5">
-        {samples.map((s) => (
-          <StyledCard key={s.id} s={s} style={v.style} />
-        ))}
+        <StyleScope style={entry.style}>
+          {samples.map((m) => (
+            <MemberCard key={m.id} member={m} />
+          ))}
+        </StyleScope>
       </div>
       {showSpec && (
-        <pre className="mt-2 text-[10px] text-[#6B6B6B] bg-[#F8F8F8] rounded-md p-2 overflow-x-auto leading-snug">{`border: ${v.style.border}\nbox-shadow: ${v.style.shadow}\nborder-radius: ${v.style.radius}`}</pre>
+        <pre className="mt-2 text-[10px] text-[#6B6B6B] bg-[#F8F8F8] rounded-md p-2 overflow-x-auto leading-snug">{`border: ${entry.style.border}\nbox-shadow: ${entry.style.shadow}\nborder-radius: ${entry.style.radius}`}</pre>
       )}
     </section>
   );

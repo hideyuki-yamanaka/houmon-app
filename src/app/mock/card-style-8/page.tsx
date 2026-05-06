@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { STYLES, StyleVariantSheet } from '../_card-style-shared/SampleCard';
 
-const N = 1;
+const N = 8;
 export default function Page() {
   const e = STYLES[N - 1];
   return (

@@ -1,19 +1,18 @@
 'use client';
-
-// 案 3: ボーダーレス + 拡散シャドウ (浮遊感)
 import Link from 'next/link';
-import { StyleVariantSheet } from '../_card-style-shared/SampleCard';
+import { STYLES, StyleVariantSheet } from '../_card-style-shared/SampleCard';
 
-export default function MockCardStyle3Page() {
+const N = 3;
+export default function Page() {
+  const e = STYLES[N - 1];
   return (
     <div className="min-h-screen bg-[#F5F5F5] pb-20">
       <div className="max-w-[420px] mx-auto px-3 py-4">
         <div className="mb-4">
-          <h1 className="text-xl font-bold mb-1">案 3</h1>
-          <p className="text-[12px] text-[#6B6B6B]">枠線なし + 拡散シャドウ一発で浮遊感</p>
+          <h1 className="text-xl font-bold mb-1">案 {N}: {e.title}</h1>
           <Link href="/mock/card-style" className="text-[12px] underline mt-2 inline-block">← 一覧へ戻る</Link>
         </div>
-        <StyleVariantSheet variant={3} />
+        <StyleVariantSheet entry={e} />
       </div>
     </div>
   );
