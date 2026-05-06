@@ -17,22 +17,6 @@ import FilterModal, { PERIOD_FILTERS } from './FilterModal';
 // に集約している。
 // ──────────────────────────────────────────────────────────────
 
-function getKanaGroup(kana: string | undefined): string {
-  if (!kana) return 'その他';
-  const c = kana.charAt(0);
-  if (/[あいうえおアイウエオ]/.test(c)) return 'あ';
-  if (/[かきくけこがぎぐげごカキクケコガギグゲゴ]/.test(c)) return 'か';
-  if (/[さしすせそざじずぜぞサシスセソザジズゼゾ]/.test(c)) return 'さ';
-  if (/[たちつてとだぢづでどタチツテトダヂヅデド]/.test(c)) return 'た';
-  if (/[なにぬねのナニヌネノ]/.test(c)) return 'な';
-  if (/[はひふへほばびぶべぼぱぴぷぺぽハヒフヘホバビブベボパピプペポ]/.test(c)) return 'は';
-  if (/[まみむめもマミムメモ]/.test(c)) return 'ま';
-  if (/[やゆよヤユヨ]/.test(c)) return 'や';
-  if (/[らりるれろラリルレロ]/.test(c)) return 'ら';
-  if (/[わをんワヲン]/.test(c)) return 'わ';
-  return 'その他';
-}
-
 interface Props {
   members: MemberWithVisitInfo[];
   /** メンバー単位の訪問ログ Map(新しい順)。各メンバーカードに withLogs で渡す */
@@ -125,22 +109,7 @@ export default function MembersListSheet({
     return result;
   }, [members, filter, categoryFilter, periodFilter]);
 
-  const grouped = useMemo(() => {
-    const groups: { label: string; members: MemberWithVisitInfo[] }[] = [];
-    let currentGroup = '';
-    for (const m of filtered) {
-      const g = getKanaGroup(m.nameKana);
-      if (g !== currentGroup) {
-        currentGroup = g;
-        groups.push({ label: g, members: [m] });
-      } else {
-        groups[groups.length - 1].members.push(m);
-      }
-    }
-    return groups;
-  }, [filtered]);
-
-  const hasAnyFilter =
+const hasAnyFilter =
     filter.honbu !== null ||
     filter.bu !== null ||
     filter.district !== null ||
@@ -217,41 +186,20 @@ export default function MembersListSheet({
               </div>
             </div>
 
-            {/* リスト */}
-            {/* ↓ pt は付けない。あ行ラベルが sticky なので、padding 入れると
-                スクロール時に上に隙間ができてカードが透けてしまう。
-                breathing room はラベル側 (pt-3) で持たせる */}
-            <div className="flex-1 overflow-y-auto px-4 pb-4">
+            {/* リスト (50音ラベル撤廃 2026-05-06: フラットな1列表示) */}
+            <div className="flex-1 overflow-y-auto px-4 pt-2 pb-4">
               {filtered.length === 0 ? (
                 <p className="text-sm text-[var(--color-subtext)] text-center py-4">メンバーが見つかりません</p>
               ) : (
-                <div className="space-y-3">
-                  {grouped.map((group) => (
-                    <div key={group.label}>
-                      {/* 2026-05-06: 案 2 (半透明+ぼかし) ベースを更にコンパクト化。
-                          上にベタ付け、控えめサイズ、backdrop-blur で重なり自然。
-                          下に余白 (pb-2) を入れてカードのドロップシャドウが label に
-                          溶け込まないようにする (2026-05-06 ヒデさん指示)。 */}
-                      <div
-                        className="sticky top-0 z-10 -mx-1 px-1 pt-1 pb-2 backdrop-blur-md"
-                        style={{ background: 'rgba(255,255,255,0.75)' }}
-                      >
-                        <span className="text-[10px] font-medium text-[var(--color-subtext)] tracking-wide">
-                          {group.label}
-                        </span>
-                      </div>
-                      <div className="flex flex-col" style={{ gap: 'var(--tune-mc-gap, 14px)' }}>
-                        {group.members.map((m) => (
-                          <MemberCard
-                            key={m.id}
-                            member={m}
-                            onSelect={onSelectMember}
-                            withLogs
-                            visits={visitsByMember?.get(m.id) ?? []}
-                          />
-                        ))}
-                      </div>
-                    </div>
+                <div className="flex flex-col" style={{ gap: 'var(--tune-mc-gap, 14px)' }}>
+                  {filtered.map((m) => (
+                    <MemberCard
+                      key={m.id}
+                      member={m}
+                      onSelect={onSelectMember}
+                      withLogs
+                      visits={visitsByMember?.get(m.id) ?? []}
+                    />
                   ))}
                 </div>
               )}
