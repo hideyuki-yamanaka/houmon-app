@@ -186,8 +186,13 @@ const hasAnyFilter =
               </div>
             </div>
 
-            {/* リスト (50音ラベル撤廃 2026-05-06: フラットな1列表示) */}
-            <div className="flex-1 overflow-y-auto px-4 pt-2 pb-4">
+            {/* リスト (50音ラベル撤廃 2026-05-06: フラットな1列表示)
+                pt は --tune-mc-list-pad-top で Tuner 調整可。
+                ヒデさん指示 (2026-05-06): 一番上のカードと検索ヘッダーの間をもう少し空けたい。 */}
+            <div
+              className="flex-1 overflow-y-auto px-4 pb-4"
+              style={{ paddingTop: 'var(--tune-mc-list-pad-top, 12px)' }}
+            >
               {filtered.length === 0 ? (
                 <p className="text-sm text-[var(--color-subtext)] text-center py-4">メンバーが見つかりません</p>
               ) : (

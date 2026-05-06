@@ -30,13 +30,19 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
   const showLogs = !!withLogs && Array.isArray(visits) && visits.length > 0;
   const orgColor = getMemberOrgColor(member);
 
+  // 2 段カード (訪問ログ付き) のときはヘッダー下を別変数で詰められるようにする。
+  // ヒデさん指示 (2026-05-06): 「2026年5月5日 14時(1回)」の行と下のグレー訪問ログの
+  // 隙間を詰めたい。1 段カードの下パディングまで詰まるのは困るので変数を分けた。
+  const headPadBottom = showLogs
+    ? 'var(--tune-mc-pad-y-log, 0.375rem)'
+    : 'var(--tune-mc-pad-y, 0.9375rem)';
   const head = (
     <div
       className="flex items-start"
       style={{
         paddingTop: 'var(--tune-mc-pad-top, 0.9375rem)',
         paddingRight: 'var(--tune-mc-pad-x, 0.75rem)',
-        paddingBottom: 'var(--tune-mc-pad-y, 0.9375rem)',
+        paddingBottom: headPadBottom,
         paddingLeft: 'var(--tune-mc-pad-x, 0.75rem)',
       }}
     >

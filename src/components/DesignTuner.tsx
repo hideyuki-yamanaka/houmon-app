@@ -69,11 +69,17 @@ const DEFS: TuneDef[] = [
   { key: 'mcPadX',         label: 'カード左右パディング',     cssVar: '--tune-mc-pad-x',        unit: 'rem', min: 0,    max: 1.5,   step: 0.0625, default: 0.75, group: 'メンバーカード' },
   { key: 'mcPadTop',       label: 'カード上パディング',       cssVar: '--tune-mc-pad-top',      unit: 'rem', min: 0,    max: 1.5,   step: 0.0625, default: 0.9375,group: 'メンバーカード' },
   { key: 'mcPadY',         label: 'カード下パディング',       cssVar: '--tune-mc-pad-y',        unit: 'rem', min: 0,    max: 1.5,   step: 0.0625, default: 0.9375,group: 'メンバーカード' },
+  // 2 段カード (訪問ログ付き) のときだけ効くヘッダー下余白。
+  // 「2026/5/5 14時」と下のグレーログの間を詰めるため独立変数化 (2026-05-06)。
+  { key: 'mcPadYLog',      label: 'ヘッダー下パディング(ログ付き時)', cssVar: '--tune-mc-pad-y-log', unit: 'rem', min: 0, max: 1.5, step: 0.0625, default: 0.375, group: 'メンバーカード' },
   // 0/1 → none/inline-block (chevron 表示切替)
   { key: 'mcChevron',      label: 'Chevron 表示 (0=隠す/1=表示)', cssVar: '--tune-mc-chevron',  unit: '',    min: 0,    max: 1,     step: 1,      default: 0,    group: 'メンバーカード',
     formatValue: (v) => v >= 1 ? 'inline-block' : 'none' },
   // カード間の隙間 (memberlist の縦 gap)
   { key: 'mcGap',          label: 'カード間ギャップ',         cssVar: '--tune-mc-gap',          unit: 'px',  min: 0,    max: 24,    step: 1,      default: 8,    group: 'メンバーカード' },
+  // メンバーリスト最上端 (検索ヘッダー直下) と最初のカードの間。
+  // ヒデさん指示 (2026-05-06): 一番上の朝日さんカード上の余白を増やしたい。
+  { key: 'mcListPadTop',   label: 'リスト最上余白 (ヘッダー〜先頭カード)', cssVar: '--tune-mc-list-pad-top', unit: 'px', min: 0, max: 32, step: 1, default: 12, group: 'メンバーカード' },
   // ※ ドロップシャドウは別 UI (5案カードプレビュー) で選択するため、ここではスライダー化しない。
 // 訪問ログカルーセル (2 段カード時の下半分) との縦余白。
   // ヘッダー (氏名+組織+住所+時刻) と訪問ログの間。
