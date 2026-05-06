@@ -14,7 +14,8 @@
 
 // 2026-05-04 v2: 通知の title 空文字対応 + iOS PWA キャッシュ強制更新のためバージョン上げ
 // 2026-05-06 v3: メンバーカード枠線デフォルト変更を iPhone PWA に伝播させるためバージョン上げ
-const CACHE_VERSION = 'v3-2026-05-06';
+// 2026-05-06 v4: 枠線さらに濃く (25%) を iPhone PWA に確実に届けるためバージョン上げ
+const CACHE_VERSION = 'v4-2026-05-06';
 const STATIC_CACHE = `houmon-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `houmon-runtime-${CACHE_VERSION}`;
 

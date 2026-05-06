@@ -94,9 +94,9 @@ const BORDER_PRESETS: Array<{ id: string; name: string; desc: string } & BorderT
 // BORDER_PRESETS[0] は { id, name, desc } も持つので spread 経由で
 // BorderTune に取り出すと余計なフィールドが state/localStorage に紛れる。
 // ここで素のオブジェクトを定義して default として使う。
-// 2026-05-06 ヒデさん指示: メンバーカードの標準枠線を 1px / 15% に決定。
-// 当初 0.5px / 12% にしたが Retina iPhone 上で薄すぎて見えなかったので強めに。
-const BORDER_DEFAULT_TUNE: BorderTune = { w: 1, a: 15, sY: 0, sBlur: 0, sAlpha: 0 };
+// 2026-05-06 ヒデさん指示: メンバーカードの標準枠線を 1px / 25% に決定。
+// 0.5px/12% → 1px/15% でも Retina iPhone でまだ薄かったので 25% にさらに濃く。
+const BORDER_DEFAULT_TUNE: BorderTune = { w: 1, a: 25, sY: 0, sBlur: 0, sAlpha: 0 };
 const BORDER_STORAGE_KEY = 'houmon-app:design-tuner-border-v1';
 
 // BorderTune を box-shadow の値に組み立てる。
@@ -208,8 +208,9 @@ const PANEL_OFFSET_KEY = 'houmon-app:design-tuner-offset-v1';
 // デプロイだけで全員リセットできる。
 //   v1 (= 旧) : 番号自体がなかった時代の保存値 (黒シャドウ強め等)
 //   v2        : 2026-05-06 枠線 0.5px / 12% デフォルト (薄すぎたので没)
-//   v3 (現行) : 2026-05-06 枠線 1px / 15% デフォルトに引き上げ
-const SETTINGS_VERSION = 3;
+//   v3        : 2026-05-06 枠線 1px / 15% デフォルトに引き上げ (まだ薄かった)
+//   v4 (現行) : 2026-05-06 枠線 1px / 25% にさらに引き上げ
+const SETTINGS_VERSION = 4;
 const SETTINGS_VERSION_KEY = 'houmon-app:design-tuner-version';
 
 export default function DesignTuner() {
