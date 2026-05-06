@@ -19,10 +19,20 @@ import {
 } from '../../lib/push';
 import { useSwipeBack } from '../../lib/useSwipeBack';
 import { tapHaptic } from '../../lib/haptics';
+import { useOwnerContext } from '../../lib/auth';
+
+// 2026-05-06 ヒデさん指示で「テスト通知を送信」ボタンを非表示。
+// 通知周りでデバッグが必要になったら true に戻すと UI が復活する。
+// (関連 import や handler はそのまま残してあるので fast に切替可能)
+const SHOW_TEST_NOTIFY = false;
 
 export default function SettingsPage() {
   const router = useRouter();
   useSwipeBack(() => router.back());
+
+  // 2026-05-06: 共有・招待 はオーナー (=ヒデさん) のみ表示。
+  // 招待された人 (isOwner=false) のときは導線ごと非表示にする。
+  const { isOwner } = useOwnerContext();
 
   const [status, setStatus] = useState<PushStatus | null>(null);
   const [busy, setBusy] = useState(false);
@@ -126,8 +136,10 @@ export default function SettingsPage() {
             />
           </div>
 
-          {/* テスト送信ボタン (通知 ON 時のみ表示) */}
-          {isOn && (
+          {/* テスト送信ボタン (通知 ON 時のみ表示)。
+              2026-05-06 SHOW_TEST_NOTIFY=false で常に非表示。
+              復活させたい場合は当ファイル冒頭の SHOW_TEST_NOTIFY を true に。 */}
+          {SHOW_TEST_NOTIFY && isOn && (
             <div className="px-4 pb-4 -mt-1">
               <button
                 type="button"
@@ -165,14 +177,14 @@ export default function SettingsPage() {
           )}
         </section>
 
-        <p className="text-[11px] text-gray-400 px-2 leading-relaxed">
-          📬 共有相手が訪問記録を追加した時 と、毎週日曜夜に活動サマリーを通知します。
-        </p>
+        {/* 2026-05-06 ヒデさん指示で 補足文「📬 共有相手が…」を削除 */}
 
-        {/* 共有・招待セクション */}
+        {/* 共有・プロフィール・校正 セクション。
+            2026-05-06 ヒデさん指示で 共有・招待 動線はオーナー (= ヒデさん) のみ表示。
+            プロフィールと文書校正は誰でもアクセス可。 */}
         <section className="bg-white rounded-2xl shadow-sm border border-black/5 overflow-hidden">
           <div className="px-4 py-3 border-b border-black/5">
-            <h2 className="text-[13px] font-semibold text-gray-500">共有</h2>
+            <h2 className="text-[13px] font-semibold text-gray-500">アカウント</h2>
           </div>
 
           <Link
@@ -190,20 +202,22 @@ export default function SettingsPage() {
             <ChevronRight size={18} className="text-gray-400 shrink-0" />
           </Link>
 
-          <Link
-            href="/settings/sharing"
-            onClick={() => tapHaptic()}
-            className="flex items-center gap-3 px-4 py-4 active:bg-gray-50 border-b border-black/5"
-          >
-            <Users size={20} className="text-[var(--color-primary)] shrink-0" />
-            <div className="flex-1 min-w-0">
-              <div className="text-[15px] font-medium text-gray-900">共有・招待</div>
-              <div className="text-[12px] text-gray-500 mt-0.5">
-                家族と訪問記録を共有したり、招待リンクを発行
+          {isOwner && (
+            <Link
+              href="/settings/sharing"
+              onClick={() => tapHaptic()}
+              className="flex items-center gap-3 px-4 py-4 active:bg-gray-50 border-b border-black/5"
+            >
+              <Users size={20} className="text-[var(--color-primary)] shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="text-[15px] font-medium text-gray-900">共有・招待</div>
+                <div className="text-[12px] text-gray-500 mt-0.5">
+                  家族と訪問記録を共有したり、招待リンクを発行
+                </div>
               </div>
-            </div>
-            <ChevronRight size={18} className="text-gray-400 shrink-0" />
-          </Link>
+              <ChevronRight size={18} className="text-gray-400 shrink-0" />
+            </Link>
+          )}
 
           <Link
             href="/settings/proofreading"

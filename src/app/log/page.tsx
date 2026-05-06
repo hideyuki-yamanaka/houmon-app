@@ -107,10 +107,33 @@ export default function LogPage() {
   // ドリルダウン: 各UIタップで開く メンバー一覧シート
   const [sheetSpec, setSheetSpec] = useState<SheetSpec | null>(null);
   // 2026-05-04 フィルタ: 人 (作成者) + 期間
+  // 2026-05-06 ヒデさん指示で localStorage に保存して次回もチラつきなく復元する。
+  // SSR で window が無いので初期値はデフォルトのまま、useEffect でマウント後に上書き。
   const [personFilter, setPersonFilter] = useState<string>('all');   // 'all' | userId
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>('all');
   const router = useRouter();
   const { profileMap } = useTeamProfiles();
+
+  // ── localStorage からフィルタ復元 ──
+  // PERIOD_ORDER に含まれる値・personFilter は string なら採用 ('all' か userId 想定)。
+  useEffect(() => {
+    try {
+      const rawPeriod = window.localStorage.getItem('houmon-app:log-period-filter');
+      if (rawPeriod && (PERIOD_ORDER as string[]).includes(rawPeriod)) {
+        setPeriodFilter(rawPeriod as PeriodFilter);
+      }
+      const rawPerson = window.localStorage.getItem('houmon-app:log-person-filter');
+      if (rawPerson) setPersonFilter(rawPerson);
+    } catch { /* private mode 等は無視 */ }
+  }, []);
+
+  // ── フィルタ変更時 localStorage に保存 ──
+  useEffect(() => {
+    try { window.localStorage.setItem('houmon-app:log-period-filter', periodFilter); } catch { /* 無視 */ }
+  }, [periodFilter]);
+  useEffect(() => {
+    try { window.localStorage.setItem('houmon-app:log-person-filter', personFilter); } catch { /* 無視 */ }
+  }, [personFilter]);
 
   useEffect(() => {
     Promise.all([getMembersWithVisitInfo(), getAllVisits()])
