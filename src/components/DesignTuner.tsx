@@ -17,14 +17,20 @@ import { Settings2, X, RotateCcw, ChevronDown, ChevronUp, Copy, Check } from 'lu
 // パネルをコンパクトに保つ (2026-05-06 ヒデさん指示)。
 type GroupName = 'メンバーカード' | 'ボトムシート' | 'ダッシュボード共通' | '家庭訪問の回数' | 'ランキング';
 const GROUP_PAGES: Record<GroupName, RegExp[]> = {
-  'メンバーカード':       [/^\/$/, /^\/calendar/, /^\/members/],
-  'ボトムシート':         [/^\/$/, /^\/calendar/, /^\/members/],
+  // /mock/* (member-card-live など) は認証不要の live プレビューページ。
+  // メンバーカード/ボトムシート系トークンを Tuner で動かして即確認できるよう含める。
+  'メンバーカード':       [/^\/$/, /^\/calendar/, /^\/members/, /^\/mock\//],
+  'ボトムシート':         [/^\/$/, /^\/calendar/, /^\/members/, /^\/mock\//],
   'ダッシュボード共通':   [/^\/log/],
   '家庭訪問の回数':       [/^\/log/],
   'ランキング':           [/^\/log/],
 };
 
-// ── ドロップシャドウ 5案 (Tuner 内のカード型プレビューで比較する) ──
+// ── ドロップシャドウ プリセット (Tuner 内のカード型プレビューで比較する) ──
+// 2026-05-06 ヒデさん指示: 上端が背景に溶けて見えるのを防ぐタイプを中心に 5 案追加して計 10 案。
+//   - 「全周ヘアライン」「全方向ぼかし」系で四辺をくっきり見せる
+//   - 三段重ねで近接ぼかしを足してフチを締める
+//   - スプレッド(negative) でタイトに落とすパターン
 const SHADOW_PRESETS: Array<{ id: string; name: string; desc: string; value: string }> = [
   { id: 'A', name: '弱',           desc: '控えめ、紙のようなフラットさ',
     value: '0 1px 3px rgba(0,0,0,0.06)' },
@@ -36,6 +42,16 @@ const SHADOW_PRESETS: Array<{ id: string; name: string; desc: string; value: str
     value: '0 2px 4px rgba(0,0,0,0.06), 0 12px 28px rgba(0,0,0,0.16)' },
   { id: 'E', name: 'Material 二段', desc: 'くっきり輪郭+遠い影で立体強調',
     value: '0 1px 2px rgba(0,0,0,0.08), 0 8px 20px rgba(0,0,0,0.20)' },
+  { id: 'F', name: 'ハードエッジ',   desc: '1px ヘアラインで四辺くっきり + 軽い影',
+    value: '0 0 0 1px rgba(0,0,0,0.06), 0 3px 8px rgba(0,0,0,0.08)' },
+  { id: 'G', name: 'ハロー (全周ぼかし)', desc: '全方向に均等な柔らか影で上端も浮く',
+    value: '0 0 0 1px rgba(0,0,0,0.04), 0 0 16px rgba(0,0,0,0.10)' },
+  { id: 'H', name: 'Apple HIG 三段', desc: '近+中+遠の三層、フチが締まる',
+    value: '0 1px 2px rgba(0,0,0,0.06), 0 4px 10px rgba(0,0,0,0.06), 0 16px 32px rgba(0,0,0,0.10)' },
+  { id: 'I', name: 'クリスプ下落ち', desc: 'スプレッド負で輪郭タイト、底に濃く落ちる',
+    value: '0 6px 12px -2px rgba(0,0,0,0.18), 0 2px 4px -1px rgba(0,0,0,0.08)' },
+  { id: 'J', name: 'ふわっと大きめ', desc: '大ボケ + 近接の薄影で奥行きを出す',
+    value: '0 16px 40px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.04)' },
 ];
 const SHADOW_DEFAULT = SHADOW_PRESETS[2].value; // C 立体
 const SHADOW_STORAGE_KEY = 'houmon-app:design-tuner-shadow-v1';
@@ -80,7 +96,7 @@ const DEFS: TuneDef[] = [
   // メンバーリスト最上端 (検索ヘッダー直下) と最初のカードの間。
   // ヒデさん指示 (2026-05-06): 一番上の朝日さんカード上の余白を増やしたい。
   { key: 'mcListPadTop',   label: 'リスト最上余白 (ヘッダー〜先頭カード)', cssVar: '--tune-mc-list-pad-top', unit: 'px', min: 0, max: 32, step: 1, default: 12, group: 'メンバーカード' },
-  // ※ ドロップシャドウは別 UI (5案カードプレビュー) で選択するため、ここではスライダー化しない。
+  // ※ ドロップシャドウは別 UI (案カードプレビュー) で選択するため、ここではスライダー化しない。
 // 訪問ログカルーセル (2 段カード時の下半分) との縦余白。
   // ヘッダー (氏名+組織+住所+時刻) と訪問ログの間。
   { key: 'mcLogGapTop',    label: 'ヘッダーと訪問ログの隙間',  cssVar: '--tune-mc-log-gap-top',  unit: 'px',  min: 0,    max: 20,   step: 1,      default: 0,    group: 'メンバーカード' },
@@ -287,7 +303,7 @@ export default function DesignTuner() {
       const suffix = d.unit;
       lines.push(`- ${d.label} (${d.cssVar}): ${v}${suffix}`);
     }
-    // ドロップシャドウ (5案カード選択)
+    // ドロップシャドウ (案カード選択)
     const sp = SHADOW_PRESETS.find((p) => p.value === shadowValue);
     lines.push(`- カード ドロップシャドウ (--tune-mc-shadow): ${sp ? `${sp.id} ${sp.name}` : 'カスタム'} = ${shadowValue}`);
     lines.push('\n## JSON');
@@ -460,11 +476,11 @@ export default function DesignTuner() {
                   </div>
                   {!collapsed && (
                     <div className="p-2 space-y-2">
-                      {/* メンバーカード グループの先頭にシャドウ 5 案カードを表示 */}
+                      {/* メンバーカード グループの先頭にシャドウ案カードを表示 */}
                       {g.name === 'メンバーカード' && (
                         <div className="rounded-md bg-[#F5F5F5] p-2 space-y-2">
                           <div className="flex items-baseline justify-between">
-                            <span className="text-[10px] font-semibold">カード ドロップシャドウ (5案)</span>
+                            <span className="text-[10px] font-semibold">カード ドロップシャドウ ({SHADOW_PRESETS.length}案)</span>
                             {(() => {
                               const sp = SHADOW_PRESETS.find((p) => p.value === shadowValue);
                               return (
