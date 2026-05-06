@@ -201,6 +201,15 @@ const PANEL_HEIGHT_KEY = 'houmon-app:design-tuner-height-v1';
 // パネル位置オフセット (デフォルト位置からの相対 px {dx, dy})
 const PANEL_OFFSET_KEY = 'houmon-app:design-tuner-offset-v1';
 
+// 設定バージョン: コード側でデフォルトを変えたときにこの数字を 1 上げる。
+// localStorage に同じ番号が入ってなければ「古い保存値」とみなして全部捨てて
+// 新しいデフォルトを採用する。これでヒデさん側に「初期値」を押させずに
+// デプロイだけで全員リセットできる。
+//   v1 (= 旧) : 番号自体がなかった時代の保存値 (黒シャドウ強め等)
+//   v2 (現行) : 2026-05-06 枠線 0.5px / 12% デフォルト
+const SETTINGS_VERSION = 2;
+const SETTINGS_VERSION_KEY = 'houmon-app:design-tuner-version';
+
 export default function DesignTuner() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -228,35 +237,56 @@ export default function DesignTuner() {
 
   // localStorage から復元（初回のみ）
   useEffect(() => {
+    // バージョンチェック: コード側のデフォルトを変えたとき (SETTINGS_VERSION を上げたとき)
+    // 古い localStorage 値は捨てて、コード側のデフォルトを採用する。
+    let storedVer = 0;
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw) as Record<string, number>;
-        setValues((prev) => ({ ...prev, ...saved }));
-      }
-    } catch {
-      // 壊れてたら無視
+      const raw = window.localStorage.getItem(SETTINGS_VERSION_KEY);
+      storedVer = raw ? Number(raw) : 0;
+    } catch { /* 無視 */ }
+    const versionMismatch = storedVer !== SETTINGS_VERSION;
+    if (versionMismatch) {
+      // 古い保存値を全部消して、新しいバージョン番号を打つ。
+      try {
+        window.localStorage.removeItem(STORAGE_KEY);
+        window.localStorage.removeItem(SHADOW_STORAGE_KEY);
+        window.localStorage.removeItem(BORDER_STORAGE_KEY);
+        window.localStorage.setItem(SETTINGS_VERSION_KEY, String(SETTINGS_VERSION));
+      } catch { /* 無視 */ }
     }
-    // シャドウ案も復元
-    try {
-      const rawShadow = window.localStorage.getItem(SHADOW_STORAGE_KEY);
-      if (rawShadow) setShadowValue(rawShadow);
-    } catch { /* 無視 */ }
-    // 枠線案も復元 (新形式: BorderTune JSON)。
-    // 旧形式 (CSS 文字列) で保存されていた場合は無視してデフォルトに戻す。
-    try {
-      const rawBorder = window.localStorage.getItem(BORDER_STORAGE_KEY);
-      if (rawBorder && rawBorder.trim().startsWith('{')) {
-        const parsed = JSON.parse(rawBorder) as Partial<BorderTune>;
-        setBorderTune({
-          w:      typeof parsed.w === 'number'      ? parsed.w      : BORDER_DEFAULT_TUNE.w,
-          a:      typeof parsed.a === 'number'      ? parsed.a      : BORDER_DEFAULT_TUNE.a,
-          sY:     typeof parsed.sY === 'number'     ? parsed.sY     : BORDER_DEFAULT_TUNE.sY,
-          sBlur:  typeof parsed.sBlur === 'number'  ? parsed.sBlur  : BORDER_DEFAULT_TUNE.sBlur,
-          sAlpha: typeof parsed.sAlpha === 'number' ? parsed.sAlpha : BORDER_DEFAULT_TUNE.sAlpha,
-        });
+
+    // バージョン一致のときだけ過去の保存値を復元する。
+    if (!versionMismatch) {
+      try {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const saved = JSON.parse(raw) as Record<string, number>;
+          setValues((prev) => ({ ...prev, ...saved }));
+        }
+      } catch {
+        // 壊れてたら無視
       }
-    } catch { /* 無視 */ }
+      // シャドウ案も復元
+      try {
+        const rawShadow = window.localStorage.getItem(SHADOW_STORAGE_KEY);
+        if (rawShadow) setShadowValue(rawShadow);
+      } catch { /* 無視 */ }
+      // 枠線案も復元 (新形式: BorderTune JSON)。
+      // 旧形式 (CSS 文字列) で保存されていた場合は無視してデフォルトに戻す。
+      try {
+        const rawBorder = window.localStorage.getItem(BORDER_STORAGE_KEY);
+        if (rawBorder && rawBorder.trim().startsWith('{')) {
+          const parsed = JSON.parse(rawBorder) as Partial<BorderTune>;
+          setBorderTune({
+            w:      typeof parsed.w === 'number'      ? parsed.w      : BORDER_DEFAULT_TUNE.w,
+            a:      typeof parsed.a === 'number'      ? parsed.a      : BORDER_DEFAULT_TUNE.a,
+            sY:     typeof parsed.sY === 'number'     ? parsed.sY     : BORDER_DEFAULT_TUNE.sY,
+            sBlur:  typeof parsed.sBlur === 'number'  ? parsed.sBlur  : BORDER_DEFAULT_TUNE.sBlur,
+            sAlpha: typeof parsed.sAlpha === 'number' ? parsed.sAlpha : BORDER_DEFAULT_TUNE.sAlpha,
+          });
+        }
+      } catch { /* 無視 */ }
+    }
     // パネル高さ復元 (なければデフォルト 420px、画面が小さければ 50vh で調整)
     try {
       const rawH = window.localStorage.getItem(PANEL_HEIGHT_KEY);
