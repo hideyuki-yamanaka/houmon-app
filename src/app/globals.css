@@ -59,7 +59,7 @@ body {
   background: var(--color-card);
   border-radius: 6px;
   border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: var(--tune-mc-border, 0 0 #0000), var(--tune-mc-shadow, 0 4px 12px rgba(0, 0, 0, 0.12));
+  box-shadow: var(--tune-mc-border, 0 0 #0000), var(--tune-mc-shadow, 0 1px 3px rgba(0, 0, 0, 0.06));
   transition: opacity 0.15s ease;
 }
 .ios-card:hover {

@@ -53,8 +53,9 @@ const SHADOW_PRESETS: Array<{ id: string; name: string; desc: string; value: str
   { id: 'J', name: 'ふわっと大きめ', desc: '大ボケ + 近接の薄影で奥行きを出す',
     value: '0 16px 40px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.04)' },
 ];
-// 2026-05-06 ヒデさん指示で B 標準に変更 (カレンダー/ダッシュボードと統一感を出すため)。
-const SHADOW_DEFAULT = SHADOW_PRESETS[1].value; // B 標準
+// 2026-05-06 ヒデさん指示で B 標準 → A 弱 に変更。
+// 1px グレー枠線を CSS で出すようにしたので、シャドウは控えめでよくなった。
+const SHADOW_DEFAULT = SHADOW_PRESETS[0].value; // A 弱
 const SHADOW_STORAGE_KEY = 'houmon-app:design-tuner-shadow-v1';
 
 // ── 枠線スタイル プリセット + スライダー (2026-05-06 ヒデさん指示) ──
@@ -211,8 +212,9 @@ const PANEL_OFFSET_KEY = 'houmon-app:design-tuner-offset-v1';
 //   v2        : 2026-05-06 枠線 0.5px / 12% デフォルト (薄すぎたので没)
 //   v3        : 2026-05-06 枠線 1px / 15% デフォルトに引き上げ (まだ薄かった)
 //   v4        : 2026-05-06 枠線 1px / 25% にさらに引き上げ (PWA に届かず)
-//   v5 (現行) : 2026-05-06 枠線を CSS border に変更、JS デフォルトは 0 に
-const SETTINGS_VERSION = 5;
+//   v5        : 2026-05-06 枠線を CSS border に変更、JS デフォルトは 0 に
+//   v6 (現行) : 2026-05-06 シャドウを B 標準 → A 弱 に控えめ化
+const SETTINGS_VERSION = 6;
 const SETTINGS_VERSION_KEY = 'houmon-app:design-tuner-version';
 
 export default function DesignTuner() {

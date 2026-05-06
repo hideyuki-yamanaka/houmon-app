@@ -16,7 +16,8 @@
 // 2026-05-06 v3: メンバーカード枠線デフォルト変更を iPhone PWA に伝播させるためバージョン上げ
 // 2026-05-06 v4: 枠線さらに濃く (25%) を iPhone PWA に確実に届けるためバージョン上げ
 // 2026-05-06 v5: 枠線を CSS border 化 (JS 不要で確実に出る) のためバージョン上げ
-const CACHE_VERSION = 'v5-2026-05-06';
+// 2026-05-06 v6: シャドウを B 標準 → A 弱 に控えめ化
+const CACHE_VERSION = 'v6-2026-05-06';
 const STATIC_CACHE = `houmon-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `houmon-runtime-${CACHE_VERSION}`;
 
