@@ -49,13 +49,14 @@ body {
 }
 
 /* ── カード ── */
-/* 2026-05-06: メンバーカードと統一感を出すため、box-shadow を全 ios-card に適用。
-   メンバーカード側 (--tune-mc-shadow) と同じ強さの影。白背景の上で浮き上がる。 */
+/* 2026-05-06: メンバーカード/カレンダー/ダッシュボードを 1 つの変数で統一。
+   --tune-mc-shadow は DesignTuner の SHADOW_PRESETS で切り替え可能。
+   フォールバックは B 標準 (= 0 4px 12px rgba(0,0,0,0.12)) でヒデさん指示の現行デフォルト。 */
 .ios-card {
   background: var(--color-card);
   border-radius: 6px;
   border: none;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  box-shadow: var(--tune-mc-shadow, 0 4px 12px rgba(0, 0, 0, 0.12));
   transition: opacity 0.15s ease;
 }
 .ios-card:hover {

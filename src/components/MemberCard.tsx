@@ -118,7 +118,7 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
   // ログ無し or withLogs=false → 帯付き 1 段カード
   if (!showLogs) {
     const inner = (
-      <div className="ios-card overflow-hidden flex" style={{ boxShadow: 'var(--tune-mc-shadow, 0 8px 24px rgba(0,0,0,0.18))' }}>
+      <div className="ios-card overflow-hidden flex">
         {stripe}
         <div className="flex-1 min-w-0">{head}</div>
       </div>

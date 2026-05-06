@@ -34,9 +34,9 @@ const GROUP_PAGES: Record<GroupName, RegExp[]> = {
 const SHADOW_PRESETS: Array<{ id: string; name: string; desc: string; value: string }> = [
   { id: 'A', name: '弱',           desc: '控えめ、紙のようなフラットさ',
     value: '0 1px 3px rgba(0,0,0,0.06)' },
-  { id: 'B', name: '標準',         desc: '一般的なカード感',
+  { id: 'B', name: '標準 (現在のデフォルト)', desc: '一般的なカード感、メンバー/カレンダー/ダッシュボード共通',
     value: '0 4px 12px rgba(0,0,0,0.12)' },
-  { id: 'C', name: '立体 (現在のデフォルト)', desc: 'はっきり浮く立体感',
+  { id: 'C', name: '立体',         desc: 'はっきり浮く立体感',
     value: '0 8px 24px rgba(0,0,0,0.18)' },
   { id: 'D', name: 'Notion 二段',  desc: '近+遠の柔らかい二段ぼかし',
     value: '0 2px 4px rgba(0,0,0,0.06), 0 12px 28px rgba(0,0,0,0.16)' },
@@ -53,7 +53,8 @@ const SHADOW_PRESETS: Array<{ id: string; name: string; desc: string; value: str
   { id: 'J', name: 'ふわっと大きめ', desc: '大ボケ + 近接の薄影で奥行きを出す',
     value: '0 16px 40px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.04)' },
 ];
-const SHADOW_DEFAULT = SHADOW_PRESETS[2].value; // C 立体
+// 2026-05-06 ヒデさん指示で B 標準に変更 (カレンダー/ダッシュボードと統一感を出すため)。
+const SHADOW_DEFAULT = SHADOW_PRESETS[1].value; // B 標準
 const SHADOW_STORAGE_KEY = 'houmon-app:design-tuner-shadow-v1';
 
 type TuneDef = {
