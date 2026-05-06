@@ -204,9 +204,9 @@ export default function HomePage() {
         type="button"
         onClick={() => router.push('/settings')}
         aria-label="設定"
-        className="w-11 h-11 rounded-full bg-white shadow-[0_3px_10px_rgba(0,0,0,0.22)] flex items-center justify-center active:scale-95 transition-transform"
+        className="w-12 h-12 rounded-full bg-white shadow-[0_3px_10px_rgba(0,0,0,0.22)] flex items-center justify-center active:scale-95 transition-transform"
       >
-        <Settings size={20} className="text-[#5F6368]" strokeWidth={2} />
+        <Settings size={22} className="text-[#5F6368]" strokeWidth={2} />
       </button>
       <button
         onClick={handleLocate}
@@ -282,8 +282,8 @@ export default function HomePage() {
       <div className="absolute top-0 left-0 right-0 z-20 pt-[calc(env(safe-area-inset-top)+8px)] pointer-events-none">
         {/* 検索バー */}
         <div className="px-3 pointer-events-auto">
-          <div className="bg-white rounded-full shadow-[0_2px_6px_rgba(0,0,0,0.15)] flex items-center h-12 px-4">
-            <Search size={20} className="text-[#5F6368] shrink-0" />
+          <div className="bg-white rounded-full shadow-[0_3px_10px_rgba(0,0,0,0.22)] flex items-center h-12 px-4">
+            <Search size={22} className="text-[#5F6368] shrink-0" />
             <input
               type="text"
               value={searchQuery}
@@ -325,10 +325,10 @@ export default function HomePage() {
             type="button"
             onClick={() => setLayerMode(m => (m === 'standard' ? 'satellite' : 'standard'))}
             aria-label={layerMode === 'standard' ? '航空写真に切り替え' : '通常マップに切り替え'}
-            className="shrink-0 w-11 h-11 rounded-full bg-white shadow-[0_2px_6px_rgba(0,0,0,0.15)] flex items-center justify-center active:scale-95 transition-transform"
+            className="shrink-0 w-12 h-12 rounded-full bg-white shadow-[0_3px_10px_rgba(0,0,0,0.22)] flex items-center justify-center active:scale-95 transition-transform"
           >
             <Layers
-              size={20}
+              size={22}
               className={layerMode === 'satellite' ? 'text-[var(--color-primary)]' : 'text-[#5F6368]'}
               strokeWidth={2}
             />
