@@ -73,8 +73,12 @@ export default function RootLayout({
         <div className="h-full max-w-[1366px] mx-auto pb-[calc(60px+env(safe-area-inset-bottom))] relative">
           <AuthShell>{children}</AuthShell>
         </div>
-        {/* 開発環境専用のデザイン調整パネル。本番ビルドでは描画されない */}
-        <DesignTuner />
+        {/* 開発環境専用のデザイン調整パネル。
+            本番ビルド (NODE_ENV=production) では一切レンダリングされない。
+            これにより本番では localStorage の旧 CSS 変数が読み込まれず、
+            MemberCard.tsx / globals.css の fallback (= コードの最新値) が
+            常に適用される。 */}
+        {process.env.NODE_ENV !== 'production' && <DesignTuner />}
         {/* PWA: Service Worker 登録 (本番ビルドのみ動作) */}
         <ServiceWorkerRegistration />
       </body>
