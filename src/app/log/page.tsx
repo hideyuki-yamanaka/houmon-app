@@ -403,7 +403,7 @@ export default function LogPage() {
                             {w.agoIdx === 0 && (
                               <span
                                 className="text-[10px] px-2 py-[3px] rounded-full font-bold tracking-wide"
-                                style={{ color: '#FFFFFF', background: '#111' }}
+                                style={{ color: '#FFFFFF', background: '#4B5563' }}
                               >
                                 今週
                               </span>
@@ -422,7 +422,7 @@ export default function LogPage() {
                               className={`h-full rounded-md flex items-center justify-end px-2 ${hit ? 'animate-bar-stagger' : ''}`}
                               style={{
                                 width: `${widthPct}%`,
-                                background: hit ? '#111' : '#F3F4F6',
+                                background: hit ? '#4B5563' : '#F3F4F6',
                                 animationDelay: hit ? animDelay : undefined,
                               }}
                             >
@@ -531,7 +531,7 @@ export default function LogPage() {
                       label: '会えた',
                       count: c.met_self + c.met_family + c.refused,
                       sub: `本人 ${c.met_self} / 家族 ${c.met_family} / 拒否 ${c.refused}`,
-                      fg: '#111',
+                      fg: '#4B5563',
                       bg: '#F3F4F6',
                       statuses: ['met_self', 'met_family', 'refused'],
                     },

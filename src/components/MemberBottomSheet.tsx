@@ -166,11 +166,11 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                         ヤング
                       </span>
                     )}
-                    {/* ヤングタグ (またはその直前要素) にビタ付け: 親の gap-1.5 を -ml で打ち消し、
-                        サイズも 18 → 22 に。ヒデさん指示 (2026-05-06)。 */}
+                    {/* Chevron: サイズを少し大きく & ヤングタグ右に少し余白を残す。
+                        ヒデさん指示 (2026-05-06)。 */}
                     <ChevronRight
-                      size={22}
-                      className="-ml-[6px] text-[var(--color-icon-gray)] shrink-0"
+                      size={26}
+                      className="ml-0.5 text-[var(--color-icon-gray)] shrink-0"
                       aria-hidden
                     />
                   </div>

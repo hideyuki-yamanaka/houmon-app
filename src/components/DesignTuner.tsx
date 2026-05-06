@@ -94,7 +94,8 @@ const BORDER_PRESETS: Array<{ id: string; name: string; desc: string } & BorderT
 // BORDER_PRESETS[0] は { id, name, desc } も持つので spread 経由で
 // BorderTune に取り出すと余計なフィールドが state/localStorage に紛れる。
 // ここで素のオブジェクトを定義して default として使う。
-const BORDER_DEFAULT_TUNE: BorderTune = { w: 0, a: 0, sY: 0, sBlur: 0, sAlpha: 0 };
+// 2026-05-06 ヒデさん指示: メンバーカードの標準枠線を 0.5px / 12% に決定。
+const BORDER_DEFAULT_TUNE: BorderTune = { w: 0.5, a: 12, sY: 0, sBlur: 0, sAlpha: 0 };
 const BORDER_STORAGE_KEY = 'houmon-app:design-tuner-border-v1';
 
 // BorderTune を box-shadow の値に組み立てる。
