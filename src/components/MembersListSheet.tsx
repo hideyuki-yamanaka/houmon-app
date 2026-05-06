@@ -191,7 +191,7 @@ const hasAnyFilter =
               {filtered.length === 0 ? (
                 <p className="text-sm text-[var(--color-subtext)] text-center py-4">メンバーが見つかりません</p>
               ) : (
-                <div className="flex flex-col" style={{ gap: 'var(--tune-mc-gap, 14px)' }}>
+                <div className="flex flex-col" style={{ gap: 'var(--tune-mc-gap, 8px)' }}>
                   {filtered.map((m) => (
                     <MemberCard
                       key={m.id}

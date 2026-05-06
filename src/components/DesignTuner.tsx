@@ -57,7 +57,7 @@ const DEFS: TuneDef[] = [
   { key: 'mcChevron',      label: 'Chevron 表示 (0=隠す/1=表示)', cssVar: '--tune-mc-chevron',  unit: '',    min: 0,    max: 1,     step: 1,      default: 0,    group: 'メンバーカード',
     formatValue: (v) => v >= 1 ? 'inline-block' : 'none' },
   // カード間の隙間 (memberlist の縦 gap)
-  { key: 'mcGap',          label: 'カード間ギャップ',         cssVar: '--tune-mc-gap',          unit: 'px',  min: 0,    max: 24,    step: 1,      default: 14,    group: 'メンバーカード' },
+  { key: 'mcGap',          label: 'カード間ギャップ',         cssVar: '--tune-mc-gap',          unit: 'px',  min: 0,    max: 24,    step: 1,      default: 8,    group: 'メンバーカード' },
   // 0=none, 1=弱, 2=中, 3=強, 4=立体的(案12)。デフォルト 4
   { key: 'mcShadow',       label: 'カード ドロップシャドウ (0=なし/1=弱/2=中/3=強/4=立体)', cssVar: '--tune-mc-shadow', unit: '', min: 0, max: 4, step: 1, default: 4, group: 'メンバーカード',
     formatValue: (v) => {
@@ -69,9 +69,9 @@ const DEFS: TuneDef[] = [
     } },
   // 訪問ログカルーセル (2 段カード時の下半分) との縦余白。
   // ヘッダー (氏名+組織+住所+時刻) と訪問ログの間。
-  { key: 'mcLogGapTop',    label: 'ヘッダーと訪問ログの隙間',  cssVar: '--tune-mc-log-gap-top',  unit: 'px',  min: 0,    max: 20,   step: 1,      default: 4,    group: 'メンバーカード' },
+  { key: 'mcLogGapTop',    label: 'ヘッダーと訪問ログの隙間',  cssVar: '--tune-mc-log-gap-top',  unit: 'px',  min: 0,    max: 20,   step: 1,      default: 0,    group: 'メンバーカード' },
   // 訪問ログカルーセル下、カード下端との余白。
-  { key: 'mcLogGapBottom', label: '訪問ログとカード下端の隙間', cssVar: '--tune-mc-log-gap-bottom', unit: 'px', min: 0,   max: 20,   step: 1,      default: 6,    group: 'メンバーカード' },
+  { key: 'mcLogGapBottom', label: '訪問ログとカード下端の隙間', cssVar: '--tune-mc-log-gap-bottom', unit: 'px', min: 0,   max: 20,   step: 1,      default: 14,   group: 'メンバーカード' },
 
   // ── ボトムシート背景色 ──
   // 0 = 真っ白、上に行くほど明度を下げてグレー寄りにする (HSL の lightness を 100→70 で動かす)

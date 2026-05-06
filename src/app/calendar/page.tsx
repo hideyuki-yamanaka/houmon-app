@@ -76,7 +76,7 @@ export default function CalendarPage() {
           <p className="text-xs text-[var(--color-subtext)] mt-1 opacity-70">訪問した日はカレンダーに印が付くで</p>
         </div>
       ) : (
-        <div className="flex flex-col" style={{ gap: 'var(--tune-mc-gap, 14px)' }}>
+        <div className="flex flex-col" style={{ gap: 'var(--tune-mc-gap, 8px)' }}>
           {/* 2026-05-06 統一: ホームのメンバー一覧と同じ MemberCard で表示。
               該当メンバー情報を members から引いて、その日の visit を 1 件だけ
               withLogs 経由で渡す (VisitsCarousel と同じステータスチップ + メモ)。

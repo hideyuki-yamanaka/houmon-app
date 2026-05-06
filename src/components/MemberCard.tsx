@@ -155,8 +155,8 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
         <div
           className="mx-3"
           style={{
-            marginTop: 'var(--tune-mc-log-gap-top, 4px)',
-            marginBottom: 'var(--tune-mc-log-gap-bottom, 6px)',
+            marginTop: 'var(--tune-mc-log-gap-top, 0px)',
+            marginBottom: 'var(--tune-mc-log-gap-bottom, 14px)',
           }}
         >
           <VisitsCarousel visits={visits!} />
