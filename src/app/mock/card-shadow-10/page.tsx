@@ -114,6 +114,18 @@ const patterns: { num: number; title: string; desc: string;
   { num: 10, title: '上方向シャドウ (浮き上がり感)',
     desc: '0 -2px 6px rgba(0,0,0,0.05), 0 4px 8px rgba(0,0,0,0.06)。上下両方の影で「浮いてる」感。',
     shadow: '0 -2px 6px rgba(0,0,0,0.05), 0 4px 8px rgba(0,0,0,0.06)' },
+  { num: 11, title: 'はっきり強 (15%)',
+    desc: '0 6px 16px rgba(0,0,0,0.15)。案 4 より一段強く、ワンランク浮く。',
+    shadow: '0 6px 16px rgba(0,0,0,0.15)' },
+  { num: 12, title: '立体的 (18%)',
+    desc: '0 8px 24px rgba(0,0,0,0.18)。カードがはっきり背景から分離。',
+    shadow: '0 8px 24px rgba(0,0,0,0.18)' },
+  { num: 13, title: '二段 Notion風',
+    desc: '0 2px 4px rgba(0,0,0,0.06), 0 12px 28px rgba(0,0,0,0.16)。近距離+遠距離で柔らかく強い影。',
+    shadow: '0 2px 4px rgba(0,0,0,0.06), 0 12px 28px rgba(0,0,0,0.16)' },
+  { num: 14, title: '二段くっきり Material風',
+    desc: '0 1px 2px rgba(0,0,0,0.08), 0 8px 20px rgba(0,0,0,0.20)。Material elevation 風のはっきり影。',
+    shadow: '0 1px 2px rgba(0,0,0,0.08), 0 8px 20px rgba(0,0,0,0.20)' },
 ];
 
 export default function MockCardShadow10Page() {
@@ -121,7 +133,7 @@ export default function MockCardShadow10Page() {
     <div className="min-h-screen bg-[#F5F5F5] pb-20">
       <div className="max-w-[420px] mx-auto px-3 py-4">
         <div className="mb-4">
-          <h1 className="text-xl font-bold mb-1">メンバーカード ドロップシャドウ 10 案</h1>
+          <h1 className="text-xl font-bold mb-1">メンバーカード ドロップシャドウ 14 案</h1>
           <p className="text-[12px] text-[#6B6B6B]">
             白いボトムシート背景の上に白いカードを並べた状態でシャドウ比較。
           </p>
