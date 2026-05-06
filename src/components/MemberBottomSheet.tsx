@@ -214,19 +214,17 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                   </button>
                 </div>
               </div>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)]">
+              {/* メンバーカードの並び順に揃える (2026-05-06 ヒデさん指示):
+                  上から: 名前+ヤング (上の button 内) → 組織タグ → 住所 → 訪問日時。 */}
+              {/* 1) 組織タグ (グレー) */}
+              <div className="mt-1">
+                <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)] inline-block max-w-full truncate">
                   {formatOrgLabelShort(m)}
                 </span>
-                <span className="flex items-center gap-1 text-xs text-[var(--color-subtext)]">
-                  <Clock size={14} strokeWidth={1.8} />
-                  {m.lastVisitDate
-                    ? `${formatDate(m.lastVisitDate, 'yyyy年M月d日')}${m.lastVisitHour !== undefined ? ` ${m.lastVisitHour}時` : ''}（${m.totalVisits}回）`
-                    : '----年--月--日'}
-                </span>
               </div>
+              {/* 2) 住所 + Google Maps ボタン */}
               {m.address && (
-                <div className="flex items-center gap-2 mt-1.5">
+                <div className="flex items-center gap-2 mt-1">
                   <span className="flex-1 min-w-0 text-xs text-[var(--color-subtext)] truncate flex items-center gap-1">
                     <MapPin size={12} className="shrink-0" />
                     {m.address}
@@ -247,6 +245,13 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                   </a>
                 </div>
               )}
+              {/* 3) 訪問日時 */}
+              <div className="flex items-center gap-1 mt-1 text-xs text-[var(--color-subtext)]">
+                <Clock size={14} strokeWidth={1.8} />
+                {m.lastVisitDate
+                  ? `${formatDate(m.lastVisitDate, 'yyyy年M月d日')}${m.lastVisitHour !== undefined ? ` ${m.lastVisitHour}時` : ''}（${m.totalVisits}回）`
+                  : '----年--月--日'}
+              </div>
             </div>
 
             {/* 訪問ログ: 訪問実績がある場合のみセクション丸ごと表示
