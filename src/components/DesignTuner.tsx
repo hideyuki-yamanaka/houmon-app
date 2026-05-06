@@ -12,6 +12,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import { Settings2, X, RotateCcw, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
+import { CARD_STYLE_PRESETS } from '../lib/cardStylePresets';
 
 // 各グループが「どのページで関係するか」のマップ。関係ないページでは非表示にして
 // パネルをコンパクトに保つ (2026-05-06 ヒデさん指示)。
@@ -100,6 +101,20 @@ const BORDER_PRESETS: Array<{ id: string; name: string; desc: string } & BorderT
 // 0 で重ねない (= CSS の 1px 枠だけ表示) のがデフォルトに。
 const BORDER_DEFAULT_TUNE: BorderTune = { w: 0, a: 0, sY: 0, sBlur: 0, sAlpha: 0 };
 const BORDER_STORAGE_KEY = 'houmon-app:design-tuner-border-v1';
+
+// ── デザインパターン (10 案 / 実在アプリ参考) ──
+// 2026-05-06 ヒデさん指示: 実画面でシャドウ + 枠線 + 角丸を 1 セット切替して比較する。
+// クリックで以下 3 つの CSS 変数を一括反映する:
+//   --tune-mc-shadow        (box-shadow)
+//   --tune-mc-border-style  (CSS の border ショートハンド)
+//   --tune-mc-radius        (border-radius)
+// ※ プリセット適用時は 既存の "BorderTune" (box-shadow 枠) は 0 にリセット。
+//    枠線は CSS の border 側で描くので、box-shadow 枠と二重になるのを避ける。
+const PERSONA_STORAGE_KEY = 'houmon-app:design-tuner-persona-v1';
+const RADIUS_STORAGE_KEY  = 'houmon-app:design-tuner-radius-v1';
+const BORDER_STYLE_STORAGE_KEY = 'houmon-app:design-tuner-border-style-v1';
+// 「未選択」を示す番号
+const PERSONA_NONE = 0;
 
 // BorderTune を box-shadow の値に組み立てる。
 // 全部 0 なら no-op の透明値 (他の box-shadow レイヤーと併用するため空文字は不可)。
@@ -213,8 +228,9 @@ const PANEL_OFFSET_KEY = 'houmon-app:design-tuner-offset-v1';
 //   v3        : 2026-05-06 枠線 1px / 15% デフォルトに引き上げ (まだ薄かった)
 //   v4        : 2026-05-06 枠線 1px / 25% にさらに引き上げ (PWA に届かず)
 //   v5        : 2026-05-06 枠線を CSS border に変更、JS デフォルトは 0 に
-//   v6 (現行) : 2026-05-06 シャドウを B 標準 → A 弱 に控えめ化
-const SETTINGS_VERSION = 6;
+//   v6        : 2026-05-06 シャドウを B 標準 → A 弱 に控えめ化
+//   v7 (現行) : 2026-05-06 デザインパターン 10 案を導入 (radius / border-style 追加)
+const SETTINGS_VERSION = 7;
 const SETTINGS_VERSION_KEY = 'houmon-app:design-tuner-version';
 
 export default function DesignTuner() {
@@ -241,6 +257,12 @@ export default function DesignTuner() {
   // 枠線スタイル: 太さ/濃さ/後ろ影オフセY/後ろ影ぼかし/後ろ影濃さ の 5 値。
   // プリセットでも 5 値が一括セットされる。デフォルトは B0 (全部 0 = 枠線なし)。
   const [borderTune, setBorderTune] = useState<BorderTune>({ ...BORDER_DEFAULT_TUNE });
+  // 選択中のデザインパターン番号 (1-10)。0 で未選択 = チューナー個別調整に従う。
+  const [personaId, setPersonaId] = useState<number>(PERSONA_NONE);
+  // パターンが直接書く CSS の border-radius (例: '12px') と border (例: '1px solid rgba(0,0,0,0.04)' or 'none')。
+  // 空文字なら globals.css のフォールバック (6px / 1px solid rgba 0.08) が効く。
+  const [cardRadius, setCardRadius] = useState<string>('');
+  const [cardBorderStyle, setCardBorderStyle] = useState<string>('');
 
   // localStorage から復元（初回のみ）
   useEffect(() => {
@@ -258,6 +280,9 @@ export default function DesignTuner() {
         window.localStorage.removeItem(STORAGE_KEY);
         window.localStorage.removeItem(SHADOW_STORAGE_KEY);
         window.localStorage.removeItem(BORDER_STORAGE_KEY);
+        window.localStorage.removeItem(PERSONA_STORAGE_KEY);
+        window.localStorage.removeItem(RADIUS_STORAGE_KEY);
+        window.localStorage.removeItem(BORDER_STYLE_STORAGE_KEY);
         window.localStorage.setItem(SETTINGS_VERSION_KEY, String(SETTINGS_VERSION));
       } catch { /* 無視 */ }
     }
@@ -292,6 +317,18 @@ export default function DesignTuner() {
             sAlpha: typeof parsed.sAlpha === 'number' ? parsed.sAlpha : BORDER_DEFAULT_TUNE.sAlpha,
           });
         }
+      } catch { /* 無視 */ }
+      // デザインパターン (10 案) の復元
+      try {
+        const rawP = window.localStorage.getItem(PERSONA_STORAGE_KEY);
+        if (rawP) {
+          const n = Number(rawP);
+          if (Number.isFinite(n) && n >= 1 && n <= CARD_STYLE_PRESETS.length) setPersonaId(n);
+        }
+        const rawR = window.localStorage.getItem(RADIUS_STORAGE_KEY);
+        if (rawR) setCardRadius(rawR);
+        const rawBS = window.localStorage.getItem(BORDER_STYLE_STORAGE_KEY);
+        if (rawBS) setCardBorderStyle(rawBS);
       } catch { /* 無視 */ }
     }
     // パネル高さ復元 (なければデフォルト 420px、画面が小さければ 50vh で調整)
@@ -388,14 +425,40 @@ export default function DesignTuner() {
     // シャドウ値・枠線値も適用
     root.style.setProperty('--tune-mc-shadow', shadowValue);
     root.style.setProperty('--tune-mc-border', composeBorder(borderTune));
+    // デザインパターン由来の CSS border / radius (空文字なら removeProperty で fallback に戻す)
+    if (cardRadius) root.style.setProperty('--tune-mc-radius', cardRadius);
+    else root.style.removeProperty('--tune-mc-radius');
+    if (cardBorderStyle) root.style.setProperty('--tune-mc-border-style', cardBorderStyle);
+    else root.style.removeProperty('--tune-mc-border-style');
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
       window.localStorage.setItem(SHADOW_STORAGE_KEY, shadowValue);
       window.localStorage.setItem(BORDER_STORAGE_KEY, JSON.stringify(borderTune));
+      window.localStorage.setItem(PERSONA_STORAGE_KEY, String(personaId));
+      window.localStorage.setItem(RADIUS_STORAGE_KEY, cardRadius);
+      window.localStorage.setItem(BORDER_STYLE_STORAGE_KEY, cardBorderStyle);
     } catch {
       // 容量オーバー等は無視
     }
-  }, [values, shadowValue, borderTune, hydrated]);
+  }, [values, shadowValue, borderTune, cardRadius, cardBorderStyle, personaId, hydrated]);
+
+  // デザインパターン (10 案) を適用する。クリック 1 回でシャドウ / 枠線 / 角丸を一括反映。
+  // 既存の "BorderTune" (box-shadow 枠) は 0 にリセット — パターン側の CSS 枠線と二重にならないよう。
+  const applyPersona = useCallback((id: number) => {
+    const p = CARD_STYLE_PRESETS.find((x) => x.id === id);
+    if (!p) return;
+    setPersonaId(id);
+    setShadowValue(p.shadow);
+    setCardRadius(p.radius);
+    setCardBorderStyle(p.borderStyle);
+    setBorderTune({ ...BORDER_DEFAULT_TUNE });
+  }, []);
+  // パターン解除 (元のチューナー個別調整に戻す)。
+  const clearPersona = useCallback(() => {
+    setPersonaId(PERSONA_NONE);
+    setCardRadius('');
+    setCardBorderStyle('');
+  }, []);
 
   const reset = useCallback(() => {
     const init: Record<string, number> = {};
@@ -403,6 +466,9 @@ export default function DesignTuner() {
     setValues(init);
     setShadowValue(SHADOW_DEFAULT);
     setBorderTune({ ...BORDER_DEFAULT_TUNE });
+    setPersonaId(PERSONA_NONE);
+    setCardRadius('');
+    setCardBorderStyle('');
   }, []);
 
   const resetGroup = useCallback((group: string) => {
@@ -416,6 +482,9 @@ export default function DesignTuner() {
     if (group === 'メンバーカード') {
       setShadowValue(SHADOW_DEFAULT);
       setBorderTune({ ...BORDER_DEFAULT_TUNE });
+      setPersonaId(PERSONA_NONE);
+      setCardRadius('');
+      setCardBorderStyle('');
     }
   }, []);
 
@@ -436,6 +505,16 @@ export default function DesignTuner() {
     // ドロップシャドウ (案カード選択)
     const sp = SHADOW_PRESETS.find((p) => p.value === shadowValue);
     lines.push(`- カード ドロップシャドウ (--tune-mc-shadow): ${sp ? `${sp.id} ${sp.name}` : 'カスタム'} = ${shadowValue}`);
+    // デザインパターン (10 案)
+    if (personaId > 0) {
+      const pp = CARD_STYLE_PRESETS.find((x) => x.id === personaId);
+      if (pp) {
+        lines.push(`- デザインパターン: ${pp.id}. ${pp.title}`);
+        lines.push(`  border: ${pp.borderStyle}`);
+        lines.push(`  border-radius: ${pp.radius}`);
+        lines.push(`  box-shadow: ${pp.shadow}`);
+      }
+    }
     // 枠線スタイル (案カード選択 + 5 値スライダー)
     const bp = findBorderPreset(borderTune);
     const borderCss = composeBorder(borderTune);
@@ -611,6 +690,63 @@ export default function DesignTuner() {
                   </div>
                   {!collapsed && (
                     <div className="p-2 space-y-2">
+                      {/* デザインパターン 10 案: シャドウ + 枠線 + 角丸を一括切替 (2026-05-06) */}
+                      {g.name === 'メンバーカード' && (
+                        <div className="rounded-md bg-[#FFF7ED] p-2 space-y-2 border border-[#FED7AA]">
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-[10px] font-semibold">🎨 デザインパターン (10 案)</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-[9px] text-[var(--color-subtext)]">
+                                {personaId > 0
+                                  ? `案 ${personaId}`
+                                  : 'カスタム'}
+                              </span>
+                              {personaId > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={clearPersona}
+                                  className="text-[9px] text-[var(--color-subtext)] underline active:opacity-60"
+                                  title="パターン解除"
+                                >
+                                  解除
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <p className="text-[9px] text-[var(--color-subtext)] leading-tight">
+                            シャドウ + 枠線 + 角丸を 1 セットで一括切替。実在アプリの elevation を参考。
+                          </p>
+                          {CARD_STYLE_PRESETS.map((p) => {
+                            const active = personaId === p.id;
+                            return (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => applyPersona(p.id)}
+                                className={`w-full flex items-stretch bg-white overflow-hidden text-left transition-transform active:scale-[0.99] ${
+                                  active ? 'ring-2 ring-[#0EA5E9]' : ''
+                                }`}
+                                style={{
+                                  boxShadow: p.shadow,
+                                  border: p.borderStyle === 'none' ? undefined : p.borderStyle,
+                                  borderRadius: p.radius,
+                                }}
+                              >
+                                <span className="w-1.5 shrink-0" style={{ background: '#0891B2' }} />
+                                <div className="flex-1 px-2 py-1.5 min-w-0">
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-[11px] font-bold leading-tight">{p.id}. {p.title}</span>
+                                    {active && <Check size={11} className="text-[#0EA5E9]" />}
+                                  </div>
+                                  <div className="text-[9px] text-[var(--color-subtext)] leading-tight truncate">
+                                    {p.inspiration}
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                       {/* メンバーカード グループの先頭にシャドウ案カードを表示 */}
                       {g.name === 'メンバーカード' && (
                         <div className="rounded-md bg-[#F5F5F5] p-2 space-y-2">

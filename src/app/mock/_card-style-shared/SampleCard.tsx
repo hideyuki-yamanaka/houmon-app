@@ -14,6 +14,7 @@
 
 import MemberCard from '../../../components/MemberCard';
 import type { MemberWithVisitInfo } from '../../../lib/types';
+import { CARD_STYLE_PRESETS, type CardStylePreset } from '../../../lib/cardStylePresets';
 
 const now = new Date().toISOString();
 
@@ -74,11 +75,8 @@ export const samples: MemberWithVisitInfo[] = [
 ];
 
 export type CardStyle = {
-  /** border ショートハンド ('none' or '1px solid rgba(...)') */
   border: string;
-  /** box-shadow */
   shadow: string;
-  /** border-radius (例: '12px') */
   radius: string;
 };
 
@@ -90,131 +88,16 @@ export type StyleEntry = {
   style: CardStyle;
 };
 
-// 10 案: 実在アプリの elevation/shadow パターンを研究して採集。
-// 「ミニマム + ちょっと立体感」のスペクトラムを、控えめ→強め、
-// シャドウ単独 → ボーダー+シャドウ → 着色シャドウ → ガラス、と幅を持って並べた。
-export const STYLES: StyleEntry[] = [
-  {
-    num: 1,
-    title: 'App Store 風 二重シャドウ',
-    inspiration: 'iOS App Store / Today タブの大型カード',
-    rationale:
-      '近距離 1px (接地感) + 遠距離 6-16px (空気感) を重ねて、輪郭は影の濃淡だけで形成。border は 0。これが Apple 純正の elevation の基本形。',
-    style: {
-      border: 'none',
-      shadow: '0 1px 2px rgba(0,0,0,0.04), 0 6px 16px rgba(0,0,0,0.06)',
-      radius: '12px',
-    },
-  },
-  {
-    num: 2,
-    title: 'Airbnb 風 ヘアライン+控えめ影',
-    inspiration: 'Airbnb 宿泊カード / プロフィールカード',
-    rationale:
-      '1px 極薄ボーダー (rgba 0.04) で輪郭をかすかに出しつつ、影は 0 2px 8px と控えめ。線が薄いのでやぼったくならず、一覧で並べたとき境界がスッと見える。',
-    style: {
-      border: '1px solid rgba(0,0,0,0.04)',
-      shadow: '0 2px 8px rgba(0,0,0,0.05)',
-      radius: '12px',
-    },
-  },
-  {
-    num: 3,
-    title: 'Apple Health 風 単一拡散影',
-    inspiration: 'Apple Health / Fitness のカード',
-    rationale:
-      'border なし、影だけで浮かせる。0 4px 14px の単発拡散影で柔らかく浮く。角丸を 14px と少し大きめに取って Apple 系の優しさを出す。',
-    style: {
-      border: 'none',
-      shadow: '0 4px 14px rgba(0,0,0,0.08)',
-      radius: '14px',
-    },
-  },
-  {
-    num: 4,
-    title: 'Notion 風 二段 elevation',
-    inspiration: 'Notion のカードビュー / ポップオーバー',
-    rationale:
-      '近距離 1px (シャープな接地) + 遠距離 24px (大きく拡散) の二段で奥行き。影は離れた位置まで伸び、はっきり「浮いてる」感じが出る。',
-    style: {
-      border: 'none',
-      shadow: '0 1px 1px rgba(0,0,0,0.03), 0 8px 24px rgba(0,0,0,0.09)',
-      radius: '12px',
-    },
-  },
-  {
-    num: 5,
-    title: 'iOS Control Center 風 上ハイライト',
-    inspiration: 'iOS コントロールセンター / ウィジェット',
-    rationale:
-      '上端 1px に inset の白いハイライトを入れて、光が当たっているような上品さ。+ 拡散影で浮遊感。ガラス・タイル感のあるリッチな仕上がり。',
-    style: {
-      border: 'none',
-      shadow: 'inset 0 1px 0 rgba(255,255,255,0.9), 0 4px 14px rgba(0,0,0,0.07)',
-      radius: '12px',
-    },
-  },
-  {
-    num: 6,
-    title: 'Linear 風 シャープ枠線',
-    inspiration: 'Linear / Vercel ダッシュボードのカード',
-    rationale:
-      '影は捨てて、1px のクリスプな border (rgba 0.06) だけで分離。フラット & クリーン。情報量の多い画面で「サクサクしてる」感じを出すのに有効。',
-    style: {
-      border: '1px solid rgba(0,0,0,0.06)',
-      shadow: 'none',
-      radius: '8px',
-    },
-  },
-  {
-    num: 7,
-    title: 'Material Elevation 2dp',
-    inspiration: 'Google Material Design / Gmail / Calendar カード',
-    rationale:
-      'Material の elevation 2 を踏襲。0 1px 2px (輪郭) + 0 2px 4px (近距離) を重ねて、角は 8px と保守的。Google プロダクト系の堅実な elevation。',
-    style: {
-      border: 'none',
-      shadow: '0 1px 2px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06)',
-      radius: '8px',
-    },
-  },
-  {
-    num: 8,
-    title: 'Stripe 風 ヘアライン+極小影',
-    inspiration: 'Stripe Dashboard / Vercel UI',
-    rationale:
-      '1px 薄ボーダー (rgba 0.05) + 0 1px 3px の極小シャドウ。境界はビシッとあるが、シャドウが控えめなのでフラット寄りの印象。情報密度の高い管理画面向け。',
-    style: {
-      border: '1px solid rgba(0,0,0,0.05)',
-      shadow: '0 1px 3px rgba(0,0,0,0.04)',
-      radius: '8px',
-    },
-  },
-  {
-    num: 9,
-    title: 'Spotify 風 広拡散影',
-    inspiration: 'Spotify アルバムカード / Apple Music',
-    rationale:
-      '0 8px 32px と広く拡散させて「グワッ」と浮かせる。角丸 8px と引き締めることで、影の存在感とコントラストを強調。タップしたくなるリッチ感。',
-    style: {
-      border: 'none',
-      shadow: '0 8px 32px rgba(0,0,0,0.08)',
-      radius: '8px',
-    },
-  },
-  {
-    num: 10,
-    title: 'Cool Tint 影 (Vercel系)',
-    inspiration: 'Vercel / Linear (ダーク寄り背景下のカード)',
-    rationale:
-      'シャドウの色を純黒ではなく、わずかに青みを帯びた濃紺 (rgba 17,24,39,*) にする。背景白でも空気感が「冷たく澄んだ」印象になり、テック寄りの上品さが出る。',
-    style: {
-      border: 'none',
-      shadow: '0 1px 2px rgba(17,24,39,0.04), 0 6px 18px rgba(17,24,39,0.08)',
-      radius: '12px',
-    },
-  },
-];
+// 10 案: 単一ソース (lib/cardStylePresets.ts) から派生。
+// このファイルは旧 mock の互換のため STYLES 形式で再エクスポートする。
+export const STYLES: StyleEntry[] = CARD_STYLE_PRESETS.map((p: CardStylePreset) => ({
+  num: p.id,
+  title: p.title,
+  inspiration: p.inspiration,
+  rationale: p.rationale,
+  style: { border: p.borderStyle, shadow: p.shadow, radius: p.radius },
+}));
+
 
 /** 各案のスタイルを CSS 変数として渡すラッパー。
  *  内部の .ios-card がこの変数を拾って描画される。 */
