@@ -289,13 +289,16 @@ export default function DesignTuner() {
 
   return (
     <>
-      {/* フローティングトグルボタン（右下、タブバーの上） */}
+      {/* フローティングトグルボタン（現在地ボタンの真上に配置）。
+          現在地ボタン: シート上端 + 12px、48px (w-12 h-12)。
+          ここはその上に 8px gap で 44px (w-11 h-11)。
+          PEEK_HEIGHT(320) + 12 + 48 + 8 = 388px from bottom。 */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label="デザインチューナーを開く"
         className="fixed right-4 z-[100] w-11 h-11 rounded-full bg-[#111] text-white shadow-lg flex items-center justify-center active:scale-95 transition-transform"
-        style={{ bottom: 'calc(72px + env(safe-area-inset-bottom))' }}
+        style={{ bottom: 'calc(388px + env(safe-area-inset-bottom))' }}
       >
         {open ? <X size={18} /> : <Settings2 size={18} />}
       </button>
@@ -306,7 +309,7 @@ export default function DesignTuner() {
         <div
           className="fixed right-4 z-[99] w-[300px] max-w-[calc(100vw-32px)] rounded-2xl bg-white/95 backdrop-blur border border-[#E5E7EB] flex flex-col"
           style={{
-            bottom: 'calc(128px + env(safe-area-inset-bottom))',
+            bottom: 'calc(444px + env(safe-area-inset-bottom))',
             height: panelHeight,
             boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
             transform: `translate(${panelOffset.dx}px, ${panelOffset.dy}px)`,
