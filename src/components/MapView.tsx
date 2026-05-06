@@ -364,6 +364,14 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
   // 大きめの揺れる赤ピンに切り替わる。マップの空白タップ or 別ピンタップで解除。
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [savingMessage, setSavingMessage] = useState<string | null>(null);
+  // 2026-05-06 ヒデさん指示 (ピン編集 案 1): ドラッグ後に即コミットせず、
+  // 「取消 / 決定」確認バーを出してから保存する。
+  // pendingPin = ドラッグ後にユーザー確認待ち中のピン情報。
+  //   newAddress: リバースジオコードのプレビュー結果 (取得中は undefined → '取得中…')
+  const [pendingPin, setPendingPin] = useState<
+    | { memberId: string; oldLat: number; oldLng: number; newLat: number; newLng: number; newAddress?: string; addrLoading: boolean }
+    | null
+  >(null);
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFiredRef = useRef(false);
 
@@ -383,30 +391,47 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
     }
   };
 
-  const handlePinDragEnd = async (memberId: string, lat: number, lng: number) => {
-    setSavingMessage('ピン位置を保存中...');
+  // ドラッグ終了 → 即コミットせず pendingPin に入れて確認バーを出す。
+  // 同時にリバースジオコード (バックグラウンド) して住所プレビューも引いておく。
+  const handlePinDragRelease = async (memberId: string, oldLat: number, oldLng: number, newLat: number, newLng: number) => {
+    setPendingPin({ memberId, oldLat, oldLng, newLat, newLng, addrLoading: true });
     try {
-      await updateMember(memberId, { lat, lng });
+      const r = await fetch(`/api/geocode-reverse?lat=${newLat}&lng=${newLng}`);
+      const data = await r.json();
+      const newAddress = r.ok && data?.found && data.address ? (data.address as string) : undefined;
+      setPendingPin(prev =>
+        prev && prev.memberId === memberId && prev.newLat === newLat && prev.newLng === newLng
+          ? { ...prev, newAddress, addrLoading: false }
+          : prev,
+      );
+    } catch {
+      setPendingPin(prev =>
+        prev && prev.memberId === memberId && prev.newLat === newLat && prev.newLng === newLng
+          ? { ...prev, addrLoading: false }
+          : prev,
+      );
+    }
+  };
+
+  const cancelPendingPin = () => {
+    setPendingPin(null);
+    setEditingMemberId(null);
+  };
+
+  const confirmPendingPin = async () => {
+    const p = pendingPin;
+    if (!p) return;
+    setSavingMessage('ピン位置を保存中…');
+    try {
+      const patch: { lat: number; lng: number; address?: string } = { lat: p.newLat, lng: p.newLng };
+      if (p.newAddress) patch.address = p.newAddress;
+      await updateMember(p.memberId, patch);
+      setSavingMessage(p.newAddress ? `住所を「${p.newAddress}」に更新` : 'ピン位置を更新');
     } catch (e) {
       setSavingMessage(`保存失敗: ${e instanceof Error ? e.message : String(e)}`);
-      setTimeout(() => setSavingMessage(null), 2400);
-      return;
-    }
-    // 住所をリバースジオコードして連動更新 (失敗時はサイレント)
-    setSavingMessage('住所を再取得中...');
-    try {
-      const r = await fetch(`/api/geocode-reverse?lat=${lat}&lng=${lng}`);
-      const data = await r.json();
-      if (r.ok && data?.found && data.address) {
-        await updateMember(memberId, { address: data.address });
-        setSavingMessage(`住所を「${data.address}」に更新`);
-      } else {
-        setSavingMessage('住所は更新できませんでした');
-      }
-    } catch {
-      setSavingMessage('住所は更新できませんでした');
     }
     setTimeout(() => setSavingMessage(null), 2400);
+    setPendingPin(null);
     setEditingMemberId(null);
   };
 
@@ -551,19 +576,26 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
       {geoMembers.map(member => {
         const isSelected = member.id === selectedMemberId;
         const isEditing = member.id === editingMemberId;
+        const isPending = pendingPin?.memberId === member.id;
         // 編集モードのピンは赤くハイライト。それ以外は通常ロジック。
         const icon = isEditing
           ? createEditingPin(member)
           : isSelected && selectedIcon
             ? selectedIcon
             : (baseIcons.get(member.id) ?? createMemberPin(member, false));
+        // 確認待ち (pendingPin) のとき、Marker は新しい位置にいる。
+        // member.lat/lng はまだ更新されていない (= 古い位置)。
+        // 取消 で pendingPin がクリアされたら member.lat/lng の元位置に戻る。
+        const displayLat = isPending ? pendingPin.newLat : member.lat!;
+        const displayLng = isPending ? pendingPin.newLng : member.lng!;
         return (
           <Marker
-            key={member.id}
-            position={[member.lat!, member.lng!]}
+            // pendingPin の確定/取消で再マウントして position を確実に追従させる
+            key={`${member.id}-${isPending ? `pend-${pendingPin.newLat.toFixed(6)}-${pendingPin.newLng.toFixed(6)}` : 'orig'}`}
+            position={[displayLat, displayLng]}
             icon={icon}
-            zIndexOffset={isEditing ? 2500 : (isSelected ? 1000 : 0)}
-            draggable={isEditing}
+            zIndexOffset={isEditing || isPending ? 2500 : (isSelected ? 1000 : 0)}
+            draggable={isEditing && !isPending}
             eventHandlers={{
               // 通常タップ: 長押しが発火しなければ通常選択。
               click: () => {
@@ -582,7 +614,8 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
               dragstart: () => cancelLongPressDetect(),
               dragend: (e) => {
                 const ll = (e.target as L.Marker).getLatLng();
-                void handlePinDragEnd(member.id, ll.lat, ll.lng);
+                if (member.lat == null || member.lng == null) return;
+                void handlePinDragRelease(member.id, member.lat, member.lng, ll.lat, ll.lng);
               },
             }}
           />
@@ -607,7 +640,7 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
           </div>
         </div>
       )}
-      {editingMemberId && (
+      {editingMemberId && !pendingPin && (
         <div className="leaflet-bottom leaflet-left" style={{ right: 0, marginBottom: 100, pointerEvents: 'none' }}>
           <div className="leaflet-control" style={{ margin: '0 16px', float: 'none' }}>
             <div
@@ -624,6 +657,53 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
               }}
             >
               ピン編集モード — ドラッグして位置を直す。マップ空白タップで終了
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 案 1: ドラッグ後の取消/決定 確認バー */}
+      {pendingPin && (
+        <div className="leaflet-bottom leaflet-left" style={{ right: 0, marginBottom: 100, pointerEvents: 'none' }}>
+          <div className="leaflet-control" style={{ margin: '0 16px', float: 'none' }}>
+            <div
+              style={{
+                background: '#FFFFFF',
+                border: '1px solid #E5E7EB',
+                padding: '10px 12px',
+                borderRadius: 14,
+                boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
+                pointerEvents: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 10, color: '#6B7280', fontWeight: 600 }}>この位置に変更</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {pendingPin.addrLoading ? '住所を取得中…' : (pendingPin.newAddress ?? '住所は取得できませんでした')}
+                </div>
+              </div>
+              <button
+                onClick={cancelPendingPin}
+                style={{
+                  height: 36, padding: '0 12px', borderRadius: 999,
+                  fontSize: 12, fontWeight: 700, color: '#374151', background: 'transparent', border: 'none', cursor: 'pointer',
+                }}
+              >
+                取消
+              </button>
+              <button
+                onClick={() => { void confirmPendingPin(); }}
+                disabled={pendingPin.addrLoading}
+                style={{
+                  height: 36, padding: '0 16px', borderRadius: 999,
+                  fontSize: 12, fontWeight: 700, color: '#FFFFFF', background: '#111', border: 'none', cursor: 'pointer',
+                  opacity: pendingPin.addrLoading ? 0.5 : 1,
+                }}
+              >
+                決定
+              </button>
             </div>
           </div>
         </div>
