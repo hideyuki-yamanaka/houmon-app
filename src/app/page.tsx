@@ -212,9 +212,9 @@ export default function HomePage() {
         onClick={handleLocate}
         disabled={locating}
         aria-label="現在地"
-        className="w-12 h-12 rounded-full bg-white text-[#111] flex items-center justify-center shadow-[0_3px_10px_rgba(0,0,0,0.22)] active:scale-95 transition-transform disabled:opacity-70"
+        className="w-12 h-12 rounded-full bg-white text-[#5F6368] flex items-center justify-center shadow-[0_3px_10px_rgba(0,0,0,0.22)] active:scale-95 transition-transform disabled:opacity-70"
       >
-        <LocateFixed size={22} className={locating ? 'animate-spin' : ''} />
+        <LocateFixed size={22} strokeWidth={2} className={locating ? 'animate-spin' : ''} />
       </button>
     </div>
   ), [handleLocate, locating, router]);
