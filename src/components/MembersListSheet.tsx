@@ -225,13 +225,15 @@ export default function MembersListSheet({
               {filtered.length === 0 ? (
                 <p className="text-sm text-[var(--color-subtext)] text-center py-4">メンバーが見つかりません</p>
               ) : (
-                <div className="space-y-1">
+                <div className="space-y-3">
                   {grouped.map((group) => (
                     <div key={group.label}>
                       {/* 2026-05-06: 案 2 (半透明+ぼかし) ベースを更にコンパクト化。
-                          上にベタ付け (pt-0)、控えめサイズ、backdrop-blur で重なり自然。 */}
+                          上にベタ付け、控えめサイズ、backdrop-blur で重なり自然。
+                          下に余白 (pb-2) を入れてカードのドロップシャドウが label に
+                          溶け込まないようにする (2026-05-06 ヒデさん指示)。 */}
                       <div
-                        className="sticky top-0 z-10 -mx-1 px-1 py-0.5 backdrop-blur-md"
+                        className="sticky top-0 z-10 -mx-1 px-1 pt-1 pb-2 backdrop-blur-md"
                         style={{ background: 'rgba(255,255,255,0.75)' }}
                       >
                         <span className="text-[10px] font-medium text-[var(--color-subtext)] tracking-wide">
