@@ -24,6 +24,22 @@ const GROUP_PAGES: Record<GroupName, RegExp[]> = {
   'ランキング':           [/^\/log/],
 };
 
+// ── ドロップシャドウ 5案 (Tuner 内のカード型プレビューで比較する) ──
+const SHADOW_PRESETS: Array<{ id: string; name: string; desc: string; value: string }> = [
+  { id: 'A', name: '弱',           desc: '控えめ、紙のようなフラットさ',
+    value: '0 1px 3px rgba(0,0,0,0.06)' },
+  { id: 'B', name: '標準',         desc: '一般的なカード感',
+    value: '0 4px 12px rgba(0,0,0,0.12)' },
+  { id: 'C', name: '立体 (現在のデフォルト)', desc: 'はっきり浮く立体感',
+    value: '0 8px 24px rgba(0,0,0,0.18)' },
+  { id: 'D', name: 'Notion 二段',  desc: '近+遠の柔らかい二段ぼかし',
+    value: '0 2px 4px rgba(0,0,0,0.06), 0 12px 28px rgba(0,0,0,0.16)' },
+  { id: 'E', name: 'Material 二段', desc: 'くっきり輪郭+遠い影で立体強調',
+    value: '0 1px 2px rgba(0,0,0,0.08), 0 8px 20px rgba(0,0,0,0.20)' },
+];
+const SHADOW_DEFAULT = SHADOW_PRESETS[2].value; // C 立体
+const SHADOW_STORAGE_KEY = 'houmon-app:design-tuner-shadow-v1';
+
 type TuneDef = {
   key: string;
   label: string;
@@ -58,16 +74,8 @@ const DEFS: TuneDef[] = [
     formatValue: (v) => v >= 1 ? 'inline-block' : 'none' },
   // カード間の隙間 (memberlist の縦 gap)
   { key: 'mcGap',          label: 'カード間ギャップ',         cssVar: '--tune-mc-gap',          unit: 'px',  min: 0,    max: 24,    step: 1,      default: 8,    group: 'メンバーカード' },
-  // 0=none, 1=弱, 2=中, 3=強, 4=立体的(案12)。デフォルト 4
-  { key: 'mcShadow',       label: 'カード ドロップシャドウ (0=なし/1=弱/2=中/3=強/4=立体)', cssVar: '--tune-mc-shadow', unit: '', min: 0, max: 4, step: 1, default: 4, group: 'メンバーカード',
-    formatValue: (v) => {
-      if (v >= 4) return '0 8px 24px rgba(0,0,0,0.18)';
-      if (v >= 3) return '0 4px 12px rgba(0,0,0,0.12)';
-      if (v >= 2) return '0 2px 6px rgba(0,0,0,0.08)';
-      if (v >= 1) return '0 1px 3px rgba(0,0,0,0.06)';
-      return 'none';
-    } },
-  // 訪問ログカルーセル (2 段カード時の下半分) との縦余白。
+  // ※ ドロップシャドウは別 UI (5案カードプレビュー) で選択するため、ここではスライダー化しない。
+// 訪問ログカルーセル (2 段カード時の下半分) との縦余白。
   // ヘッダー (氏名+組織+住所+時刻) と訪問ログの間。
   { key: 'mcLogGapTop',    label: 'ヘッダーと訪問ログの隙間',  cssVar: '--tune-mc-log-gap-top',  unit: 'px',  min: 0,    max: 20,   step: 1,      default: 0,    group: 'メンバーカード' },
   // 訪問ログカルーセル下、カード下端との余白。
@@ -121,6 +129,8 @@ export default function DesignTuner() {
   const [hydrated, setHydrated] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [copied, setCopied] = useState(false);
+  // 選択中のシャドウ案 (CSS 値そのまま保存)。デフォルトは C (立体)。
+  const [shadowValue, setShadowValue] = useState<string>(SHADOW_DEFAULT);
 
   // localStorage から復元（初回のみ）
   useEffect(() => {
@@ -133,6 +143,11 @@ export default function DesignTuner() {
     } catch {
       // 壊れてたら無視
     }
+    // シャドウ案も復元
+    try {
+      const rawShadow = window.localStorage.getItem(SHADOW_STORAGE_KEY);
+      if (rawShadow) setShadowValue(rawShadow);
+    } catch { /* 無視 */ }
     // パネル高さ復元 (なければデフォルト 420px、画面が小さければ 50vh で調整)
     try {
       const rawH = window.localStorage.getItem(PANEL_HEIGHT_KEY);
@@ -224,17 +239,21 @@ export default function DesignTuner() {
       const cssValue = d.formatValue ? d.formatValue(v) : (d.unit ? `${v}${d.unit}` : `${v}`);
       root.style.setProperty(d.cssVar, cssValue);
     });
+    // シャドウ値も適用
+    root.style.setProperty('--tune-mc-shadow', shadowValue);
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(values));
+      window.localStorage.setItem(SHADOW_STORAGE_KEY, shadowValue);
     } catch {
       // 容量オーバー等は無視
     }
-  }, [values, hydrated]);
+  }, [values, shadowValue, hydrated]);
 
   const reset = useCallback(() => {
     const init: Record<string, number> = {};
     DEFS.forEach((d) => (init[d.key] = d.default));
     setValues(init);
+    setShadowValue(SHADOW_DEFAULT);
   }, []);
 
   const resetGroup = useCallback((group: string) => {
@@ -245,6 +264,7 @@ export default function DesignTuner() {
       });
       return next;
     });
+    if (group === 'メンバーカード') setShadowValue(SHADOW_DEFAULT);
   }, []);
 
   // エクスポート用：現在値を人間が読みやすい形式で文字列化（Claude に貼り付けて伝える用）
@@ -261,6 +281,9 @@ export default function DesignTuner() {
       const suffix = d.unit;
       lines.push(`- ${d.label} (${d.cssVar}): ${v}${suffix}`);
     }
+    // ドロップシャドウ (5案カード選択)
+    const sp = SHADOW_PRESETS.find((p) => p.value === shadowValue);
+    lines.push(`- カード ドロップシャドウ (--tune-mc-shadow): ${sp ? `${sp.id} ${sp.name}` : 'カスタム'} = ${shadowValue}`);
     lines.push('\n## JSON');
     lines.push('```json');
     lines.push(JSON.stringify(values, null, 2));
@@ -431,6 +454,45 @@ export default function DesignTuner() {
                   </div>
                   {!collapsed && (
                     <div className="p-2 space-y-2">
+                      {/* メンバーカード グループの先頭にシャドウ 5 案カードを表示 */}
+                      {g.name === 'メンバーカード' && (
+                        <div className="rounded-md bg-[#F5F5F5] p-2 space-y-2">
+                          <div className="flex items-baseline justify-between">
+                            <span className="text-[10px] font-semibold">カード ドロップシャドウ (5案)</span>
+                            {(() => {
+                              const sp = SHADOW_PRESETS.find((p) => p.value === shadowValue);
+                              return (
+                                <span className="text-[9px] text-[var(--color-subtext)]">
+                                  選択中: {sp ? `${sp.id} ${sp.name}` : 'カスタム'}
+                                </span>
+                              );
+                            })()}
+                          </div>
+                          {SHADOW_PRESETS.map((p) => {
+                            const active = shadowValue === p.value;
+                            return (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => setShadowValue(p.value)}
+                                className={`w-full flex items-stretch bg-white rounded-md overflow-hidden text-left transition-transform active:scale-[0.99] ${
+                                  active ? 'ring-2 ring-[#0EA5E9]' : ''
+                                }`}
+                                style={{ boxShadow: p.value }}
+                              >
+                                <span className="w-1.5 shrink-0" style={{ background: '#0891B2' }} />
+                                <div className="flex-1 px-2 py-1.5 min-w-0">
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-[11px] font-bold leading-tight">{p.id}. {p.name}</span>
+                                    {active && <Check size={11} className="text-[#0EA5E9]" />}
+                                  </div>
+                                  <div className="text-[9px] text-[var(--color-subtext)] leading-tight truncate">{p.desc}</div>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                       {g.items.map((d) => (
                         <div key={d.key}>
                           <div className="flex items-baseline justify-between mb-0.5 gap-2">
