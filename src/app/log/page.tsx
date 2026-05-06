@@ -19,15 +19,19 @@ type SheetSpec =
   | { kind: 'status'; statuses: VisitStatus[]; label: string }
   | { kind: 'district'; district: string };
 
-// ステータスごとのカラー(SVG/inline style 用)。VISIT_STATUS_CONFIG.dot に揃えてある。
-// ヒデさん指示(2026-04-26): 「本人に会えた」「家族に会えた」は同色で扱う。
+// 訪問ログ内訳のスタックバー色。
+// 2026-05-06 ヒデさん指示で 下の 4 ブロック (会えた/不在/住所不明/転居) と完全連動させる。
+//   - 拒否 (refused) は「会えた」グループに含まれるので、バー上でも同じブルーで描く
+//     (旧: per-status の色 (緑/赤/灰...) を使っていて、下のブロック (4 色) と
+//      色味が一致しなかった)
+//   - 「会えた感」を出すためメインカラーをグリーンからブルー (#3B82F6) に変更
 const STATUS_HEX: Record<VisitStatus, string> = {
-  met_self:        VISIT_STATUS_CONFIG.met_self.dot,
-  met_family:      VISIT_STATUS_CONFIG.met_family.dot,
-  absent:          VISIT_STATUS_CONFIG.absent.dot,
-  refused:         VISIT_STATUS_CONFIG.refused.dot,
-  unknown_address: VISIT_STATUS_CONFIG.unknown_address.dot,
-  moved:           VISIT_STATUS_CONFIG.moved.dot,
+  met_self:        '#3B82F6', // blue-500 — 会えた
+  met_family:      '#3B82F6', // 同上
+  refused:         '#3B82F6', // 「会えた」グループ扱い
+  absent:          '#9CA3AF', // gray-400 — 不在 (やや薄めで控えめに)
+  unknown_address: '#F59E0B', // amber-500 — 住所不明
+  moved:           '#8B5CF6', // violet-500 — 転居
 };
 
 // ── 期間フィルタ (2026-05-04 ヒデさん指示で追加) ──
@@ -541,10 +545,11 @@ export default function LogPage() {
                   const c = breakdownStats.counts;
                   const total = breakdownStats.total;
                   const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
-                  // 4 ブロックの定義(色は各カテゴリ系統色に揃える)
+                  // 4 ブロックの定義。
                   // ヒデさん指示(2026-04-26): 拒否は「会えた」に含める。
-                  // → 「会えてない」 = 不在のみ になるので、ブロック名も「不在」に統一
-                  // タップ時は statuses 群を spec に渡してメンバーシートを開く
+                  // ヒデさん指示(2026-05-06): 上のスタックバー (STATUS_HEX) と完全連動。
+                  //   会えた = ブルー (会えた感)、不在 = グレー、住所不明 = アンバー、転居 = バイオレット。
+                  //   fg は文字色用に bar より一段濃いめ (700 付近)、bg は 100 ティント。
                   const blocks: {
                     key: string; label: string; count: number; sub: string;
                     fg: string; bg: string; statuses: VisitStatus[];
@@ -554,8 +559,8 @@ export default function LogPage() {
                       label: '会えた',
                       count: c.met_self + c.met_family + c.refused,
                       sub: `本人 ${c.met_self} / 家族 ${c.met_family} / 拒否 ${c.refused}`,
-                      fg: '#4B5563',
-                      bg: '#F3F4F6',
+                      fg: '#1D4ED8', // blue-700
+                      bg: '#DBEAFE', // blue-100
                       statuses: ['met_self', 'met_family', 'refused'],
                     },
                     {
@@ -563,8 +568,8 @@ export default function LogPage() {
                       label: '不在',
                       count: c.absent,
                       sub: `${c.absent} 件`,
-                      fg: '#6B7280',
-                      bg: '#F3F4F6',
+                      fg: '#374151', // gray-700
+                      bg: '#F3F4F6', // gray-100
                       statuses: ['absent'],
                     },
                     {
@@ -572,8 +577,8 @@ export default function LogPage() {
                       label: '住所不明',
                       count: c.unknown_address,
                       sub: `${c.unknown_address} 件`,
-                      fg: '#F59E0B',
-                      bg: '#FFFBEB',
+                      fg: '#92400E', // amber-800
+                      bg: '#FEF3C7', // amber-100
                       statuses: ['unknown_address'],
                     },
                     {
@@ -581,8 +586,8 @@ export default function LogPage() {
                       label: '転居',
                       count: c.moved,
                       sub: `${c.moved} 件`,
-                      fg: '#8B5CF6',
-                      bg: '#F5F3FF',
+                      fg: '#5B21B6', // violet-800
+                      bg: '#EDE9FE', // violet-100
                       statuses: ['moved'],
                     },
                   ];
@@ -792,9 +797,9 @@ export default function LogPage() {
                   </div>
                   <div>
                     {ranked.map(({ m, count, rank }) => {
-                      // メダル色: 順位 1=金 / 2=銀 / 3=銅 / 4以下=灰。
-                      // タイ (同率) でも順位ベースで色を揃える。
-                      const medalColor = rank === 1 ? '#D97706' : rank === 2 ? '#9CA3AF' : rank === 3 ? '#B45309' : '#9CA3AF';
+                      // 2026-05-06 ヒデさん指示で 順位の色は全てブラックに統一。
+                      // 旧: 1=金 / 2=銀 / 3=銅 / 4以下=灰 のメダル色。
+                      const medalColor = '#111';
                       const isTie = (rankCount.get(rank) ?? 0) >= 2;
                       return (
                         <Link

@@ -44,28 +44,33 @@ export const ORG_TREE: OrgHonbuNode[] = [
   {
     key: '豊岡本部', short: '豊岡', hex: '#C2410C',
     bus: [
+      // 2026-05-06 ヒデさん指示で 地区別カラーを「どきつくない・直感的に識別できる」9 色に再提案。
+      // 設計方針:
+      //   - HSL: 明度 ~58%, 彩度 ~50% で揃える (Tailwind 600 級の重さを避ける)
+      //   - 色相 (Hue) を 360°÷9 で均等配置 → 隣接地区も視認で混同しない
+      //   - 飽和を抑えて Apple/Pages 系の落ち着いたパレットに
       {
         key: '豊岡部', short: '豊岡部', hex: '#1E3A8A',
         districts: [
-          { key: '英雄地区', short: '英雄', hex: '#2563EB' },
-          { key: '香城地区', short: '香城', hex: '#059669' },
-          { key: '正義地区', short: '正義', hex: '#D97706' },
+          { key: '英雄地区', short: '英雄', hex: '#5B8FD9' }, // soft cornflower blue
+          { key: '香城地区', short: '香城', hex: '#5FAE82' }, // soft jade green
+          { key: '正義地区', short: '正義', hex: '#E59D5A' }, // warm peach
         ],
       },
       {
         key: '光陽部', short: '光陽部', hex: '#4C1D95',
         districts: [
-          { key: '光陽地区', short: '光陽', hex: '#7C3AED' },
-          { key: '光輝地区', short: '光輝', hex: '#DC2626' },
-          { key: '黄金地区', short: '黄金', hex: '#CA8A04' },
+          { key: '光陽地区', short: '光陽', hex: '#9B7FCC' }, // soft lavender
+          { key: '光輝地区', short: '光輝', hex: '#D17363' }, // soft terracotta
+          { key: '黄金地区', short: '黄金', hex: '#D4A85A' }, // soft mustard gold
         ],
       },
       {
         key: '豊岡中央支部', short: '中央', hex: '#134E4A',
         districts: [
-          { key: '歓喜地区',     short: '歓喜',     hex: '#0891B2' },
-          { key: 'ナポレオン地区', short: 'ナポレオン', hex: '#4F46E5' },
-          { key: '幸福地区',     short: '幸福',     hex: '#DB2777' },
+          { key: '歓喜地区',     short: '歓喜',     hex: '#5BA8B8' }, // soft teal
+          { key: 'ナポレオン地区', short: 'ナポレオン', hex: '#7984CC' }, // soft periwinkle
+          { key: '幸福地区',     short: '幸福',     hex: '#D67BA0' }, // soft rose
         ],
       },
     ],
