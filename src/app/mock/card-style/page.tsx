@@ -11,11 +11,11 @@ export default function MockCardStyleIndexPage() {
     <div className="min-h-screen bg-[#F5F5F5] pb-20">
       <div className="max-w-[420px] mx-auto px-3 py-4">
         <div className="mb-4">
-          <h1 className="text-xl font-bold mb-1">カード枠線 + シャドウ 10 案</h1>
+          <h1 className="text-xl font-bold mb-1">カード ドロップシャドウ 10 案 v2</h1>
           <p className="text-[12px] text-[#6B6B6B] leading-snug">
-            実在アプリ (App Store / Airbnb / Notion / Linear / Stripe / Spotify / Material 等) の
-            elevation 表現を研究し、「ミニマムだけど立体感」のスペクトラムを 10 パターンに整理。
-            実際の <code className="text-[11px]">MemberCard</code> コンポーネントに当て込んで表示。
+            全案とも 2-3 層のマルチレイヤー box-shadow で「明確な立体感」を出す構成。
+            「控えめ → 濃く・強く」の順に並べてあるので、上から下へ降りていくと段々浮いていく。
+            実際の <code className="text-[11px]">MemberCard</code> に当て込み。
           </p>
           <Link href="/" className="text-[12px] underline mt-2 inline-block">← ホームへ戻る</Link>
         </div>
@@ -33,37 +33,39 @@ export default function MockCardStyleIndexPage() {
           ))}
         </div>
 
-        {/* 研究ノート (折りたたみ) */}
+        {/* マルチレイヤー シャドウ研究ノート (折りたたみ) */}
         <details className="mb-6 bg-white rounded-xl p-3 border border-[rgba(0,0,0,0.04)]">
-          <summary className="text-[12px] font-bold cursor-pointer">📚 シャドウ表現の研究ノート</summary>
+          <summary className="text-[12px] font-bold cursor-pointer">📚 マルチレイヤー シャドウの考え方</summary>
           <div className="mt-2 space-y-2 text-[11px] text-[#6B6B6B] leading-relaxed">
             <p>
-              <b>1. 二重シャドウは Apple/Notion 系の定番</b> ―
-              「近距離 1px (接地) + 遠距離 (空気)」の重ねがけで、輪郭の鮮明さと浮遊感を両立。
-              単一シャドウより自然な見え方になる。
+              <b>1. 2 層以上は単純な「色を重ねる」じゃない</b> ―
+              近距離 (1-2px) は接地感、中距離 (4-8px) は厚み、遠距離 (16-24px) は浮遊感。
+              役割の違うレイヤーを重ねるから立体に見える。
             </p>
             <p>
-              <b>2. 影の濃さは 4〜10% が黄金帯</b> ―
-              黒 8% (rgba 0,0,0,0.08) を超えると一気にやぼったくなる。Airbnb/Apple は概ね 5〜7%。
+              <b>2. スプレッド負 (-1px / -5px) は隠し味</b> ―
+              Tailwind 系がよく使う。負スプレッドで影を内側に絞り、近距離影を「点」のように引き締め、
+              遠距離影は広く拡散させる。3D 感が一気に出る。
             </p>
             <p>
-              <b>3. ボーダーかシャドウかは選ぶ</b> ―
-              両方濃く入れると重い (現状はこれ)。Linear/Stripe はクリスプな 1px ボーダー単独で行き、
-              Apple/Spotify は border 0 + シャドウ単独。トレードオフ。
+              <b>3. 濃く強くしたい時は近距離を 18-30%、遠距離は 15-22%</b> ―
+              控えめ案は黒 6-10% だが、強い表現にするなら近距離を 18-30% まで濃く。
+              ステッカー風や Material 高 elevation はこの帯。
             </p>
             <p>
-              <b>4. ボーダーを残すなら rgba 0.04〜0.06</b> ―
-              0.08 だと「枠線」感が出すぎる。ヘアライン (4-6%) に落とせばシャドウと喧嘩しない。
+              <b>4. インセットハイライトでガラス感</b> ―
+              <code className="text-[10px]">inset 0 1px 0 rgba(255,255,255,0.9)</code> を最上位レイヤーに足すと、
+              上端が光って見えてカード自体が物理的に存在する感が増す (案 5)。
             </p>
             <p>
-              <b>5. 角丸は内容と相談</b> ―
-              情報密度が高いリスト → 8px (Material/Linear)、ゆとり重視 → 12〜14px (Apple)。
-              現状の 6px はやや古典的。12px のほうが今風。
+              <b>5. 角丸とのバランス</b> ―
+              強い影 (案 7-10) は角丸 10-14px が相性良。小さい角丸 (6px) と濃影は古めかしく見える。
+              全 10 案とも 10-14px の範囲で振ってある。
             </p>
             <p>
-              <b>6. 着色シャドウで個性</b> ―
-              純黒の代わりに rgb(17,24,39,*) のようなクールトーン or 組織色を 8% で入れると、
-              背景白でも空気感が変わる。Vercel/Linear の dark UI 由来のテクニック。
+              <b>6. 並びは「弱い → 強い」</b> ―
+              案 1-3: 業務アプリ系の控えめ、4-6: 標準的な elevation、7-10: 強調・濃い・立体感全開。
+              用途によって選び分け、強い側ほど「ここを見て」のメッセージ性が出る。
             </p>
           </div>
         </details>

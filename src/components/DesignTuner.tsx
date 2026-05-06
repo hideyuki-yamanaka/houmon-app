@@ -229,8 +229,10 @@ const PANEL_OFFSET_KEY = 'houmon-app:design-tuner-offset-v1';
 //   v4        : 2026-05-06 枠線 1px / 25% にさらに引き上げ (PWA に届かず)
 //   v5        : 2026-05-06 枠線を CSS border に変更、JS デフォルトは 0 に
 //   v6        : 2026-05-06 シャドウを B 標準 → A 弱 に控えめ化
-//   v7 (現行) : 2026-05-06 デザインパターン 10 案を導入 (radius / border-style 追加)
-const SETTINGS_VERSION = 7;
+//   v7        : 2026-05-06 デザインパターン 10 案を導入 (radius / border-style 追加)
+//   v8 (現行) : 2026-05-06 デザインパターン 10 案を multi-layer 強濃版 v2 に総入替 +
+//               iPhone 用パネル位置修正 (top anchor 化のため panelHeight/panelOffset を一旦リセット)
+const SETTINGS_VERSION = 8;
 const SETTINGS_VERSION_KEY = 'houmon-app:design-tuner-version';
 
 export default function DesignTuner() {
@@ -283,6 +285,9 @@ export default function DesignTuner() {
         window.localStorage.removeItem(PERSONA_STORAGE_KEY);
         window.localStorage.removeItem(RADIUS_STORAGE_KEY);
         window.localStorage.removeItem(BORDER_STYLE_STORAGE_KEY);
+        // パネルの位置/高さも v8 で一旦リセット (画面外に行ってる人を救う)
+        window.localStorage.removeItem(PANEL_HEIGHT_KEY);
+        window.localStorage.removeItem(PANEL_OFFSET_KEY);
         window.localStorage.setItem(SETTINGS_VERSION_KEY, String(SETTINGS_VERSION));
       } catch { /* 無視 */ }
     }
@@ -386,32 +391,8 @@ export default function DesignTuner() {
     window.addEventListener('pointercancel', onUp);
   }, [panelOffset]);
 
-  // 上端ドラッグでパネル高さを変更するハンドラ。
-  // ハンドル要素の onPointerDown から呼ぶ。touch/mouse 両対応のため pointer events 使用。
-  const startResize = useCallback((e: React.PointerEvent) => {
-    e.preventDefault();
-    const startY = e.clientY;
-    const startH = panelHeight;
-    // ドラッグ中は body の選択を無効化 (誤テキスト選択防止)
-    const prevSel = document.body.style.userSelect;
-    document.body.style.userSelect = 'none';
-    const max = Math.max(200, window.innerHeight - 180);
-    const onMove = (ev: PointerEvent) => {
-      // 上に動かすほど高さが増える (下端固定なので)
-      const delta = startY - ev.clientY;
-      const next = Math.max(180, Math.min(max, startH + delta));
-      setPanelHeight(next);
-    };
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onUp);
-      document.body.style.userSelect = prevSel;
-    };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
-  }, [panelHeight]);
+  // 旧: 上端ドラッグでパネル高さ変更。v8 で top anchor + maxHeight 化したため削除。
+  //     panelHeight は state として残してあるが、今は使っていない (旧 localStorage 互換のみ)。
 
   // CSS 変数を :root に反映 + localStorage に保存
   useEffect(() => {
@@ -580,24 +561,23 @@ export default function DesignTuner() {
         {open ? <X size={18} /> : <Settings2 size={18} />}
       </button>
 
-      {/* パネル本体: 上端にドラッグハンドル + ヘッダー + 内部スクロール領域
-          高さはユーザーがドラッグで調整可能 (panelHeight)。 */}
+      {/* パネル本体: 画面上端から吊り下げ + maxHeight で必ず viewport に収まる。
+          2026-05-06 ヒデさん指示: iPhone でパネル上端が見切れる問題を修正。
+            旧: bottom anchor + 固定 height → 小さい画面で上端が画面外
+            新: top anchor + maxHeight (viewport - 余白) で auto fit
+          width も 280px に絞って下のメンバーリスト UI が左側で見える状態に。 */}
       {open && (
         <div
-          className="fixed right-4 z-[99] w-[300px] max-w-[calc(100vw-32px)] rounded-2xl bg-white/95 backdrop-blur border border-[#E5E7EB] flex flex-col"
+          className="fixed right-2 z-[99] w-[280px] max-w-[calc(100vw-16px)] rounded-2xl bg-white/95 backdrop-blur border border-[#E5E7EB] flex flex-col"
           style={{
-            bottom: 'calc(444px + env(safe-area-inset-bottom))',
-            height: panelHeight,
+            top: 'calc(env(safe-area-inset-top) + 56px)',
+            maxHeight: 'calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 160px)',
             boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
             transform: `translate(${panelOffset.dx}px, ${panelOffset.dy}px)`,
           }}
         >
-          {/* 上端のドラッグハンドル — 上方向にドラッグでパネルを高く、下方向で低く */}
-          <div
-            onPointerDown={startResize}
-            className="shrink-0 h-3 flex items-center justify-center cursor-ns-resize touch-none select-none"
-            title="ドラッグでパネルの高さを変更"
-          >
+          {/* 上端の視覚的ドラッグハンドル (移動はタイトル onPointerDown で行うので装飾のみ) */}
+          <div className="shrink-0 h-3 flex items-center justify-center select-none">
             <span className="block w-10 h-1 rounded-full bg-[#D1D5DB]" />
           </div>
 
