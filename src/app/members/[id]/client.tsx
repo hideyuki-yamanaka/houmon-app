@@ -127,8 +127,8 @@ export default function MemberDetailClient() {
       : 'transition-shadow duration-500';
 
   return (
-    <div className="h-full flex flex-col bg-[var(--color-bg)]">
-      <nav className="ios-nav flex items-center px-4 py-3 gap-2">
+    <div className="bg-[var(--color-bg)]">
+      <nav className="ios-nav flex items-center px-4 py-3 gap-2 sticky top-0 z-20 bg-[var(--color-bg)]">
         <button onClick={() => { tapHaptic(); if (window.history.length > 1) router.back(); else router.push('/calendar'); }} className="flex items-center gap-1 text-[var(--color-primary)] shrink-0">
           <ChevronLeft size={24} />
           <span className="text-sm">戻る</span>
@@ -137,9 +137,13 @@ export default function MemberDetailClient() {
         <div className="w-14" />
       </nav>
 
-      <div className="flex-1 overflow-y-auto">
-        {/* pb は最小限 (4=16px)。下のタブバー領域は親 layout の outer pb で確保済 */}
-        <div className="max-w-[1366px] mx-auto px-4 py-4 pb-4 space-y-4">
+      {/* スクロールは body に任せる。flex-1 + overflow-y-auto を使うと
+          コンテンツが短い時に内部に無駄なグレー領域が出るので natural flow にした
+          (2026-05-07 ヒデさん指示)。下のタブバー分は内側 pb で確保。 */}
+      <div
+        className="max-w-[1366px] mx-auto px-4 py-4 space-y-4"
+        style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom))' }}
+      >
           <div id="section-basic" className={flashCls('section-basic')}>
             <MemberInfo
               member={member}
@@ -180,7 +184,6 @@ export default function MemberDetailClient() {
               </div>
             )}
           </div>
-        </div>
       </div>
 
       <Link

@@ -128,7 +128,7 @@ export default function CalendarPage() {
       {/* モバイル: 訪問ログだけスクロール */}
       <div
         className="flex-1 overflow-y-auto md:hidden"
-        style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom) + 16px)' }}
+        style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom))' }}
       >
         <div className="px-4 pt-4">
           {visitListSection}
@@ -139,7 +139,7 @@ export default function CalendarPage() {
       <div className="hidden md:block flex-1 overflow-y-auto">
         <div
           className="md:grid md:grid-cols-[minmax(460px,560px)_1fr] md:gap-12 md:px-8 md:pt-6 md:max-w-6xl md:mx-auto md:w-full"
-          style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom) + 16px)' }}
+          style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom))' }}
         >
           <div className="md:px-0 md:pt-0">
             <div className="bg-white rounded-xl md:p-4 md:sticky md:top-4">

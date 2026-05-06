@@ -332,7 +332,7 @@ export default function LogPage() {
           className="max-w-[1366px] mx-auto px-4"
           style={{
             paddingTop: 'var(--tune-section-pad-top, 0.75rem)',
-            paddingBottom: 'calc(60px + env(safe-area-inset-bottom) + 16px)',
+            paddingBottom: 'calc(60px + env(safe-area-inset-bottom))',
           }}
         >
           {/* ────────────── フィルタ (人 + 期間) ────────────── */}
