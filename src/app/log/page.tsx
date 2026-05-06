@@ -21,17 +21,17 @@ type SheetSpec =
 
 // 訪問ログ内訳のスタックバー色。
 // 2026-05-06 ヒデさん指示で 下の 4 ブロック (会えた/不在/住所不明/転居) と完全連動させる。
-//   - 拒否 (refused) は「会えた」グループに含まれるので、バー上でも同じブルーで描く
-//     (旧: per-status の色 (緑/赤/灰...) を使っていて、下のブロック (4 色) と
-//      色味が一致しなかった)
-//   - 「会えた感」を出すためメインカラーをグリーンからブルー (#3B82F6) に変更
+//   - 拒否 (refused) は「会えた」グループに含まれるので、バー上でも同じ色で描く
+// 2026-05-07 アースカラーパレットに切替 (mock 案5 採用)。会えた だけは アース系の
+//   青 (Wedgwood ぽい #4F6D8C) にして「達成感」を保ちつつ、不在=サンド/住所不明=
+//   アンバー/転居=ローズ と全体を温かみのある低彩度トーンで統一。
 const STATUS_HEX: Record<VisitStatus, string> = {
-  met_self:        '#3B82F6', // blue-500 — 会えた
-  met_family:      '#3B82F6', // 同上
-  refused:         '#3B82F6', // 「会えた」グループ扱い
-  absent:          '#9CA3AF', // gray-400 — 不在 (やや薄めで控えめに)
-  unknown_address: '#F59E0B', // amber-500 — 住所不明
-  moved:           '#8B5CF6', // violet-500 — 転居
+  met_self:        '#4F6D8C', // earth blue — 会えた
+  met_family:      '#4F6D8C', // 同上
+  refused:         '#4F6D8C', // 「会えた」グループ扱い
+  absent:          '#A8A29E', // stone-400 — 不在 (サンド)
+  unknown_address: '#D97706', // amber-600 — 住所不明
+  moved:           '#9F1239', // rose-800 — 転居
 };
 
 // ── 期間フィルタ (2026-05-04 ヒデさん指示で追加) ──
@@ -559,8 +559,8 @@ export default function LogPage() {
                       label: '会えた',
                       count: c.met_self + c.met_family + c.refused,
                       sub: `本人 ${c.met_self} / 家族 ${c.met_family} / 拒否 ${c.refused}`,
-                      fg: '#1D4ED8', // blue-700
-                      bg: '#DBEAFE', // blue-100
+                      fg: '#2A3E54', // earth blue (深め, 文字用)
+                      bg: '#DCE3EC', // earth blue (淡い背景)
                       statuses: ['met_self', 'met_family', 'refused'],
                     },
                     {
@@ -568,8 +568,8 @@ export default function LogPage() {
                       label: '不在',
                       count: c.absent,
                       sub: `${c.absent} 件`,
-                      fg: '#374151', // gray-700
-                      bg: '#F3F4F6', // gray-100
+                      fg: '#44403C', // stone-700
+                      bg: '#F5F5F4', // stone-100
                       statuses: ['absent'],
                     },
                     {
@@ -586,8 +586,8 @@ export default function LogPage() {
                       label: '転居',
                       count: c.moved,
                       sub: `${c.moved} 件`,
-                      fg: '#5B21B6', // violet-800
-                      bg: '#EDE9FE', // violet-100
+                      fg: '#9F1239', // rose-800
+                      bg: '#FFE4E6', // rose-100
                       statuses: ['moved'],
                     },
                   ];

@@ -167,10 +167,13 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                       </span>
                     )}
                     {/* Chevron: サイズを少し大きく & ヤングタグ右に少し余白を残す。
-                        ヒデさん指示 (2026-05-06)。 */}
+                        ヒデさん指示 (2026-05-06)。
+                        2026-05-07 ヒデさん指示で もっと薄く: 線細め (1.5) + 色を
+                        #CCCCCC (icon-gray よりさらに淡い)。 */}
                     <ChevronRight
                       size={26}
-                      className="ml-0.5 text-[var(--color-icon-gray)] shrink-0"
+                      strokeWidth={1.5}
+                      className="ml-0.5 text-[#CCCCCC] shrink-0"
                       aria-hidden
                     />
                   </div>

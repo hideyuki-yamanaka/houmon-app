@@ -214,11 +214,11 @@ export const THEMES: ColorTheme[] = [
     },
   },
   {
-    name: '案5 アースカラー',
-    caption: 'ライム/サンド/アンバー/ローズ。温かみがあり柔らかい印象。',
-    bar: { met: '#65A30D', absent: '#A8A29E', unknown: '#D97706', moved: '#9F1239' },
+    name: '案5 アースカラー (採用版)',
+    caption: '会えた=アース系の青/サンド/アンバー/ローズ。温かみのある低彩度トーンで統一。本番反映済み。',
+    bar: { met: '#4F6D8C', absent: '#A8A29E', unknown: '#D97706', moved: '#9F1239' },
     blocks: {
-      met:     { fg: '#3F6212', bg: '#ECFCCB' },
+      met:     { fg: '#2A3E54', bg: '#DCE3EC' },
       absent:  { fg: '#44403C', bg: '#F5F5F4' },
       unknown: { fg: '#92400E', bg: '#FEF3C7' },
       moved:   { fg: '#9F1239', bg: '#FFE4E6' },
