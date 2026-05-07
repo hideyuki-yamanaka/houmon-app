@@ -25,6 +25,12 @@ import { updateMember } from '../lib/storage';
 // - satellite: 純粋な航空写真 (lyrs=s)
 export type MapLayerMode = 'standard' | 'satellite';
 
+// 2026-05-07 ヒデさん指摘で Google Maps 純正レベルの画質に近づける調整:
+// - URL は scale=2 据置 (Retina 2x)。scale=4 にすると帯域 4倍だが体感差は小さい。
+// - 代わりに tileSize=256 + detectRetina=true (下の TileLayer) で対応。
+//   detectRetina が DPR 2+ デバイスで zoom+1 のタイルを要求して 2倍解像度を確保、
+//   scale=2 と組み合わせて 計 4倍ピクセル密度 → DPR 3 (iPhone Pro) でも
+//   1.3倍のダウンサンプリングでくっきり。
 const TILE_URLS: Record<MapLayerMode, string> = {
   standard: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&hl=ja&scale=2',
   satellite: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}&hl=ja&scale=2',
@@ -578,12 +584,19 @@ export default function MapView({
         url={TILE_URLS[layerMode]}
         attribution={TILE_ATTRIBUTION}
         maxZoom={20}
-        tileSize={512}
-        zoomOffset={-1}
+        // 2026-05-07 ヒデさん指摘で 画質を Google Maps native と同等まで引き上げる。
+        // 旧: tileSize=512 + zoomOffset=-1 → 実は zoom Z-1 のタイル (詳細半分)
+        //     を 2倍拡大表示していて、タイル枚数を減らす省メモリ最適化だった。
+        //     これが「Google Maps と比べて画質が荒い」主因。
+        // 新: デフォルト (tileSize=256, zoomOffset=0) に戻し zoom Z をそのまま
+        //     表示 → 詳細レベルが本来の Google Maps 相当に。
+        //     detectRetina=true で DPR ≥ 2 では zoom+1 タイルを取りに行き、
+        //     scale=2 (URL) と合わせて計 4倍ピクセル密度 → DPR 3 (iPhone Pro)
+        //     でも 1.33倍のダウンサンプリングで くっきり。
+        tileSize={256}
         detectRetina={true}
-        // 2026-05-07 ピンチ中もタイル更新する → 中間ズームでタイルが古いまま
-        // CSS で引き伸ばされてぼやける問題を緩和。updateInterval で過剰 fetch
-        // を抑える。
+        // ピンチ中もタイル更新する → 中間ズームでタイルが古いまま CSS で引き
+        // 伸ばされてぼやける問題を緩和。updateInterval で過剰 fetch を抑える。
         updateWhenZooming={true}
         updateWhenIdle={true}
         updateInterval={150}
