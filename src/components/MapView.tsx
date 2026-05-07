@@ -737,20 +737,31 @@ export default function MapView({
 }
 
 // ── 編集モード用ピン: 大きめの赤ピン + 揺れアニメ ──
+//
+// 2026-05-07 ヒデさん指摘修正: 旧実装は コンテナ (48x56) が SVG (40x56) より
+// ほぼ余白ゼロで、wobble の傾き や drop-shadow が箱の外で切れていた。
+//   - SVG 自体に `overflow: visible` を入れて、フィルター(影)が
+//     SVG box の外側まで描画できるようにする (標準ピンと同じ書き方)。
+//   - コンテナを 80x80 に拡張して 上方向 24px / 左右 20px の余白を確保。
+//     これで rotate ±4° の角と shadow 6px blur が完全に収まる。
+//   - iconSize / iconAnchor も合わせて補正 (anchor は箱の bottom-center で
+//     SVG 先端 = lat/lng なので 数値は変わるが意味は同じ)。
 function createEditingPin(_m: MemberWithVisitInfo): L.DivIcon {
   return L.divIcon({
     className: 'map-pin-icon-editing',
     html: `
       <div style="
-        width: 48px;
-        height: 56px;
+        width: 80px;
+        height: 80px;
         display: flex;
         align-items: flex-end;
         justify-content: center;
+        overflow: visible;
         animation: houmonPinWobble 1.1s ease-in-out infinite;
+        transform-origin: bottom center;
       ">
         <svg width="40" height="56" viewBox="0 0 28 40" fill="none"
-             style="filter: drop-shadow(0 4px 6px rgba(0,0,0,0.45));">
+             style="overflow: visible; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.45));">
           <path d="M14 0C6.268 0 0 6.268 0 14C0 24.5 14 40 14 40S28 24.5 28 14C28 6.268 21.732 0 14 0Z"
                 fill="#EF4444" stroke="#FFFFFF" stroke-width="2.5"/>
           <circle cx="14" cy="13.5" r="5.5" fill="#FFFFFF"/>
@@ -763,7 +774,7 @@ function createEditingPin(_m: MemberWithVisitInfo): L.DivIcon {
         }
       </style>
     `,
-    iconSize: [48, 56],
-    iconAnchor: [24, 56],
+    iconSize: [80, 80],
+    iconAnchor: [40, 80],
   });
 }
