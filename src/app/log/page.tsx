@@ -22,16 +22,15 @@ type SheetSpec =
 // 訪問ログ内訳のスタックバー色。
 // 2026-05-06 ヒデさん指示で 下の 4 ブロック (会えた/不在/住所不明/転居) と完全連動させる。
 //   - 拒否 (refused) は「会えた」グループに含まれるので、バー上でも同じ色で描く
-// 2026-05-07 アースカラーパレットに切替 (mock 案5 採用)。会えた だけは アース系の
-//   青 (Wedgwood ぽい #4F6D8C) にして「達成感」を保ちつつ、不在=サンド/住所不明=
-//   アンバー/転居=ローズ と全体を温かみのある低彩度トーンで統一。
+// 2026-05-07 案2 (iOS純正モダン) 採用。Apple System Colors に置き換え:
+//   会えた=systemGreen / 不在=systemGray / 住所不明=systemOrange / 転居=systemPurple
 const STATUS_HEX: Record<VisitStatus, string> = {
-  met_self:        '#4F6D8C', // earth blue — 会えた
-  met_family:      '#4F6D8C', // 同上
-  refused:         '#4F6D8C', // 「会えた」グループ扱い
-  absent:          '#A8A29E', // stone-400 — 不在 (サンド)
-  unknown_address: '#D97706', // amber-600 — 住所不明
-  moved:           '#9F1239', // rose-800 — 転居
+  met_self:        '#34C759', // systemGreen — 会えた
+  met_family:      '#34C759',
+  refused:         '#34C759', // 「会えた」グループ扱い
+  absent:          '#8E8E93', // systemGray — 不在
+  unknown_address: '#FF9500', // systemOrange — 住所不明
+  moved:           '#AF52DE', // systemPurple — 転居
 };
 
 // ── 期間フィルタ (2026-05-04 ヒデさん指示で追加) ──
@@ -559,8 +558,8 @@ export default function LogPage() {
                       label: '会えた',
                       count: c.met_self + c.met_family + c.refused,
                       sub: `本人 ${c.met_self} / 家族 ${c.met_family} / 拒否 ${c.refused}`,
-                      fg: '#2A3E54', // earth blue (深め, 文字用)
-                      bg: '#DCE3EC', // earth blue (淡い背景)
+                      fg: '#1D7A3F', // systemGreen (深め, 文字用)
+                      bg: '#D6F4DE', // systemGreen tint
                       statuses: ['met_self', 'met_family', 'refused'],
                     },
                     {
@@ -568,8 +567,8 @@ export default function LogPage() {
                       label: '不在',
                       count: c.absent,
                       sub: `${c.absent} 件`,
-                      fg: '#44403C', // stone-700
-                      bg: '#F5F5F4', // stone-100
+                      fg: '#3C3C43', // iOS labelColor
+                      bg: '#E5E5EA', // iOS separator tint
                       statuses: ['absent'],
                     },
                     {
@@ -577,8 +576,8 @@ export default function LogPage() {
                       label: '住所不明',
                       count: c.unknown_address,
                       sub: `${c.unknown_address} 件`,
-                      fg: '#92400E', // amber-800
-                      bg: '#FEF3C7', // amber-100
+                      fg: '#C2410C', // systemOrange (深め)
+                      bg: '#FFEAD0', // systemOrange tint
                       statuses: ['unknown_address'],
                     },
                     {
@@ -586,8 +585,8 @@ export default function LogPage() {
                       label: '転居',
                       count: c.moved,
                       sub: `${c.moved} 件`,
-                      fg: '#9F1239', // rose-800
-                      bg: '#FFE4E6', // rose-100
+                      fg: '#7B2DBF', // systemPurple (深め)
+                      bg: '#F3E8FF', // systemPurple tint
                       statuses: ['moved'],
                     },
                   ];

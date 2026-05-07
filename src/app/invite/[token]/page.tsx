@@ -94,8 +94,8 @@ export default function InviteRedeemPage() {
 
         {state.kind === 'success' && (
           <>
-            <div className="w-14 h-14 rounded-full bg-[#10B981]/10 mx-auto mb-3 flex items-center justify-center">
-              <CheckCircle2 size={26} className="text-[#10B981]" />
+            <div className="w-14 h-14 rounded-full bg-[#34C759]/10 mx-auto mb-3 flex items-center justify-center">
+              <CheckCircle2 size={26} className="text-[#34C759]" />
             </div>
             <h2 className="text-base font-bold mb-1">参加完了</h2>
             <p className="text-sm text-[var(--color-subtext)] leading-relaxed">

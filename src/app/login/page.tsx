@@ -177,8 +177,8 @@ function LoginPageInner() {
 
           {phase === 'code' && (
             <div className="flex-1 flex flex-col">
-              <div className="w-12 h-12 rounded-full bg-[#10B981]/10 mx-auto mb-3 flex items-center justify-center">
-                <Check size={22} className="text-[#10B981]" />
+              <div className="w-12 h-12 rounded-full bg-[#34C759]/10 mx-auto mb-3 flex items-center justify-center">
+                <Check size={22} className="text-[#34C759]" />
               </div>
               <h2 className="text-base font-bold text-center mb-1">メールを送信しました</h2>
               <p className="text-[13px] text-[var(--color-subtext)] text-center leading-relaxed mb-5">

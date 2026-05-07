@@ -184,7 +184,7 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                       return age != null ? <span className="text-[13px] font-normal text-[var(--color-subtext)]">({age})</span> : null;
                     })()}
                     {m.category === 'young' && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#0EA5E9] text-white leading-none whitespace-nowrap">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#5AC8FA] text-white leading-none whitespace-nowrap">
                         ヤング
                       </span>
                     )}
@@ -223,11 +223,11 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                     title={m.wantToVisit ? '行きたいから外す' : '行きたいに追加'}
                     className={`shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors active:scale-95 ${
                       m.wantToVisit
-                        ? 'bg-[#FFF8E1] border-[#FBC02D] text-[#F57F17]'
-                        : 'bg-white border-[#D1D5DB] text-[#6B7280]'
+                        ? 'bg-[#FFF6CC] border-[#FFCC00] text-[#B25E07]'
+                        : 'bg-white border-[#D1D5DB] text-[#6E6E73]'
                     } ${savingWant ? 'opacity-70' : ''}`}
                   >
-                    <Star size={18} strokeWidth={2.2} fill={m.wantToVisit ? '#FBC02D' : 'none'} />
+                    <Star size={18} strokeWidth={2.2} fill={m.wantToVisit ? '#FFCC00' : 'none'} />
                   </button>
                   <button
                     onClick={() => { tapHaptic(); router.push(`/visits/new?memberId=${m.id}`); }}

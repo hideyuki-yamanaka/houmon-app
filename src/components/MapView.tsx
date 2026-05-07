@@ -106,7 +106,7 @@ function createMemberPin(member: MemberWithVisitInfo, isSelected: boolean): L.Di
         overflow: visible;
         filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));
       ">
-        <circle cx="20" cy="20" r="18" fill="#FBC02D" stroke="#FFFFFF" stroke-width="2.5"/>
+        <circle cx="20" cy="20" r="18" fill="#FFCC00" stroke="#FFFFFF" stroke-width="2.5"/>
         <path d="M20 9 L23.09 16.26 L31 17.27 L25 22.71 L26.18 30.5 L20 26.27 L13.82 30.5 L15 22.71 L9 17.27 L16.91 16.26 Z"
               fill="#FFFFFF" stroke="#FFFFFF" stroke-width="0.8" stroke-linejoin="round"/>
       </svg>
@@ -763,7 +763,7 @@ function createEditingPin(_m: MemberWithVisitInfo): L.DivIcon {
         <svg width="40" height="56" viewBox="0 0 28 40" fill="none"
              style="overflow: visible; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.45));">
           <path d="M14 0C6.268 0 0 6.268 0 14C0 24.5 14 40 14 40S28 24.5 28 14C28 6.268 21.732 0 14 0Z"
-                fill="#EF4444" stroke="#FFFFFF" stroke-width="2.5"/>
+                fill="#FF3B30" stroke="#FFFFFF" stroke-width="2.5"/>
           <circle cx="14" cy="13.5" r="5.5" fill="#FFFFFF"/>
         </svg>
       </div>

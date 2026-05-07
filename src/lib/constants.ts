@@ -33,60 +33,58 @@ export interface OrgHonbuNode {
   bus: OrgBuNode[];
 }
 
+// 2026-05-07 ヒデさん指示でカラーパレット案2 (iOS純正モダン) 全体採用。
+// 4 本部 + 6 部 + 9 地区 計 19 個の組織色を Apple System Colors ベースに統一。
+// 隣接組織で色が被らないよう ホブ内で色相を 360°÷N に分散。
 export const ORG_TREE: OrgHonbuNode[] = [
   {
-    key: '東旭川本部', short: '東旭川', hex: '#9F1239',
+    key: '東旭川本部', short: '東旭川', hex: '#FF3B30',
     bus: [
-      { key: '東旭川部', short: '東旭川', hex: '#9F1239', districts: [] },
-      { key: '千代田部', short: '千代田', hex: '#7F1D1D', districts: [] },
+      { key: '東旭川部', short: '東旭川', hex: '#FF3B30', districts: [] },
+      { key: '千代田部', short: '千代田', hex: '#FF2D55', districts: [] },
     ],
   },
   {
-    key: '豊岡本部', short: '豊岡', hex: '#C2410C',
+    key: '豊岡本部', short: '豊岡', hex: '#FF9500',
     bus: [
-      // 2026-05-06 ヒデさん指示で 地区別カラーを「どきつくない・直感的に識別できる」9 色に再提案。
-      // 設計方針:
-      //   - HSL: 明度 ~58%, 彩度 ~50% で揃える (Tailwind 600 級の重さを避ける)
-      //   - 色相 (Hue) を 360°÷9 で均等配置 → 隣接地区も視認で混同しない
-      //   - 飽和を抑えて Apple/Pages 系の落ち着いたパレットに
       {
-        key: '豊岡部', short: '豊岡部', hex: '#1E3A8A',
+        key: '豊岡部', short: '豊岡部', hex: '#007AFF',
         districts: [
-          { key: '英雄地区', short: '英雄', hex: '#5B8FD9' }, // soft cornflower blue
-          { key: '香城地区', short: '香城', hex: '#5FAE82' }, // soft jade green
-          { key: '正義地区', short: '正義', hex: '#E59D5A' }, // warm peach
+          { key: '英雄地区', short: '英雄', hex: '#007AFF' }, // systemBlue
+          { key: '香城地区', short: '香城', hex: '#34C759' }, // systemGreen
+          { key: '正義地区', short: '正義', hex: '#FF9500' }, // systemOrange
         ],
       },
       {
-        key: '光陽部', short: '光陽部', hex: '#4C1D95',
+        key: '光陽部', short: '光陽部', hex: '#AF52DE',
         districts: [
-          { key: '光陽地区', short: '光陽', hex: '#9B7FCC' }, // soft lavender
-          { key: '光輝地区', short: '光輝', hex: '#D17363' }, // soft terracotta
-          { key: '黄金地区', short: '黄金', hex: '#D4A85A' }, // soft mustard gold
+          { key: '光陽地区', short: '光陽', hex: '#AF52DE' }, // systemPurple
+          { key: '光輝地区', short: '光輝', hex: '#FF3B30' }, // systemRed
+          { key: '黄金地区', short: '黄金', hex: '#FFCC00' }, // systemYellow
         ],
       },
       {
-        key: '豊岡中央支部', short: '中央', hex: '#134E4A',
+        key: '豊岡中央支部', short: '中央', hex: '#5AC8FA',
         districts: [
-          { key: '歓喜地区',     short: '歓喜',     hex: '#5BA8B8' }, // soft teal
-          { key: 'ナポレオン地区', short: 'ナポレオン', hex: '#7984CC' }, // soft periwinkle
-          { key: '幸福地区',     short: '幸福',     hex: '#D67BA0' }, // soft rose
+          { key: '歓喜地区',     short: '歓喜',     hex: '#5AC8FA' }, // systemTeal (light)
+          { key: 'ナポレオン地区', short: 'ナポレオン', hex: '#5856D6' }, // systemIndigo
+          { key: '幸福地区',     short: '幸福',     hex: '#FF2D55' }, // systemPink
         ],
       },
     ],
   },
   {
-    key: '旭創価本部', short: '旭創価', hex: '#65A30D',
+    key: '旭創価本部', short: '旭創価', hex: '#34C759',
     bus: [
-      { key: '東川部', short: '東川', hex: '#65A30D', districts: [] },
-      { key: '空港部', short: '空港', hex: '#4D7C0F', districts: [] },
+      { key: '東川部', short: '東川', hex: '#34C759', districts: [] },
+      { key: '空港部', short: '空港', hex: '#00C7BE', districts: [] }, // systemMint
     ],
   },
   {
-    key: '東栄本部', short: '東栄', hex: '#0D9488',
+    key: '東栄本部', short: '東栄', hex: '#5AC8FA',
     bus: [
-      { key: '東栄部', short: '東栄', hex: '#0D9488', districts: [] },
-      { key: '緑東部', short: '緑東', hex: '#0F766E', districts: [] },
+      { key: '東栄部', short: '東栄', hex: '#5AC8FA', districts: [] },
+      { key: '緑東部', short: '緑東', hex: '#30B0C7', districts: [] }, // systemTeal (regular)
     ],
   },
 ];
@@ -210,18 +208,21 @@ export const YOUNG_HONBU_KEYS = ORG_TREE.map(h => h.key);
 //   border : チップの枠線色
 //   text   : チップの文字色
 //   dot    : チップ左の小ドット & マップピン色 等で再利用
+// 2026-05-07 案2 採用: Apple HIG の System Colors に統一。
+//   met = systemGreen / refused = systemRed / unknown = systemOrange / moved = systemPurple。
+//   text 色は border より 1 段濃い目で読みやすく。
 export const VISIT_STATUS_CONFIG: Record<VisitStatus, {
   label: string;
   border: string;
   text: string;
   dot: string;
 }> = {
-  met_self:        { label: '本人に会えた', border: '#10B981', text: '#047857', dot: '#10B981' },
-  met_family:      { label: '家族に会えた', border: '#10B981', text: '#047857', dot: '#10B981' },
-  absent:          { label: '不在',         border: '#9CA3AF', text: '#4B5563', dot: '#6B7280' },
-  refused:         { label: '拒否',         border: '#EF4444', text: '#B91C1C', dot: '#EF4444' },
-  unknown_address: { label: '住所不明',     border: '#F59E0B', text: '#B45309', dot: '#F59E0B' },
-  moved:           { label: '転居',         border: '#8B5CF6', text: '#6D28D9', dot: '#8B5CF6' },
+  met_self:        { label: '本人に会えた', border: '#34C759', text: '#1D7A3F', dot: '#34C759' },
+  met_family:      { label: '家族に会えた', border: '#34C759', text: '#1D7A3F', dot: '#34C759' },
+  absent:          { label: '不在',         border: '#8E8E93', text: '#3C3C43', dot: '#8E8E93' },
+  refused:         { label: '拒否',         border: '#FF3B30', text: '#B91C1C', dot: '#FF3B30' },
+  unknown_address: { label: '住所不明',     border: '#FF9500', text: '#C2410C', dot: '#FF9500' },
+  moved:           { label: '転居',         border: '#AF52DE', text: '#7B2DBF', dot: '#AF52DE' },
 };
 
 // ── 対応者 ──

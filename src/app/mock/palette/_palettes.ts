@@ -90,9 +90,9 @@ export const PALETTE_EARTH: Palette = {
 // ─────────────────────────────────────────────
 export const PALETTE_IOS: Palette = {
   id: '2-ios',
-  name: '案2 iOS純正モダン',
+  name: '案2 iOS純正モダン (採用版)',
   shortName: 'iOS',
-  caption: 'Apple HIG 準拠、鮮やかでクリーン',
+  caption: 'Apple HIG 準拠、鮮やかでクリーン。本番反映済み (2026-05-07)。',
   philosophy:
     'Apple の System Colors をベースに、各機能に明快な色を割り当てる。ヤングタグや星印もシステムブルー/イエローで統一。視認性・コントラストが高く、機能差が一目でわかる。「ザ・iPhone アプリ」な見た目。',
   base: {

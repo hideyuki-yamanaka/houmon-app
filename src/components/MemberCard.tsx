@@ -63,7 +63,7 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
             <span className="text-[11px] font-normal text-[var(--color-subtext)]">({age})</span>
           )}
           {member.category === 'young' && (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#0EA5E9] text-white leading-none whitespace-nowrap">
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#5AC8FA] text-white leading-none whitespace-nowrap">
               ヤング
             </span>
           )}
