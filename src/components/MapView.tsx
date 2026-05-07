@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-rotate';
@@ -175,6 +176,41 @@ function PanToSelected({ members, selectedId }: { members: MemberWithVisitInfo[]
 
     return () => window.clearTimeout(t);
   }, [selectedId, members, map]);
+
+  return null;
+}
+
+// 編集モードに入った瞬間、対象ピンを画面の少し上(検索バーから余裕を持って下)に
+// パンする。編集ピンは大きい (56px 上方向) ので、上端で見切れないようにする。
+// (2026-05-07 ヒデさん指示)
+function PanToEditing({ members, editingId }: { members: MemberWithVisitInfo[]; editingId: string | null }) {
+  const map = useMap();
+  const prevRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!editingId) {
+      prevRef.current = null;
+      return;
+    }
+    if (editingId === prevRef.current) return;
+    const m = members.find(x => x.id === editingId);
+    if (m?.lat == null || m?.lng == null) return;
+    prevRef.current = editingId;
+
+    const latLng = L.latLng(m.lat, m.lng);
+    // 上 (検索バー) に約 80px、下 (タブバー) に 90px のクリアランスを確保した
+    // 上で、編集ピン (56px 上方向) が中央 やや下に来るように寄せる。
+    const t = window.setTimeout(() => {
+      const zoom = map.getZoom();
+      const targetPoint = map.project(latLng, zoom);
+      // ピンを画面のやや下寄り (= map を少し上にパン) にして 上方向の余白を作る
+      targetPoint.y -= 80;
+      const adjusted = map.unproject(targetPoint, zoom);
+      map.panTo(adjusted, { animate: true, duration: 0.3, easeLinearity: 0.5 });
+    }, 200);
+
+    return () => window.clearTimeout(t);
+  }, [editingId, members, map]);
 
   return null;
 }
@@ -542,6 +578,7 @@ export default function MapView({
         keepBuffer={4}
       />
       <PanToSelected members={geoMembers} selectedId={selectedMemberId} />
+      <PanToEditing members={geoMembers} editingId={editingMemberId} />
       <FitToMembers members={geoMembers} />
       <MapClickHandler
         onClick={() => {
@@ -648,13 +685,15 @@ export default function MapView({
 
     {/* ─────── ピン位置確認モーダル ───────
         ヒデさん指示 (2026-05-07): ドラッグ後すぐ決定/取消 ではなく
-        「ここでよろしいですか」確認モーダルを挟む。 */}
-    {pendingPin && (
+        「ここでよろしいですか」確認モーダルを挟む。
+        createPortal で body 直下に出すことで 親要素 (z-0 のマップラッパ) の
+        stacking context に閉じ込められ ボトムシートに覆われるバグを回避。 */}
+    {pendingPin && typeof document !== 'undefined' && createPortal(
       <div
         role="dialog"
         aria-modal="true"
-        className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center"
-        style={{ background: 'rgba(0,0,0,0.45)' }}
+        className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center"
+        style={{ background: 'rgba(0,0,0,0.5)' }}
         onClick={cancelPendingPin}
       >
         <div
@@ -690,7 +729,8 @@ export default function MapView({
             </button>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body,
     )}
   </>
   );

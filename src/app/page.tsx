@@ -347,7 +347,9 @@ export default function HomePage() {
       <MembersListSheet
         members={members}
         visitsByMember={visitsByMember}
-        open={!selectedId}
+        // 編集モード中は一覧シートも閉じておく。ピン編集に集中させる + 確認モーダルが
+        // シートに覆われる事故を防ぐ (2026-05-07 ヒデさん指示)。
+        open={!selectedId && !editingPinMemberId}
         onClose={() => { /* closable=false なので呼ばれない */ }}
         onSelectMember={(id) => setSelectedId(id)}
         filter={filter}
