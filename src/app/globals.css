@@ -218,12 +218,30 @@ body {
 }
 .map-pin-icon { overflow: visible !important; background: none !important; border: none !important; }
 .gps-dot-icon { background: none !important; border: none !important; }
-.leaflet-tile {
-  image-rendering: auto;
-  /* GPU強制プロパティ削除 — Retinaでの画質低下を防止 */
+
+/* ピンチ/スケール中の滑らかさ改善 (2026-05-07 ヒデさん指示):
+   - tile-pane と marker-pane を GPU レイヤーに昇格 → 60fps で transform 補間
+   - backface-visibility hidden でリフロー時のチラつき抑止
+   - 個別 marker icon にも translateZ ではなく backface だけ追加 (Leaflet の
+     position transform を上書きしないため) */
+.leaflet-tile-pane {
+  will-change: transform;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 .leaflet-marker-pane {
   will-change: transform;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+.leaflet-tile {
+  image-rendering: auto;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+.leaflet-marker-icon {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 /* ── スクロールバー非表示 ── */

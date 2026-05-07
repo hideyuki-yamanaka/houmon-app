@@ -555,10 +555,18 @@ export default function MapView({
       dragging={true}
       inertia
       inertiaDeceleration={3000}
-      zoomAnimation={false}
-      markerZoomAnimation={false}
-      fadeAnimation={false}
-      zoomSnap={0}
+      // 2026-05-07 ヒデさん指摘で 滑らかさ優先 に方針転換。
+      // 旧: アニメ全 OFF (ガタつき対策) → 補間フレームが出ず ピンチ中チラつく
+      // 新: Leaflet native アニメを再有効化。CSS transform で 1 つの pane 全体を
+      //     スケールするため、ピン群もまとめて滑らかに動く。
+      zoomAnimation={true}
+      markerZoomAnimation={true}
+      fadeAnimation={true}
+      // 4レベル以上の急ジャンプはアニメ無効化 (一瞬で飛ぶ方が UX 良い)
+      zoomAnimationThreshold={4}
+      // 0.25 刻みに丸めて 過度な fractional zoom を抑制 (タイル CSS スケールでの
+      // ぼやけが減る)。ピンチは中間値を発生させるが、release 後 0.25 に snap される。
+      zoomSnap={0.25}
       zoomDelta={0.25}
       wheelPxPerZoomLevel={120}
       {...({ rotate: true, rotateControl: false, touchRotate: true, bearing: 0 } as object)}
@@ -573,9 +581,15 @@ export default function MapView({
         tileSize={512}
         zoomOffset={-1}
         detectRetina={true}
-        updateWhenZooming={false}
+        // 2026-05-07 ピンチ中もタイル更新する → 中間ズームでタイルが古いまま
+        // CSS で引き伸ばされてぼやける問題を緩和。updateInterval で過剰 fetch
+        // を抑える。
+        updateWhenZooming={true}
         updateWhenIdle={true}
-        keepBuffer={4}
+        updateInterval={150}
+        // バッファ 6 タイル分: パン/ズーム時に画面外タイルを多めに保持して
+        // 描画の継ぎ目で白縁が出にくくする。
+        keepBuffer={6}
       />
       <PanToSelected members={geoMembers} selectedId={selectedMemberId} />
       <PanToEditing members={geoMembers} editingId={editingMemberId} />
