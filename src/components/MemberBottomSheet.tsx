@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type Ref, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronRight, MapPin, Clock, Footprints, PencilLine, Star } from 'lucide-react';
+import { ChevronRight, MapPin, Clock, Footprints, PencilLine, Star, Move } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit, MemberRow } from '../lib/types';
 import { formatDate, resolveAge, stripBuildingName, formatOrgLabelShort } from '../lib/utils';
 import { getVisits, updateMember } from '../lib/storage';
@@ -23,6 +23,9 @@ interface Props {
   /** true の時は full snap で開く (カードタップ時用)。デフォルト false=peek。
    *  リスト全展開状態からカードタップ → 詳細シートも全展開で開きたいケース。 */
   openAtFull?: boolean;
+  /** ピン位置編集を開始するときに親に通知。親はマップ側を編集モードにし、
+   *  シートを閉じる責務を持つ。 (2026-05-07 ヒデさん指示) */
+  onStartEditPin?: (memberId: string) => void;
 }
 
 // mini スナップ時の可視高さ。
@@ -48,7 +51,7 @@ function rememberMemberForReturn(memberId: string) {
   try { sessionStorage.setItem(LAST_VIEWED_MEMBER_KEY, memberId); } catch { /* ignore */ }
 }
 
-export default function MemberBottomSheet({ member, onClose, sheetHandleRef, renderAbove: renderAboveProp, onMemberUpdate, openAtFull = false }: Props) {
+export default function MemberBottomSheet({ member, onClose, sheetHandleRef, renderAbove: renderAboveProp, onMemberUpdate, openAtFull = false, onStartEditPin }: Props) {
   const router = useRouter();
   const [visits, setVisits] = useState<Visit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -116,17 +119,36 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
         (streetViewUrl || renderAboveProp)
           ? () => (
               <>
-                {streetViewUrl ? (
-                  <a
-                    href={streetViewUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="ストリートビューで見る"
-                    onClick={e => e.stopPropagation()}
-                    className="w-12 h-12 rounded-full bg-white shadow-[0_3px_10px_rgba(0,0,0,0.22)] flex items-center justify-center active:scale-95 transition-transform"
-                  >
-                    <Footprints size={22} className="text-[#5F6368]" strokeWidth={2} />
-                  </a>
+                {/* 左側スロット: ストリートビュー + ピン編集 を横並び。
+                    ヒデさん指示 (2026-05-07): 旧 長押しドラッグ廃止。
+                    ピン編集アイコン (Move) で 編集モード入る。 */}
+                {streetViewUrl && displayMember ? (
+                  <div className="flex items-end gap-2">
+                    <a
+                      href={streetViewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="ストリートビューで見る"
+                      onClick={e => e.stopPropagation()}
+                      className="w-12 h-12 rounded-full bg-white shadow-[0_3px_10px_rgba(0,0,0,0.22)] flex items-center justify-center active:scale-95 transition-transform"
+                    >
+                      <Footprints size={22} className="text-[#5F6368]" strokeWidth={2} />
+                    </a>
+                    {onStartEditPin && (
+                      <button
+                        type="button"
+                        aria-label="ピンの位置を変更"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          tapHaptic();
+                          onStartEditPin(displayMember.id);
+                        }}
+                        className="w-12 h-12 rounded-full bg-white shadow-[0_3px_10px_rgba(0,0,0,0.22)] flex items-center justify-center active:scale-95 transition-transform"
+                      >
+                        <Move size={22} className="text-[#5F6368]" strokeWidth={2} />
+                      </button>
+                    )}
+                  </div>
                 ) : <div />}
                 {renderAboveProp?.()}
               </>

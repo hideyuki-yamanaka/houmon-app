@@ -17,7 +17,6 @@ import {
   getMemberOrgColor,
 } from '../lib/constants';
 import { updateMember } from '../lib/storage';
-import { tapHaptic } from '../lib/haptics';
 
 // ── タイルレイヤー設定 ──
 // Google Maps と同じタイルサーバーを使う
@@ -42,6 +41,11 @@ interface MapViewProps {
    *  純粋な『ユーザードラッグ』イベントだけ拾う。 */
   onUserMapDrag?: () => void;
   layerMode?: MapLayerMode;
+  /** ピン位置編集モード: この id のピンが draggable になる。
+   *  ヒデさん指示 (2026-05-07): 旧 Google Maps 風 長押しトリガーを廃止し、
+   *  ボトムシート内の「ピン編集」アイコン → 親が制御する props 経由 に切替。 */
+  editingMemberId?: string | null;
+  onEditingMemberIdChange?: (id: string | null) => void;
 }
 
 // ── GPS現在地マーカー（DivIcon — SVG CircleMarkerより位置安定） ──
@@ -356,40 +360,33 @@ function MapDragHandler({ onDrag }: { onDrag?: () => void }) {
 }
 
 // ── メインコンポーネント ──
-export default function MapView({ members, selectedMemberId, onMemberSelect, onMapClick, onUserMapDrag, layerMode = 'standard' }: MapViewProps) {
+export default function MapView({
+  members,
+  selectedMemberId,
+  onMemberSelect,
+  onMapClick,
+  onUserMapDrag,
+  layerMode = 'standard',
+  editingMemberId: editingMemberIdProp = null,
+  onEditingMemberIdChange,
+}: MapViewProps) {
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
 
-  // 2026-05-05 ピン位置編集モード (Google Maps 風 長押しドラッグ)
-  // editingMemberId が非 null の時、その member のマーカーが draggable になり、
-  // 大きめの揺れる赤ピンに切り替わる。マップの空白タップ or 別ピンタップで解除。
-  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+  // 2026-05-07 ピン位置編集モードは 親 (HomePage) が制御する props に切替済。
+  // 旧: 長押しで内部 state を立てる Google Maps 風。
+  // 新: ボトムシート内の「ピン編集」ボタン → 親 → editingMemberIdProp で渡る。
+  const editingMemberId = editingMemberIdProp;
+  const setEditingMemberId = (next: string | null) => {
+    onEditingMemberIdChange?.(next);
+  };
+
   const [savingMessage, setSavingMessage] = useState<string | null>(null);
-  // 2026-05-06 ヒデさん指示 (ピン編集 案 1): ドラッグ後に即コミットせず、
-  // 「取消 / 決定」確認バーを出してから保存する。
-  // pendingPin = ドラッグ後にユーザー確認待ち中のピン情報。
+  // 2026-05-06 ヒデさん指示: ドラッグ後に即コミットせず、確認モーダルを出す。
   //   newAddress: リバースジオコードのプレビュー結果 (取得中は undefined → '取得中…')
   const [pendingPin, setPendingPin] = useState<
     | { memberId: string; oldLat: number; oldLng: number; newLat: number; newLng: number; newAddress?: string; addrLoading: boolean }
     | null
   >(null);
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longPressFiredRef = useRef(false);
-
-  const startLongPressDetect = (memberId: string) => {
-    if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
-    longPressFiredRef.current = false;
-    longPressTimerRef.current = setTimeout(() => {
-      setEditingMemberId(memberId);
-      longPressFiredRef.current = true;
-      tapHaptic();
-    }, 600);
-  };
-  const cancelLongPressDetect = () => {
-    if (longPressTimerRef.current) {
-      clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  };
 
   // ドラッグ終了 → 即コミットせず pendingPin に入れて確認バーを出す。
   // 同時にリバースジオコード (バックグラウンド) して住所プレビューも引いておく。
@@ -509,6 +506,7 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
   }
 
   return (
+    <>
     <MapContainer
       center={MAP_DEFAULT_CENTER}
       zoom={MAP_DEFAULT_ZOOM}
@@ -557,7 +555,6 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
       />
       <MapDragHandler
         onDrag={() => {
-          cancelLongPressDetect();
           onUserMapDrag?.();
         }}
       />
@@ -597,21 +594,7 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
             zIndexOffset={isEditing || isPending ? 2500 : (isSelected ? 1000 : 0)}
             draggable={isEditing && !isPending}
             eventHandlers={{
-              // 通常タップ: 長押しが発火しなければ通常選択。
-              click: () => {
-                if (longPressFiredRef.current) {
-                  // 長押しで編集モード入った直後の click は無視
-                  longPressFiredRef.current = false;
-                  return;
-                }
-                onMemberSelect(member.id);
-              },
-              // 長押し検出: mousedown / touchstart で start
-              //   (Leaflet は タッチも mousedown として emit する)
-              mousedown: () => startLongPressDetect(member.id),
-              mouseup: () => cancelLongPressDetect(),
-              mouseout: () => cancelLongPressDetect(),
-              dragstart: () => cancelLongPressDetect(),
+              click: () => onMemberSelect(member.id),
               dragend: (e) => {
                 const ll = (e.target as L.Marker).getLatLng();
                 if (member.lat == null || member.lng == null) return;
@@ -645,7 +628,7 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
           <div className="leaflet-control" style={{ margin: '0 16px', float: 'none' }}>
             <div
               style={{
-                background: 'rgba(239, 68, 68, 0.95)',
+                background: 'rgba(17, 17, 17, 0.85)',
                 color: 'white',
                 fontSize: 12,
                 fontWeight: 700,
@@ -656,59 +639,60 @@ export default function MapView({ members, selectedMemberId, onMemberSelect, onM
                 pointerEvents: 'auto',
               }}
             >
-              ピン編集モード — ドラッグして位置を直す。マップ空白タップで終了
-            </div>
-          </div>
-        </div>
-      )}
-      {/* 案 1: ドラッグ後の取消/決定 確認バー */}
-      {pendingPin && (
-        <div className="leaflet-bottom leaflet-left" style={{ right: 0, marginBottom: 100, pointerEvents: 'none' }}>
-          <div className="leaflet-control" style={{ margin: '0 16px', float: 'none' }}>
-            <div
-              style={{
-                background: '#FFFFFF',
-                border: '1px solid #E5E7EB',
-                padding: '10px 12px',
-                borderRadius: 14,
-                boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
-                pointerEvents: 'auto',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-              }}
-            >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 10, color: '#6B7280', fontWeight: 600 }}>この位置に変更</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#111', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {pendingPin.addrLoading ? '住所を取得中…' : (pendingPin.newAddress ?? '住所は取得できませんでした')}
-                </div>
-              </div>
-              <button
-                onClick={cancelPendingPin}
-                style={{
-                  height: 36, padding: '0 12px', borderRadius: 999,
-                  fontSize: 12, fontWeight: 700, color: '#374151', background: 'transparent', border: 'none', cursor: 'pointer',
-                }}
-              >
-                取消
-              </button>
-              <button
-                onClick={() => { void confirmPendingPin(); }}
-                disabled={pendingPin.addrLoading}
-                style={{
-                  height: 36, padding: '0 16px', borderRadius: 999,
-                  fontSize: 12, fontWeight: 700, color: '#FFFFFF', background: '#111', border: 'none', cursor: 'pointer',
-                  opacity: pendingPin.addrLoading ? 0.5 : 1,
-                }}
-              >
-                決定
-              </button>
+              ピンをドラッグして位置を直す。マップタップで終了
             </div>
           </div>
         </div>
       )}
     </MapContainer>
+
+    {/* ─────── ピン位置確認モーダル ───────
+        ヒデさん指示 (2026-05-07): ドラッグ後すぐ決定/取消 ではなく
+        「ここでよろしいですか」確認モーダルを挟む。 */}
+    {pendingPin && (
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center"
+        style={{ background: 'rgba(0,0,0,0.45)' }}
+        onClick={cancelPendingPin}
+      >
+        <div
+          className="bg-white w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl shadow-2xl p-5"
+          style={{ paddingBottom: 'calc(20px + env(safe-area-inset-bottom))' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <h2 className="text-lg font-bold text-[#111] mb-1">ここでよろしいですか？</h2>
+          <p className="text-xs text-[#6B7280] mb-4">この位置にピンを移動します。</p>
+
+          <div className="rounded-xl bg-[#F5F5F4] px-3 py-2.5 mb-5">
+            <div className="text-[10px] font-bold text-[#6B7280] mb-0.5">新しい住所</div>
+            <div className="text-[13px] font-bold text-[#111] break-all">
+              {pendingPin.addrLoading ? '住所を取得中…' : (pendingPin.newAddress ?? '住所は取得できませんでした')}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={cancelPendingPin}
+              className="flex-1 h-12 rounded-full font-bold text-sm text-[#374151] bg-[#F3F4F6] active:bg-[#E5E7EB] transition-colors"
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              onClick={() => { void confirmPendingPin(); }}
+              disabled={pendingPin.addrLoading}
+              className="flex-1 h-12 rounded-full font-bold text-sm text-white bg-[#111] active:opacity-80 disabled:opacity-50 transition-opacity"
+            >
+              決定
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+  </>
   );
 }
 

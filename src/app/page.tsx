@@ -57,6 +57,9 @@ export default function HomePage() {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem('houmon_categoryFilter') || null;
   });
+  // ピン位置編集モード: ボトムシート内の Move ボタン押下で立ち上がる。
+  // null = 編集中ではない。string = その id のピンが draggable + 確認モーダル待ち。
+  const [editingPinMemberId, setEditingPinMemberId] = useState<string | null>(null);
   const handleFiltersChange = useCallback((next: AppliedFilters) => {
     setFilter(next.filter);
     setPeriodFilter(next.periodFilter);
@@ -271,6 +274,8 @@ export default function HomePage() {
           }}
           onUserMapDrag={handleMapDrag}
           layerMode={layerMode}
+          editingMemberId={editingPinMemberId}
+          onEditingMemberIdChange={setEditingPinMemberId}
         />
       </div>
 
@@ -367,6 +372,12 @@ export default function HomePage() {
           setMembers(prev =>
             prev.map(m => (m.id === memberId ? { ...m, ...updates } : m)),
           );
+        }}
+        // ピン編集ボタン: マップ側を編集モードにし、シートを閉じてピンが
+        // 見えるようにする (2026-05-07 ヒデさん指示)。
+        onStartEditPin={(memberId) => {
+          setEditingPinMemberId(memberId);
+          setSelectedId(null);
         }}
       />
     </div>
