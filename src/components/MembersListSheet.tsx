@@ -188,10 +188,12 @@ const hasAnyFilter =
 
             {/* リスト (50音ラベル撤廃 2026-05-06: フラットな1列表示)
                 pt は --tune-mc-list-pad-top で Tuner 調整可。
-                ヒデさん指示 (2026-05-06): 一番上のカードと検索ヘッダーの間をもう少し空けたい。 */}
+                ヒデさん指示 (2026-05-06): 一番上のカードと検索ヘッダーの間をもう少し空けたい。
+                ヒデさん指示 (2026-05-08): さらにもう一段広げる (12 → 24px)。
+                セクション見出しと本文の間を Apple HIG 的な余白に揃える。 */}
             <div
               className="flex-1 overflow-y-auto px-4 pb-4"
-              style={{ paddingTop: 'var(--tune-mc-list-pad-top, 12px)' }}
+              style={{ paddingTop: 'var(--tune-mc-list-pad-top, 24px)' }}
             >
               {filtered.length === 0 ? (
                 <p className="text-sm text-[var(--color-subtext)] text-center py-4">メンバーが見つかりません</p>
