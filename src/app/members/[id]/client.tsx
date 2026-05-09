@@ -139,10 +139,13 @@ export default function MemberDetailClient() {
 
       {/* スクロールは body に任せる。flex-1 + overflow-y-auto を使うと
           コンテンツが短い時に内部に無駄なグレー領域が出るので natural flow にした
-          (2026-05-07 ヒデさん指示)。下のタブバー分は内側 pb で確保。 */}
+          (2026-05-07 ヒデさん指示)。下のタブバー分は内側 pb で確保。
+          ヒデさん指示 (2026-05-09): スクロールすると最後のカードがタブバー直上で
+          詰まり過ぎていたので +32px のゆとりを追加。FAB (+) ボタンの真下にも
+          隙間が出来て最後の訪問ログが快適に読める。 */}
       <div
         className="max-w-[1366px] mx-auto px-4 py-4 space-y-4"
-        style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom))' }}
+        style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom) + 32px)' }}
       >
           <div id="section-basic" className={flashCls('section-basic')}>
             <MemberInfo
