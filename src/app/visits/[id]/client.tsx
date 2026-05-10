@@ -4,13 +4,14 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import type { Visit } from '../../../lib/types';
-import { getVisitById, softDeleteVisit } from '../../../lib/storage';
+import type { Visit, Member } from '../../../lib/types';
+import { getVisitById, softDeleteVisit, getMember } from '../../../lib/storage';
 import { RESPONDENT_CONFIG } from '../../../lib/constants';
 import { formatDate } from '../../../lib/utils';
 import type { VisitStatus, Respondent } from '../../../lib/types';
 import TiptapViewer from '../../../components/TiptapViewer';
 import StatusChip from '../../../components/StatusChip';
+import AddressIssueSection from '../../../components/AddressIssueSection';
 import { VisitAuthorChip } from '../../../components/VisitAuthorChip';
 import { useTeamProfiles } from '../../../lib/useTeamProfiles';
 import { useSwipeBack } from '../../../lib/useSwipeBack';
@@ -22,6 +23,7 @@ export default function VisitDetailClient() {
   const id = params.id as string;
 
   const [visit, setVisit] = useState<(Visit & { memberName: string; memberDistrict: string }) | null>(null);
+  const [member, setMember] = useState<Member | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -46,6 +48,13 @@ export default function VisitDetailClient() {
     if (!visit?.memberId) return;
     try { sessionStorage.setItem('houmon_lastViewedMemberId', visit.memberId); } catch { /* ignore */ }
   }, [visit?.memberId]);
+
+  // 住所不明セクション用にメンバー情報を取得 (status=unknown_address の時だけ使う)。
+  useEffect(() => {
+    if (!visit?.memberId) return;
+    if (visit.status !== 'unknown_address') return;
+    getMember(visit.memberId).then(setMember).catch(() => setMember(null));
+  }, [visit?.memberId, visit?.status]);
 
   useEffect(() => {
     const handleVisibility = () => {
@@ -203,6 +212,18 @@ export default function VisitDetailClient() {
           </div>
             );
           })()}
+
+          {/* 住所不明セクション (visit.status='unknown_address' の時だけ表示)。
+              データはメンバー単位 (members.address_issue_*)。 */}
+          {visit.status === 'unknown_address' && member && (
+            <div className="ios-card overflow-hidden">
+              <AddressIssueSection
+                memberId={member.id}
+                initialNote={member.addressIssueNote}
+                initialResolved={member.addressIssueResolved}
+              />
+            </div>
+          )}
 
           <div className="flex justify-end !-mt-2">
             <button

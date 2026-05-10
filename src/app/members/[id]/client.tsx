@@ -41,6 +41,10 @@ export default function MemberDetailClient() {
 
   // フラッシュ対象のセクション DOM id。表示後に一瞬リングアニメを走らせてスッと消す。
   const [flashId, setFlashId] = useState<string | null>(null);
+  // 保存ボタン押下時のトースト表示 (2026-05-10)。
+  // ページ内データは全て debounce 自動保存だが、ユーザー安心のため明示的な
+  // 確認 UI を出す。
+  const [savedToastVisible, setSavedToastVisible] = useState(false);
 
   const fetchData = useCallback(() => {
     Promise.all([getMember(id), getVisits(id)])
@@ -135,8 +139,32 @@ export default function MemberDetailClient() {
           <span className="text-sm">戻る</span>
         </button>
         <h1 className="text-lg font-bold truncate flex-1 text-center">{member.name}</h1>
-        <div className="w-14" />
+        {/* 保存ボタン (ヒデさん指示 2026-05-10): 訪問フォーム同様の体裁で右上に配置。
+            このページのデータ (基本情報・住所不明セクション 等) は debounce で
+            自動保存されているので、押下時は確認トーストを出して 戻るだけで OK。 */}
+        <button
+          type="button"
+          onClick={() => {
+            tapHaptic();
+            setSavedToastVisible(true);
+            window.setTimeout(() => setSavedToastVisible(false), 1400);
+            window.setTimeout(() => {
+              if (window.history.length > 1) router.back();
+              else router.push('/calendar');
+            }, 600);
+          }}
+          className="bg-[#000] text-white rounded-full px-4 py-1.5 text-sm font-bold active:opacity-80 transition-opacity shrink-0"
+        >
+          保存
+        </button>
       </nav>
+      {savedToastVisible && (
+        <div className="fixed top-16 left-0 right-0 z-50 flex justify-center pointer-events-none">
+          <div className="bg-[#34C759] text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5">
+            <span>✓</span> 保存しました
+          </div>
+        </div>
+      )}
 
       {/* スクロールは body に任せる。flex-1 + overflow-y-auto を使うと
           コンテンツが短い時に内部に無駄なグレー領域が出るので natural flow にした

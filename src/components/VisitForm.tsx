@@ -8,6 +8,7 @@ import { VISIT_STATUS_CONFIG, RESPONDENT_CONFIG } from '../lib/constants';
 import { createVisit, updateVisit, uploadVisitImage } from '../lib/storage';
 import { today } from '../lib/utils';
 import TiptapEditor from './TiptapEditor';
+import AddressIssueSection from './AddressIssueSection';
 
 interface Props {
   member: Member;
@@ -333,6 +334,19 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
               </div>
             </div>
           </div>
+
+          {/* 住所不明セクション (status='unknown_address' を選んだ時だけ表示)。
+              データはメンバー単位 (members.address_issue_*) で 訪問ログ詳細・
+              メンバー詳細でも同じデータを編集する。 */}
+          {status === 'unknown_address' && (
+            <div className="ios-card overflow-hidden">
+              <AddressIssueSection
+                memberId={member.id}
+                initialNote={member.addressIssueNote}
+                initialResolved={member.addressIssueResolved}
+              />
+            </div>
+          )}
 
           {/* メモ（Tiptapリッチテキスト） */}
           <div>
