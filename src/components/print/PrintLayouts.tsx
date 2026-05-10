@@ -464,10 +464,10 @@ function VisitList({ visits, compact }: { visits: Visit[]; compact?: boolean }) 
   );
 }
 
-function Footer({ today, pageNo, pageTotal }: { today: string; pageNo: number; pageTotal: number }) {
+// 2026-05-09 ヒデさん指示: フッターのアプリ名・出力日を撤去。ページ番号だけに。
+function Footer({ pageNo, pageTotal }: { today?: string; pageNo: number; pageTotal: number }) {
   return (
-    <footer style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `0.5pt solid ${C.borderSoft}`, paddingTop: '2.5mm', marginTop: '5mm', fontSize: '8.5pt', color: C.muted }}>
-      <span>家庭訪問アプリ — 出力日 {today}</span>
+    <footer style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', borderTop: `0.5pt solid ${C.borderSoft}`, paddingTop: '2.5mm', marginTop: '5mm', fontSize: '8.5pt', color: C.muted }}>
       <span>{pageNo} / {pageTotal}</span>
     </footer>
   );

@@ -5,12 +5,21 @@
 //     フィルタ済みメンバー ID リストを読み出して、その全員を A4 横レイアウトで
 //     1人 1ページずつレンダリング。
 //   - レイアウトは案4 タイムライン方式 (2026-05-09 ヒデさん採用)。
-//   - useEffect で window.print() を自動 fire (iOS Safari は手動操作が必要な
-//     ので、画面上にも印刷ボタンを置く)。
-//   - 印刷時は @page { size: A4 landscape } + page-break-after: always で
-//     ブラウザの「PDF として保存」 で 1人1ページの PDF を生成できる。
-//   - 訪問ログは新しい順 5 件まで全文 (それ以上ある場合はタイムラインの最後に
-//     「他 N件あり」を表示)。
+//
+//   【画面プレビューと印刷の二段構え】
+//   2026-05-09 ヒデさん指摘で 「画面プレビューが破綻してた」 → 完全に分離する設計に変更:
+//
+//     ┌─ 画面 (mobile/desktop 共通) ──────────────────────────────
+//     │ .print-thumb-wrap = aspect-ratio 297/210 + width: 100%
+//     │   .print-page    = position: absolute, 固定 1122×793px (A4 native)
+//     │                    transform: scale(N) で wrapper に合わせ縮小
+//     │ → スマホでも PDF サムネイル風にきれいに見える
+//     │   (zoom や max-width で潰れなくなる)
+//     │
+//     ├─ 印刷時 (@media print) ──────────────────────────────────
+//     │ .print-thumb-wrap = 297mm × 210mm (実寸)
+//     │   .print-page    = transform 解除、relative 配置で 297×210mm
+//     │ → ブラウザの A4 横ページに ぴったりはまる。N人 = N ページ。
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -21,6 +30,10 @@ import { Layout4 } from '../../../components/print/PrintLayouts';
 import './print.css';
 
 const SESSION_KEY = 'print:memberIds';
+
+// A4 横の native ピクセルサイズ (96dpi 換算)
+const A4_W = 1122.5; // 297mm
+const A4_H = 793.7;  // 210mm
 
 export default function MemberPrintPage() {
   const [members, setMembers] = useState<MemberWithVisitInfo[] | null>(null);
@@ -85,6 +98,38 @@ export default function MemberPrintPage() {
     return () => window.clearTimeout(t);
   }, [members]);
 
+  // 画面プレビュー用: wrapper 幅に合わせて .print-page に transform: scale を掛ける。
+  // wrapper は aspect-ratio 297/210 で width: 100% なので 端末幅に応じて伸び縮み。
+  // .print-page 自体は 1122×793px に固定して内部 mm 計算が崩れないように。
+  useEffect(() => {
+    if (!members) return;
+
+    const updateScale = () => {
+      const wrappers = document.querySelectorAll<HTMLElement>('.print-thumb-wrap');
+      wrappers.forEach((wrapper) => {
+        const w = wrapper.getBoundingClientRect().width;
+        const scale = w / A4_W;
+        const inner = wrapper.querySelector<HTMLElement>('.print-page');
+        if (inner) {
+          inner.style.transform = `scale(${scale})`;
+          inner.style.transformOrigin = 'top left';
+        }
+      });
+    };
+
+    updateScale();
+    window.addEventListener('resize', updateScale);
+
+    // 各 wrapper の幅変化を監視 (mobile rotate 等)
+    const ro = new ResizeObserver(updateScale);
+    document.querySelectorAll('.print-thumb-wrap').forEach(w => ro.observe(w));
+
+    return () => {
+      window.removeEventListener('resize', updateScale);
+      ro.disconnect();
+    };
+  }, [members]);
+
   const todayLabel = new Date().toISOString().slice(0, 10);
 
   if (error) {
@@ -137,14 +182,16 @@ export default function MemberPrintPage() {
       {/* 印刷本体 — Layout4 (タイムライン方式) で 1人1ページ */}
       <main className="print-root">
         {members.map((m, i) => (
-          <article key={m.id} className="print-page">
-            <Layout4
-              member={m}
-              visits={(visitsByMember.get(m.id) ?? []).slice(0, 5)}
-              pageNo={i + 1}
-              pageTotal={total}
-            />
-          </article>
+          <div key={m.id} className="print-thumb-wrap">
+            <article className="print-page">
+              <Layout4
+                member={m}
+                visits={(visitsByMember.get(m.id) ?? []).slice(0, 5)}
+                pageNo={i + 1}
+                pageTotal={total}
+              />
+            </article>
+          </div>
         ))}
       </main>
     </>
