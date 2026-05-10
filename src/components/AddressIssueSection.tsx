@@ -1,16 +1,19 @@
 'use client';
 
 // 住所不明タスク UI (採用案A: アコーディオン)
-// 2026-05-10 ヒデさん指示で導入。
+// 2026-05-10 ヒデさん指示で導入 → 同日改修で 訪問カード内に埋め込む形に。
 //
-// 配置: メンバー詳細ページ ・ 訪問ログセクションの最下部 (訪問ログカード群の後)
-// 表示条件: そのメンバーに status='unknown_address' の visit が 1 件でもあれば。
+// 配置: 該当メンバーで 一番新しい status='unknown_address' の VisitCard の expansion
+//       スロットに渡されて、視覚的に「同じカード」として表示される。
 // データ: members.address_issue_note / address_issue_resolved (メンバー単位)
 //
 // 動作:
 //  - ヘッダーをタップで開閉。状態バッジ (未解決/解決済み) はヘッダー右に常時表示。
 //  - 中身は textarea (対応メモ) + チェックボックス (解決済みにする)。
 //  - 編集は debounce 自動保存 (700ms)。
+//
+// スタイル: 親 (VisitCard) が ios-card (白背景 + 影 + 角丸) を提供するので、
+//          このコンポーネントは内側の塊だけ提供。 outer は無装飾 div。
 
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, MapPin } from 'lucide-react';
@@ -58,12 +61,12 @@ export default function AddressIssueSection({ memberId, initialNote, initialReso
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+    <div>
       {/* ヘッダー (タップで開閉) */}
       <button
         type="button"
         onClick={() => { tapHaptic(); setOpen(!open); }}
-        className="w-full flex items-center justify-between px-3 py-3 text-left active:bg-[#F2F2F7]"
+        className="w-full flex items-center justify-between px-4 py-3 text-left active:bg-[#F5F5F5] transition-colors"
       >
         <div className="flex items-center gap-2">
           <MapPin size={16} className="text-[#FF9500]" />
@@ -83,7 +86,7 @@ export default function AddressIssueSection({ memberId, initialNote, initialReso
 
       {/* 中身 */}
       {open && (
-        <div className="px-3 pb-3 border-t border-[#E5E5EA]">
+        <div className="px-4 pb-3 border-t border-[#F0F0F0]">
           <p className="text-[10px] text-[#6E6E73] mt-2 mb-2">
             このメンバーの住所不明状態を管理します。複数の訪問で共有されます。
           </p>

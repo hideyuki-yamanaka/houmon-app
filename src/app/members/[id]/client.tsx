@@ -172,34 +172,35 @@ export default function MemberDetailClient() {
             {visits.length === 0 ? (
               <p className="text-sm text-[var(--color-subtext)]">まだ訪問ログがありません</p>
             ) : (
-              <div className="space-y-2">
-                {visits.map(v => (
-                  <div
-                    key={v.id}
-                    id={`visit-${v.id}`}
-                    className={flashCls(`visit-${v.id}`)}
-                  >
-                    <VisitCard
-                      visit={v}
-                      highlightQuery={hl === 'visit' && vid === v.id ? q : undefined}
-                    />
+              (() => {
+                // 住所不明セクションは「最も新しい unknown_address visit」の expansion に
+                // 埋め込んで、その訪問カードと同じ ios-card 内 で繋がって見えるようにする
+                // (ヒデさん指示 2026-05-10)。visits は newest-first ソート想定。
+                const latestUnknownAddrId = visits.find(v => v.status === 'unknown_address')?.id ?? null;
+                return (
+                  <div className="space-y-2">
+                    {visits.map(v => (
+                      <div
+                        key={v.id}
+                        id={`visit-${v.id}`}
+                        className={flashCls(`visit-${v.id}`)}
+                      >
+                        <VisitCard
+                          visit={v}
+                          highlightQuery={hl === 'visit' && vid === v.id ? q : undefined}
+                          expansion={v.id === latestUnknownAddrId ? (
+                            <AddressIssueSection
+                              memberId={member.id}
+                              initialNote={member.addressIssueNote}
+                              initialResolved={member.addressIssueResolved}
+                            />
+                          ) : undefined}
+                        />
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
-
-            {/* 住所不明タスクのアコーディオン
-                ヒデさん指示 (2026-05-10): 訪問ログで status='unknown_address' があった
-                メンバーには ここに「住所不明」セクションが出る。メモ + 解決チェックを編集できる。
-                訪問ログ section の最下部に配置する仕様。 */}
-            {visits.some(v => v.status === 'unknown_address') && (
-              <div className="mt-3">
-                <AddressIssueSection
-                  memberId={member.id}
-                  initialNote={member.addressIssueNote}
-                  initialResolved={member.addressIssueResolved}
-                />
-              </div>
+                );
+              })()
             )}
           </div>
       </div>
