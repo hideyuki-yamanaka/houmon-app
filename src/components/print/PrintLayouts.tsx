@@ -218,16 +218,19 @@ export function Layout4({ member: m, visits, pageNo = 1, pageTotal = 1 }: Props)
 
   return (
     <div style={{
-      padding: '11mm 13mm',
+      // 2026-05-10 PDF ページ数増殖問題の根治。
+      // 旧: CSS Grid 「auto 1fr auto」 → footer が auto 行で 内容が overflow すると
+      //     iOS Safari が footer を次ページに送ってしまっていた (1人2ページ)。
+      // 新: position: relative + footer を position: absolute で常に底に pin。
+      //     さらに padding-bottom で footer 高さ分のスペースを確保 + overflow: hidden で
+      //     コンテンツ overflow を 物理的にクリップ。これで何があっても 1人=1ページ。
+      position: 'relative',
+      padding: '11mm 13mm 18mm 13mm',
       height: '100%',
-      // 2026-05-09 ヒデさん指摘修正: flex 列だと コンテンツが容量を超えると
-      // フッターが次ページに溢れていた。CSS Grid 「auto 1fr auto」で 各行の
-      // 高さを確実に固定し、本体は overflow: hidden で クリップ。
-      display: 'grid',
-      gridTemplateRows: 'auto 1fr auto',
-      gridTemplateColumns: '1fr',
       boxSizing: 'border-box',
       overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column',
     }}>
       <header style={{ borderBottom: `1pt solid ${C.border}`, paddingBottom: '3mm', marginBottom: '5mm', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
@@ -243,9 +246,9 @@ export function Layout4({ member: m, visits, pageNo = 1, pageTotal = 1 }: Props)
           訪問サイクル {m.visitCycleDays}日 / 通算 {m.totalVisits}回
         </div>
       </header>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: '8mm', minHeight: 0, overflow: 'hidden' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: '8mm', flex: 1, minHeight: 0, overflow: 'hidden' }}>
         {/* 左: 基本情報 + ステータス (簡易) + メモ */}
-        <div>
+        <div style={{ overflow: 'hidden' }}>
           <SectionTitle>基本情報</SectionTitle>
           <BasicInfoList m={m} compact />
           <SectionTitle mt>ステータス</SectionTitle>
@@ -285,7 +288,11 @@ export function Layout4({ member: m, visits, pageNo = 1, pageTotal = 1 }: Props)
           </div>
         </div>
       </div>
-      <Footer today={today} pageNo={pageNo} pageTotal={pageTotal} />
+      {/* Footer を absolute で底に固定。コンテンツ overflow があっても footer は
+          常にこの位置に描画され、次ページに送られない。 */}
+      <div style={{ position: 'absolute', left: '13mm', right: '13mm', bottom: '8mm' }}>
+        <Footer today={today} pageNo={pageNo} pageTotal={pageTotal} />
+      </div>
     </div>
   );
 }

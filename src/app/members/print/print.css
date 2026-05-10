@@ -93,6 +93,9 @@
     position: relative !important;
     width: 297mm !important;
     height: 210mm !important;
+    /* 2026-05-10 PDF ページ増殖の根治: 内容 overflow を physical に clip。
+       Layout4 内部でも overflow:hidden + footer absolute で二重防御。 */
+    overflow: hidden !important;
   }
   /* ツールバーとタブバー (二重防御) を消す */
   .print-hide,
