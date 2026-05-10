@@ -130,8 +130,6 @@ export default function MemberPrintPage() {
     };
   }, [members]);
 
-  const todayLabel = new Date().toISOString().slice(0, 10);
-
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center p-8 print-hide">
@@ -163,7 +161,7 @@ export default function MemberPrintPage() {
             ホームに戻る
           </Link>
           <div className="text-xs text-[#6E6E73]">
-            印刷対象: <span className="font-bold text-[#000]">{total} 人</span>・出力日 {todayLabel}
+            印刷対象: <span className="font-bold text-[#000]">{total} 人</span>
           </div>
           <button
             onClick={() => window.print()}
@@ -173,9 +171,8 @@ export default function MemberPrintPage() {
             印刷 / PDF
           </button>
         </div>
-        <div className="max-w-3xl mx-auto px-4 pb-3 text-xs text-[#6E6E73] leading-relaxed">
-          <p>iPhone で「PDF として保存」したい場合は、印刷ダイアログ右上の <strong>共有 (□↑)</strong> から
-          <strong>「ブックを表示する」</strong> または <strong>「ファイル」に保存</strong> を選んでください。</p>
+        <div className="max-w-3xl mx-auto px-4 pb-3 text-[11px] text-[#6E6E73] leading-relaxed truncate">
+          PDF 保存は 印刷ダイアログ → 共有 (□↑) → 「ファイル」に保存
         </div>
       </div>
 
