@@ -52,6 +52,13 @@
 
 /* ─────────────────────────────────────────────
  * @media print: 印刷時は実寸 A4 横で出す
+ *
+ * 2026-05-10 ヒデさん指摘 (用紙の向き=横向きで 42人→84ページに膨らむ問題) を根治:
+ *  iOS Safari は印刷時に「ヘッダー/フッター (URL・日時)」を @page 内に自動注入し、
+ *  実際の content area が 210mm より約 20mm 短くなる。横向き選択時は ピッタリ
+ *  はまるはずの 210mm がハミ出て次ページに送られていた。
+ *  対策: .print-page の高さを 192mm に抑えて 18mm の安全マージンを確保。
+ *  どの設定でも 1人=1ページに収まるようにする。
  * ───────────────────────────────────────────── */
 @media print {
   @page {
@@ -69,10 +76,11 @@
     min-height: 0 !important;
     overflow: visible !important;
   }
-  /* wrapper 自体を 1 ページに */
+  /* wrapper 自体を 1 ページに。高さは 192mm (210mm - 18mm 安全マージン)。
+     iOS Safari の auto ヘッダー/フッターが約 20mm 食うのを吸収。 */
   .print-thumb-wrap {
     width: 297mm !important;
-    height: 210mm !important;
+    height: 192mm !important;
     max-width: none !important;
     aspect-ratio: unset !important;
     margin: 0 !important;
@@ -87,14 +95,13 @@
     page-break-after: auto;
     break-after: auto;
   }
-  /* .print-page は scale 解除して 実寸 A4 で描画 */
+  /* .print-page は scale 解除して 297×192mm に。
+     overflow: hidden で多層防御。 */
   .print-page {
     transform: none !important;
     position: relative !important;
     width: 297mm !important;
-    height: 210mm !important;
-    /* 2026-05-10 PDF ページ増殖の根治: 内容 overflow を physical に clip。
-       Layout4 内部でも overflow:hidden + footer absolute で二重防御。 */
+    height: 192mm !important;
     overflow: hidden !important;
   }
   /* ツールバーとタブバー (二重防御) を消す */
