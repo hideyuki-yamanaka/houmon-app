@@ -1,10 +1,11 @@
 'use client';
 
 import { useMemo, useState, useCallback, type Ref, type ReactNode } from 'react';
-import { SlidersHorizontal } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { SlidersHorizontal, Printer } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit } from '../lib/types';
 import MemberCard from './MemberCard';
-import { type FilterSelection, matchFilter, EMPTY_FILTER } from './DistrictFilter';
+import { type FilterSelection, matchFilter } from './DistrictFilter';
 import SwipeableBottomSheet, { type SheetHandle } from './SwipeableBottomSheet';
 import FilterModal, { PERIOD_FILTERS } from './FilterModal';
 
@@ -93,6 +94,7 @@ export default function MembersListSheet({
   renderAbove,
 }: Props) {
   const [filterModalOpen, setFilterModalOpen] = useState(false);
+  const router = useRouter();
 
   // 注意: ここで filtered に渡す members は、すでに HomePage 側でも
   // 同じ applyAllFilters を通った filteredMembers が渡ってくるので、
@@ -126,9 +128,8 @@ const hasAnyFilter =
     [onFiltersChange],
   );
 
-  const handleClearAll = useCallback(() => {
-    onFiltersChange({ filter: EMPTY_FILTER, periodFilter: null, categoryFilter: null });
-  }, [onFiltersChange]);
+  // 旧「クリア」ボタンは PDF 出力ボタンに置き換え (2026-05-09)。
+  // フィルタ全クリアは FilterModal 内のボタンから可能。
 
   return (
     <>
@@ -158,15 +159,27 @@ const hasAnyFilter =
                     </span>
                   </span>
                 </div>
-                <div className="flex items-center gap-3">
-                  {hasAnyFilter && (
-                    <button
-                      onClick={handleClearAll}
-                      className="text-xs text-[var(--color-subtext)] px-2 py-1 mr-1 active:opacity-60"
-                    >
-                      クリア
-                    </button>
-                  )}
+                <div className="flex items-center gap-2">
+                  {/* PDF (印刷) ボタン: フィルタ済み全員を 1人1ページ A4 横で出力。
+                      旧「クリア」リンクの動線をここに置き換え (2026-05-09 ヒデさん指示)。
+                      sessionStorage 経由で対象 ID リストを /members/print に渡す。 */}
+                  <button
+                    onClick={() => {
+                      if (filtered.length === 0) return;
+                      try {
+                        window.sessionStorage.setItem(
+                          'print:memberIds',
+                          JSON.stringify(filtered.map(m => m.id)),
+                        );
+                      } catch { /* sessionStorage 不可環境は黙って諦める */ }
+                      router.push('/members/print');
+                    }}
+                    aria-label={`PDF出力 (${filtered.length}人)`}
+                    disabled={filtered.length === 0}
+                    className="w-11 h-11 rounded-full flex items-center justify-center active:bg-[#F0F0F0] disabled:opacity-40"
+                  >
+                    <Printer size={22} className="text-[var(--color-subtext)]" />
+                  </button>
                   <button
                     onClick={() => setFilterModalOpen(true)}
                     aria-label="フィルター"
