@@ -217,7 +217,18 @@ export function Layout4({ member: m, visits, pageNo = 1, pageTotal = 1 }: Props)
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <div style={{ padding: '11mm 13mm', height: '100%', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
+    <div style={{
+      padding: '11mm 13mm',
+      height: '100%',
+      // 2026-05-09 ヒデさん指摘修正: flex 列だと コンテンツが容量を超えると
+      // フッターが次ページに溢れていた。CSS Grid 「auto 1fr auto」で 各行の
+      // 高さを確実に固定し、本体は overflow: hidden で クリップ。
+      display: 'grid',
+      gridTemplateRows: 'auto 1fr auto',
+      gridTemplateColumns: '1fr',
+      boxSizing: 'border-box',
+      overflow: 'hidden',
+    }}>
       <header style={{ borderBottom: `1pt solid ${C.border}`, paddingBottom: '3mm', marginBottom: '5mm', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
           <div style={{ fontSize: '10pt', color: C.muted }}>{m.nameKana}</div>
@@ -232,7 +243,7 @@ export function Layout4({ member: m, visits, pageNo = 1, pageTotal = 1 }: Props)
           訪問サイクル {m.visitCycleDays}日 / 通算 {m.totalVisits}回
         </div>
       </header>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: '8mm', flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: '8mm', minHeight: 0, overflow: 'hidden' }}>
         {/* 左: 基本情報 + ステータス (簡易) + メモ */}
         <div>
           <SectionTitle>基本情報</SectionTitle>

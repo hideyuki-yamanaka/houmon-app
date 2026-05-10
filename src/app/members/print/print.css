@@ -73,18 +73,25 @@
     margin: 0 !important;
     padding: 0 !important;
   }
-  /* 画面用の影/縮小をキャンセル + 改ページ */
+  /* 画面用の影/縮小をキャンセル + 1ページに必ず収める */
   .print-page {
     box-shadow: none !important;
     margin: 0 !important;
     zoom: 1 !important;
     width: 297mm;
     height: 210mm;
+    /* 中身があふれた時は クリップ。フッターが次ページに送られて空白ページ
+       が増える事故を防ぐ (2026-05-09 ヒデさん指摘で発覚)。 */
+    overflow: hidden !important;
+    /* 旧 (page-break-*) と 新 (break-*) 両方指定 — Safari/Chrome/Firefox 全カバー */
     page-break-after: always;
     page-break-inside: avoid;
+    break-after: page;
+    break-inside: avoid;
   }
   .print-page:last-child {
     page-break-after: auto;
+    break-after: auto;
   }
   .print-root {
     background: #FFFFFF !important;
@@ -92,8 +99,10 @@
     min-height: 0 !important;
     overflow: visible !important;
   }
-  /* 印刷時はツールバー等の UI を全て非表示に */
-  .print-hide {
+  /* 印刷時はツールバー等の UI を全て非表示に。タブバーも念のため CSS でも
+     落としておく (HIDE_TABBAR_PATHS で React 側でも除外済みだが二重防御)。 */
+  .print-hide,
+  .tab-bar {
     display: none !important;
   }
 }

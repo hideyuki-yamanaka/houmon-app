@@ -16,7 +16,8 @@ import BottomTabBar from './BottomTabBar';
 import InstallBanner from './InstallBanner';
 import OwnerContextBanner from './OwnerContextBanner';
 
-const HIDE_TABBAR_PATHS = ['/login', '/auth/callback', '/invite', '/onboarding'];
+// /members/print は印刷ページなので タブバーを描画しない (印刷物に混入する)
+const HIDE_TABBAR_PATHS = ['/login', '/auth/callback', '/invite', '/onboarding', '/members/print'];
 
 export default function AuthShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
