@@ -41,6 +41,11 @@ export interface Member {
   youthGroup?: string;
   notes?: string;
   info?: string;                     // 「情報」セクション(複数行、鉛筆アイコンで編集モード)
+  // 2026-05-10: 住所不明タスクをメンバー単位で管理。訪問ログで unknown_address が
+  // 1 件でもあれば メンバー詳細の訪問ログセクション末尾に「住所不明」アコーディオン
+  // が出現し、ここを編集する。
+  addressIssueNote?: string;         // 対応メモ (例: 隣人に確認 → 転居の可能性高い)
+  addressIssueResolved?: boolean;    // 解決済みチェック
   visitCycleDays: number;
   /** 「行きたい」ブックマーク。ON にするとマップピンが星マークに変わる */
   wantToVisit?: boolean;
@@ -142,6 +147,9 @@ export interface MemberRow {
   honbu_inferred?: boolean | null;
   /** 「行きたい」ブックマーク(ALTER TABLE で後付けカラム。古い行は NULL ありえる) */
   want_to_visit: boolean | null;
+  /** 住所不明タスク (2026-05-10 追加。SQL マイグ未実行 DB との互換のため optional)。 */
+  address_issue_note?: string | null;
+  address_issue_resolved?: boolean | null;
   /** マルチユーザー化(2026-05-03)。所有者の auth.users.id。
    *  既存行は移行直後だけ NULL ありえる(移行 SQL 後に NOT NULL 化する) */
   user_id: string | null;

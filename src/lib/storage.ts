@@ -99,6 +99,9 @@ function toMember(row: MemberRow): Member {
     visitCycleDays: row.visit_cycle_days,
     // ALTER TABLE 前(want_to_visit カラム未追加)の DB でも壊れず、全員 false 扱いになる
     wantToVisit: row.want_to_visit ?? false,
+    // 2026-05-10 住所不明タスク。同じく ALTER TABLE 未実行 DB でも壊れない設計
+    addressIssueNote: row.address_issue_note ?? undefined,
+    addressIssueResolved: row.address_issue_resolved ?? false,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

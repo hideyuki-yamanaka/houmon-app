@@ -9,6 +9,7 @@ import { getMember, getVisits } from '../../../lib/storage';
 import MemberInfo from '../../../components/MemberInfo';
 import InfoSection from '../../../components/InfoSection';
 import VisitCard from '../../../components/VisitCard';
+import AddressIssueSection from '../../../components/AddressIssueSection';
 import { useSwipeBack } from '../../../lib/useSwipeBack';
 import { tapHaptic } from '../../../lib/haptics';
 
@@ -184,6 +185,20 @@ export default function MemberDetailClient() {
                     />
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* 住所不明タスクのアコーディオン
+                ヒデさん指示 (2026-05-10): 訪問ログで status='unknown_address' があった
+                メンバーには ここに「住所不明」セクションが出る。メモ + 解決チェックを編集できる。
+                訪問ログ section の最下部に配置する仕様。 */}
+            {visits.some(v => v.status === 'unknown_address') && (
+              <div className="mt-3">
+                <AddressIssueSection
+                  memberId={member.id}
+                  initialNote={member.addressIssueNote}
+                  initialResolved={member.addressIssueResolved}
+                />
               </div>
             )}
           </div>
