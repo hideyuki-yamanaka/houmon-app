@@ -21,9 +21,13 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
   const router = useRouter();
   const [visitId, setVisitId] = useState<string | null>(existingVisit?.id ?? null);
   const [date, setDate] = useState(existingVisit?.visitedAt ?? initialDate ?? today());
-  // 訪問時刻 (24時間表記、0-23、整数)。未設定なら undefined。
+  // 訪問時刻 (24時間表記、0-23、整数)。
   // 2026-05-05 ヒデさん指示で追加。1時間単位で十分との判断。
-  const [hour, setHour] = useState<number | undefined>(existingVisit?.visitedHour);
+  // 2026-05-09 ヒデさん指示で 新規作成時は現在時刻を初期値にプリセット。
+  // (既存ログ編集時は元の値を維持)
+  const [hour, setHour] = useState<number | undefined>(
+    existingVisit?.visitedHour ?? new Date().getHours(),
+  );
   const [status, setStatus] = useState<VisitStatus>(existingVisit?.status ?? 'met_self');
   // 対応者(複数選択可) — 旧 single 'respondent' から配列に変更(2026-04-26)
   const [respondents, setRespondents] = useState<Respondent[]>(existingVisit?.respondents ?? []);
