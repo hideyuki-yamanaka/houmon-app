@@ -3,14 +3,14 @@
 // 印刷レイアウト 5案。それぞれ A4 横の中に納まる JSX。
 // 共通サンプルメンバー + 訪問ログを受け取って描画する。
 
-import type { MemberWithVisitInfo, Visit } from '../../../lib/types';
-import { STATUS_GRID_ITEMS } from '../../../lib/constants';
+import type { MemberWithVisitInfo, Visit } from '../../lib/types';
+import { STATUS_GRID_ITEMS } from '../../lib/constants';
 import {
   PRINT_COLORS as C,
   VISIT_STATUS_COLOR,
   VISIT_STATUS_LABEL,
   RESPONDENT_LABEL,
-} from './_shell';
+} from './PrintShell';
 
 type Props = { member: MemberWithVisitInfo; visits: Visit[]; pageNo?: number; pageTotal?: number };
 

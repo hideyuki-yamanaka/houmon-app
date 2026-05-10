@@ -4,18 +4,20 @@
 //   - sessionStorage["print:memberIds"] に MembersListSheet が保存した
 //     フィルタ済みメンバー ID リストを読み出して、その全員を A4 横レイアウトで
 //     1人 1ページずつレンダリング。
+//   - レイアウトは案4 タイムライン方式 (2026-05-09 ヒデさん採用)。
 //   - useEffect で window.print() を自動 fire (iOS Safari は手動操作が必要な
 //     ので、画面上にも印刷ボタンを置く)。
 //   - 印刷時は @page { size: A4 landscape } + page-break-after: always で
 //     ブラウザの「PDF として保存」 で 1人1ページの PDF を生成できる。
-//   - 訪問ログは新しい順 5 件まで全文 (それ以上ある場合は「他 N件あり」を表示)。
+//   - 訪問ログは新しい順 5 件まで全文 (それ以上ある場合はタイムラインの最後に
+//     「他 N件あり」を表示)。
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Printer } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit } from '../../../lib/types';
 import { getMembersWithVisitInfo, getAllVisits } from '../../../lib/storage';
-import { STATUS_GRID_ITEMS, VISIT_STATUS_CONFIG, RESPONDENT_CONFIG } from '../../../lib/constants';
+import { Layout4 } from '../../../components/print/PrintLayouts';
 import './print.css';
 
 const SESSION_KEY = 'print:memberIds';
@@ -50,9 +52,8 @@ export default function MemberPrintPage() {
         ]);
         if (cancel) return;
 
-        // フィルタ + 元の順序保持
+        // フィルタ + ID リストの並び順を保持
         const filtered = allMembers.filter(m => idSet.has(m.id));
-        // ID リストの順序通りに並べる
         const orderMap = new Map(ids.map((id, i) => [id, i]));
         filtered.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
 
@@ -62,7 +63,6 @@ export default function MemberPrintPage() {
           arr.push(v);
           vMap.set(v.memberId, arr);
         }
-        // 各メンバーの訪問ログを新しい順 (visitedAt desc) に
         for (const arr of vMap.values()) {
           arr.sort((a, b) => b.visitedAt.localeCompare(a.visitedAt));
         }
@@ -85,13 +85,7 @@ export default function MemberPrintPage() {
     return () => window.clearTimeout(t);
   }, [members]);
 
-  const today = useMemo(() => {
-    const d = new Date();
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  }, []);
+  const todayLabel = new Date().toISOString().slice(0, 10);
 
   if (error) {
     return (
@@ -124,7 +118,7 @@ export default function MemberPrintPage() {
             ホームに戻る
           </Link>
           <div className="text-xs text-[#6E6E73]">
-            印刷対象: <span className="font-bold text-[#000]">{total} 人</span>・出力日 {today}
+            印刷対象: <span className="font-bold text-[#000]">{total} 人</span>・出力日 {todayLabel}
           </div>
           <button
             onClick={() => window.print()}
@@ -140,180 +134,19 @@ export default function MemberPrintPage() {
         </div>
       </div>
 
-      {/* 印刷本体 */}
+      {/* 印刷本体 — Layout4 (タイムライン方式) で 1人1ページ */}
       <main className="print-root">
         {members.map((m, i) => (
-          <PrintPage
-            key={m.id}
-            member={m}
-            visits={(visitsByMember.get(m.id) ?? []).slice(0, 5)}
-            totalVisits={visitsByMember.get(m.id)?.length ?? 0}
-            pageIndex={i}
-            pageTotal={total}
-            today={today}
-          />
+          <article key={m.id} className="print-page">
+            <Layout4
+              member={m}
+              visits={(visitsByMember.get(m.id) ?? []).slice(0, 5)}
+              pageNo={i + 1}
+              pageTotal={total}
+            />
+          </article>
         ))}
       </main>
     </>
   );
-}
-
-// ─────────────────────────────────────────────
-// 1人 1ページの印刷レイアウト (A4 横, 297×210mm)
-// ─────────────────────────────────────────────
-function PrintPage({
-  member: m, visits, totalVisits, pageIndex, pageTotal, today,
-}: {
-  member: MemberWithVisitInfo;
-  visits: Visit[];
-  totalVisits: number;
-  pageIndex: number;
-  pageTotal: number;
-  today: string;
-}) {
-  // ステータス7軸の評価
-  const memberRecord = m as unknown as Record<string, string | null | undefined>;
-  const statuses = STATUS_GRID_ITEMS.map(item => ({
-    key: item.key,
-    label: item.label,
-    level: item.evaluate(memberRecord),
-    rawValue: memberRecord[item.key] ?? memberRecord[snakeCase(item.key)] ?? null,
-  }));
-
-  // 情報メモを行ごとに分解 (空行は飛ばす)
-  const infoLines = (m.info ?? '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-
-  const orgLine = [m.honbu, m.bu, m.district].filter(Boolean).join('・') || '(組織未設定)';
-
-  return (
-    <article className="print-page">
-      {/* ヘッダー */}
-      <header className="print-page-header">
-        <div className="print-page-name">
-          <span className="print-page-kana">{m.nameKana ?? ''}</span>
-          <h1>
-            {m.name}
-            {m.age != null && <span className="print-page-age">（{m.age}歳）</span>}
-            {m.category === 'young' && <span className="print-tag-young">ヤング</span>}
-          </h1>
-          <div className="print-page-org">{orgLine}</div>
-        </div>
-        <div className="print-page-meta">
-          <div>{m.address ?? '(住所未登録)'}</div>
-          <div className="print-page-meta-sub">
-            訪問サイクル {m.visitCycleDays}日 / 通算 {m.totalVisits} 回
-          </div>
-        </div>
-      </header>
-
-      {/* 本文 — 2 カラム */}
-      <div className="print-page-body">
-        {/* 左カラム: 基本情報 + 情報メモ */}
-        <section className="print-col-left">
-          <h2 className="print-section-title">基本情報</h2>
-          <dl className="print-info-list">
-            <Field label="読み仮名" value={m.nameKana} />
-            <Field label="生年月日" value={m.birthday} />
-            <Field label="入会日" value={m.enrollmentDate} />
-            <Field label="役職" value={m.role} />
-            <Field label="勤務先" value={m.workplace} />
-            <Field label="家族" value={m.family} />
-            <Field label="電話" value={m.phone} />
-            <Field label="携帯" value={m.mobile} />
-          </dl>
-
-          <h2 className="print-section-title print-section-title--mt">情報メモ</h2>
-          {infoLines.length > 0 ? (
-            <ul className="print-info-memo">
-              {infoLines.map((line, i) => (
-                <li key={i}>{line.replace(/^[・•·]\s*/, '')}</li>
-              ))}
-            </ul>
-          ) : (
-            <div className="print-empty">記入なし</div>
-          )}
-        </section>
-
-        {/* 右カラム: ステータス + 訪問ログ */}
-        <section className="print-col-right">
-          <h2 className="print-section-title">ステータス</h2>
-          <div className="print-status-grid">
-            {statuses.map(s => (
-              <div key={s.key} className={`print-status-item print-status-item--${s.level}`}>
-                <div className="print-status-label">{s.label}</div>
-                <div className="print-status-value">
-                  {s.level === 'good' ? '○' : s.level === 'mid' ? '△' : s.level === 'bad' ? '×' : '−'}
-                </div>
-                {s.rawValue && s.rawValue !== '（不明）' && (
-                  <div className="print-status-raw">{s.rawValue}</div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <h2 className="print-section-title print-section-title--mt">
-            訪問ログ
-            <span className="print-section-sub">
-              （{totalVisits === 0 ? '0件' : totalVisits <= 5 ? `${totalVisits}件` : `直近5件 / 全${totalVisits}件`}）
-            </span>
-          </h2>
-          {visits.length > 0 ? (
-            <ul className="print-visits">
-              {visits.map(v => (
-                <PrintVisitItem key={v.id} visit={v} />
-              ))}
-              {totalVisits > 5 && (
-                <li className="print-visit-more">…他 {totalVisits - 5} 件あり</li>
-              )}
-            </ul>
-          ) : (
-            <div className="print-empty">訪問ログがありません</div>
-          )}
-        </section>
-      </div>
-
-      {/* フッター */}
-      <footer className="print-page-footer">
-        <span>家庭訪問アプリ — 出力日 {today}</span>
-        <span>{pageIndex + 1} / {pageTotal}</span>
-      </footer>
-    </article>
-  );
-}
-
-function Field({ label, value }: { label: string; value?: string | null }) {
-  if (!value || !value.trim()) return null;
-  return (
-    <>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </>
-  );
-}
-
-function PrintVisitItem({ visit }: { visit: Visit }) {
-  const sCfg = VISIT_STATUS_CONFIG[visit.status];
-  const date = visit.visitedAt;
-  const hour = visit.visitedHour != null ? `${visit.visitedHour}時` : '';
-  const respondents = (visit.respondents ?? []).map(r => RESPONDENT_CONFIG[r].label).join('・');
-  return (
-    <li className="print-visit">
-      <div className="print-visit-head">
-        <span className="print-visit-date">{date}{hour && ` ${hour}`}</span>
-        <span
-          className="print-visit-status"
-          style={{ borderColor: sCfg.border, color: sCfg.text }}
-        >
-          {sCfg.label}
-        </span>
-        {respondents && <span className="print-visit-resp">対応 {respondents}</span>}
-      </div>
-      {visit.summary && <div className="print-visit-summary">{visit.summary}</div>}
-    </li>
-  );
-}
-
-// snake_case 変換 (member の DB 列名と camelCase キーの両対応)
-function snakeCase(s: string): string {
-  return s.replace(/[A-Z]/g, ch => '_' + ch.toLowerCase());
 }

@@ -1,29 +1,23 @@
 /* ========================================
  * メンバー一括 PDF (印刷) 専用 CSS
  *
- * 設計:
- *   - 画面表示時 = A4 横サイズの白紙風カードを縦に並べて、印刷プレビューに近い
- *     見た目で確認できる。
- *   - @media print 時 = ブラウザネイティブの印刷フローに乗るため、ヘッダー/
- *     ツールバーを非表示にして 1人 1ページ ぴったりに切り替える。
- *   - @page { size: A4 landscape; margin: 0; } で 横向き固定。
- *   - 各 .print-page は page-break-after: always で必ず改ページ。
- *     ただし最終ページは page-break-after: auto で余分な空ページを抑制。
+ * 案4 タイムライン方式採用 (2026-05-09)。レイアウト本体は
+ * /src/components/print/PrintLayouts.tsx の Layout4 コンポーネントが
+ * 提供する。ここでは A4 横サイズ + 改ページ + 画面/印刷モードの切替だけ。
  * ======================================== */
 
-/* ── 画面表示用 (印刷プレビュー風) ── */
+/* ── 画面表示 (印刷プレビュー風) ── */
 .print-root {
   background: #E5E5EA;
   padding: 24px 16px 80px;
   min-height: calc(100vh - 80px);
 }
 .print-page {
-  /* A4 横 = 297mm × 210mm を画面で 1mm = 約 3.78px 換算ぐらいで表示 */
+  /* A4 横 = 297mm × 210mm */
   width: 297mm;
-  min-height: 210mm;
+  height: 210mm;
   max-width: 100%;
   margin: 0 auto 24px;
-  padding: 12mm 14mm;
   background: #FFFFFF;
   color: #111111;
   font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', sans-serif;
@@ -31,252 +25,16 @@
   line-height: 1.5;
   box-sizing: border-box;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  display: flex;
-  flex-direction: column;
+  overflow: hidden;
 }
 
-/* スマホ画面では 297mm が見切れるので等比縮小して見せる (印刷時には影響しない) */
+/* スマホ画面では 297mm が見切れるので等比縮小 (印刷時には影響しない) */
 @media (max-width: 800px) {
   .print-page {
     transform: scale(0.6);
     transform-origin: top center;
-    margin-bottom: -76mm; /* 60% 縮小ぶん下にできた空白を詰める (210mm × 0.4 = 84mm 削る) */
+    margin-bottom: -76mm; /* 60% 縮小ぶん下にできた空白を詰める */
   }
-}
-
-/* ── ページヘッダー ── */
-.print-page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16mm;
-  border-bottom: 1pt solid #C7C7CC;
-  padding-bottom: 4mm;
-  margin-bottom: 6mm;
-}
-.print-page-name { flex: 1 1 auto; min-width: 0; }
-.print-page-kana {
-  display: block;
-  font-size: 10pt;
-  color: #6E6E73;
-  margin-bottom: 1mm;
-}
-.print-page-name h1 {
-  font-size: 22pt;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  margin: 0;
-  display: flex;
-  align-items: baseline;
-  gap: 2mm;
-  flex-wrap: wrap;
-}
-.print-page-age {
-  font-size: 13pt;
-  font-weight: 500;
-  color: #3C3C43;
-}
-.print-tag-young {
-  display: inline-block;
-  font-size: 10pt;
-  font-weight: 700;
-  background: #5AC8FA;
-  color: #FFFFFF;
-  padding: 0.5mm 2mm;
-  border-radius: 2mm;
-  letter-spacing: 0.04em;
-  margin-left: 2mm;
-}
-.print-page-org {
-  margin-top: 1.5mm;
-  font-size: 11pt;
-  color: #3C3C43;
-}
-.print-page-meta {
-  text-align: right;
-  font-size: 11pt;
-  color: #3C3C43;
-  max-width: 100mm;
-}
-.print-page-meta-sub {
-  font-size: 9pt;
-  color: #6E6E73;
-  margin-top: 1mm;
-}
-
-/* ── 本体 (2 カラム) ── */
-.print-page-body {
-  display: grid;
-  grid-template-columns: 1fr 1.2fr;
-  gap: 8mm;
-  flex: 1 1 auto;
-  align-items: start;
-}
-.print-col-left, .print-col-right { min-width: 0; }
-
-.print-section-title {
-  font-size: 12pt;
-  font-weight: 700;
-  color: #000000;
-  margin: 0 0 2mm;
-  padding-bottom: 1mm;
-  border-bottom: 0.5pt solid #C7C7CC;
-  display: flex;
-  align-items: baseline;
-  gap: 2mm;
-}
-.print-section-title--mt { margin-top: 6mm; }
-.print-section-sub {
-  font-size: 9pt;
-  font-weight: 500;
-  color: #6E6E73;
-}
-
-/* ── 基本情報 (definition list) ── */
-.print-info-list {
-  display: grid;
-  grid-template-columns: 22mm 1fr;
-  gap: 1.2mm 3mm;
-  margin: 0;
-}
-.print-info-list dt {
-  font-size: 9.5pt;
-  color: #6E6E73;
-  font-weight: 500;
-}
-.print-info-list dd {
-  font-size: 10.5pt;
-  color: #000000;
-  margin: 0;
-  word-break: break-all;
-}
-
-/* ── 情報メモ ── */
-.print-info-memo {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.print-info-memo li {
-  font-size: 10.5pt;
-  margin: 0 0 1.2mm;
-  padding-left: 4mm;
-  position: relative;
-  line-height: 1.55;
-}
-.print-info-memo li::before {
-  content: '・';
-  position: absolute;
-  left: 0;
-  color: #6E6E73;
-}
-
-/* ── ステータスグリッド ── */
-.print-status-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 2mm;
-}
-.print-status-item {
-  border: 0.5pt solid #C7C7CC;
-  border-radius: 1.5mm;
-  padding: 2mm 2.5mm;
-  background: #FFFFFF;
-  min-height: 14mm;
-}
-.print-status-label {
-  font-size: 9pt;
-  font-weight: 700;
-  color: #6E6E73;
-  margin-bottom: 1mm;
-}
-.print-status-value {
-  font-size: 16pt;
-  font-weight: 800;
-  line-height: 1;
-  color: #000000;
-}
-.print-status-raw {
-  font-size: 8pt;
-  color: #3C3C43;
-  margin-top: 1mm;
-  line-height: 1.3;
-}
-.print-status-item--good { background: #D6F4DE; border-color: #34C759; }
-.print-status-item--good .print-status-value { color: #1D7A3F; }
-.print-status-item--mid  { background: #FFF6CC; border-color: #FFCC00; }
-.print-status-item--mid  .print-status-value { color: #B25E07; }
-.print-status-item--bad  { background: #FFE5E3; border-color: #FF3B30; }
-.print-status-item--bad  .print-status-value { color: #B91C1C; }
-.print-status-item--unknown { background: #F2F2F7; border-color: #E5E5EA; }
-.print-status-item--unknown .print-status-value { color: #8E8E93; }
-
-/* ── 訪問ログ ── */
-.print-visits {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.print-visit {
-  border-left: 1.5pt solid #007AFF;
-  padding: 1mm 0 1.5mm 3mm;
-  margin: 0 0 2mm;
-}
-.print-visit-head {
-  display: flex;
-  align-items: baseline;
-  gap: 2mm;
-  flex-wrap: wrap;
-  margin-bottom: 0.8mm;
-}
-.print-visit-date {
-  font-size: 10pt;
-  font-weight: 700;
-  color: #000000;
-}
-.print-visit-status {
-  display: inline-block;
-  font-size: 8.5pt;
-  font-weight: 700;
-  border: 0.6pt solid currentColor;
-  padding: 0.2mm 1.5mm;
-  border-radius: 5mm;
-}
-.print-visit-resp {
-  font-size: 9pt;
-  color: #6E6E73;
-}
-.print-visit-summary {
-  font-size: 10pt;
-  color: #1C1C1E;
-  line-height: 1.5;
-  white-space: pre-wrap;
-  word-break: break-all;
-}
-.print-visit-more {
-  font-size: 9pt;
-  color: #6E6E73;
-  font-style: italic;
-  margin-top: 1mm;
-}
-
-/* ── 空 ── */
-.print-empty {
-  font-size: 10pt;
-  color: #8E8E93;
-  font-style: italic;
-}
-
-/* ── ページフッター ── */
-.print-page-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-top: 0.5pt solid #E5E5EA;
-  padding-top: 2.5mm;
-  margin-top: 6mm;
-  font-size: 8.5pt;
-  color: #6E6E73;
 }
 
 /* ─────────────────────────────────────────────
@@ -292,14 +50,13 @@
     margin: 0 !important;
     padding: 0 !important;
   }
-  /* 画面用の影/縮小をキャンセル */
+  /* 画面用の影/縮小をキャンセル + 改ページ */
   .print-page {
     box-shadow: none !important;
     margin: 0 !important;
     transform: none !important;
     width: 297mm;
     height: 210mm;
-    min-height: 210mm;
     page-break-after: always;
     page-break-inside: avoid;
   }

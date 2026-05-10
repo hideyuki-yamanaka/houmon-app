@@ -5,8 +5,8 @@
 
 import Link from 'next/link';
 import { SAMPLE_MEMBER, SAMPLE_VISITS } from './_sample';
-import { A4LandscapeFrame } from './_shell';
-import { Layout1, Layout2, Layout3, Layout4, Layout5 } from './_layouts';
+import { A4LandscapeFrame } from '../../../components/print/PrintShell';
+import { Layout1, Layout2, Layout3, Layout4, Layout5 } from '../../../components/print/PrintLayouts';
 
 const CASES = [
   { id: 1, name: '案1 2カラム (現状)', caption: '左に基本情報＋メモ / 右にステータス＋訪問ログ。安定感あり、現実装ベース。', Component: Layout1 },

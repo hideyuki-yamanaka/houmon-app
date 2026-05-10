@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { SAMPLE_MEMBER, SAMPLE_VISITS } from '../print/_sample';
-import { A4LandscapeFrame } from '../print/_shell';
-import { Layout1 } from '../print/_layouts';
+import { A4LandscapeFrame } from '../../../components/print/PrintShell';
+import { Layout1 } from '../../../components/print/PrintLayouts';
 
 export default function Page() {
   return (
