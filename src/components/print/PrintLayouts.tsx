@@ -5,6 +5,7 @@
 
 import type { MemberWithVisitInfo, Visit } from '../../lib/types';
 import { STATUS_GRID_ITEMS } from '../../lib/constants';
+import { extractFullMemoText } from '../../lib/utils';
 import {
   PRINT_COLORS as C,
   VISIT_STATUS_COLOR,
@@ -271,6 +272,8 @@ export function Layout4({ member: m, visits, pageNo = 1, pageTotal = 1 }: Props)
             {visits.slice(0, 5).map(v => {
               const sCol = VISIT_STATUS_COLOR[v.status];
               const respondents = (v.respondents ?? []).map(r => RESPONDENT_LABEL[r]).join('・');
+              // 訪問ログ本文 = notes (Tiptap) を全文抽出して掲載 (ヒデさん指示 2026-05-10)。
+              const memoText = extractFullMemoText(v);
               return (
                 <div key={v.id} style={{ position: 'relative', marginBottom: '4mm' }}>
                   <div style={{ position: 'absolute', left: '-5mm', top: '1mm', width: '3mm', height: '3mm', borderRadius: '50%', background: sCol.border, border: `1pt solid #FFFFFF`, boxShadow: `0 0 0 0.5pt ${C.border}` }} />
@@ -281,7 +284,7 @@ export function Layout4({ member: m, visits, pageNo = 1, pageTotal = 1 }: Props)
                     </span>
                     {respondents && <span style={{ fontSize: '9pt', color: C.muted }}>対応 {respondents}</span>}
                   </div>
-                  {v.summary && <div style={{ fontSize: '10pt', whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>{v.summary}</div>}
+                  {memoText && <div style={{ fontSize: '10pt', whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>{memoText}</div>}
                 </div>
               );
             })}
@@ -377,7 +380,7 @@ export function Layout5({ member: m, visits, pageNo = 1, pageTotal = 1 }: Props)
                     </span>
                   </Td>
                   <Td>{respondents || '—'}</Td>
-                  <Td>{v.summary}</Td>
+                  <Td>{extractFullMemoText(v)}</Td>
                 </div>
               );
             })}
@@ -454,6 +457,7 @@ function VisitList({ visits, compact }: { visits: Visit[]; compact?: boolean }) 
       {visits.map(v => {
         const sCol = VISIT_STATUS_COLOR[v.status];
         const respondents = (v.respondents ?? []).map(r => RESPONDENT_LABEL[r]).join('・');
+        const memoText = extractFullMemoText(v);
         return (
           <li key={v.id} style={{ borderLeft: `1.5pt solid ${C.primary}`, padding: compact ? '0.5mm 0 1mm 2.5mm' : '1mm 0 1.5mm 3mm', marginBottom: compact ? '1.5mm' : '2mm' }}>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '2mm', flexWrap: 'wrap', marginBottom: '0.6mm' }}>
@@ -463,7 +467,7 @@ function VisitList({ visits, compact }: { visits: Visit[]; compact?: boolean }) 
               </span>
               {respondents && <span style={{ fontSize: compact ? '8.5pt' : '9pt', color: C.muted }}>対応 {respondents}</span>}
             </div>
-            {v.summary && <div style={{ fontSize: compact ? '9.5pt' : '10pt', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{v.summary}</div>}
+            {memoText && <div style={{ fontSize: compact ? '9.5pt' : '10pt', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{memoText}</div>}
           </li>
         );
       })}

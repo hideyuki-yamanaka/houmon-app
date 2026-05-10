@@ -47,6 +47,17 @@ export function extractMemoText(visit: { summary?: string; notes?: Record<string
   return '';
 }
 
+// 印刷用 — notes (Tiptap 全文) を優先して取り出す。
+// extractMemoText は preview 用途で summary を優先するが、印刷物では本文を
+// 全部出したい (ヒデさん指示 2026-05-10)。 summary は legacy fallback。
+export function extractFullMemoText(visit: { summary?: string; notes?: Record<string, unknown> | unknown }): string {
+  if (visit.notes) {
+    const t = tiptapToPlain(visit.notes).trim();
+    if (t) return t;
+  }
+  return visit.summary?.trim() || '';
+}
+
 // ──────────────────────────────────────────────────────────────
 // 住所から建物名を除いた部分を返す（Googleマップの位置ずれ対策）
 //   - 半角/全角スペース以降はすべて建物名とみなして除去
