@@ -89,14 +89,9 @@ export default function MemberPrintPage() {
     return () => { cancel = true; };
   }, []);
 
-  // 全部読めたら ちょい待ってから印刷ダイアログを自動 fire
-  useEffect(() => {
-    if (!members) return;
-    const t = window.setTimeout(() => {
-      try { window.print(); } catch { /* ignore */ }
-    }, 600);
-    return () => window.clearTimeout(t);
-  }, [members]);
+  // 2026-05-10 ヒデさん指摘: 自動 window.print() は iOS Safari が
+  // 「このWebサイトから自動的に印刷することは禁止されています」警告を出す。
+  // ユーザー操作 (印刷ボタンタップ) でのみ起動する設計に変更し、auto-fire 撤去。
 
   // 画面プレビュー用: wrapper 幅に合わせて .print-page に transform: scale を掛ける。
   // wrapper は aspect-ratio 297/210 で width: 100% なので 端末幅に応じて伸び縮み。
