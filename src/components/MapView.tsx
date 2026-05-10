@@ -11,6 +11,7 @@ import {
   Marker,
   useMap,
 } from 'react-leaflet';
+import { Search as SearchIcon, ArrowRight, X as XIcon } from 'lucide-react';
 import type { MemberWithVisitInfo } from '../lib/types';
 import {
   MAP_DEFAULT_CENTER,
@@ -18,6 +19,59 @@ import {
   getMemberOrgColor,
 } from '../lib/constants';
 import { updateMember } from '../lib/storage';
+
+// ─────────────────────────────────────────────
+// 入力パーサ — 住所 / 「lat,lng」 / Google Maps URL を判別する。
+// 編集モード上部の入力バーで使う。
+// ─────────────────────────────────────────────
+type ParsedLocation =
+  | { type: 'coords'; lat: number; lng: number }
+  | { type: 'address'; query: string }
+  | null;
+function parseLocationInput(input: string): ParsedLocation {
+  const t = input.trim();
+  if (!t) return null;
+
+  // パターン1: "lat,lng" or "lat, lng" or "lat lng"
+  const coordsMatch = t.match(/^(-?\d+\.?\d*)\s*[,\s]\s*(-?\d+\.?\d*)$/);
+  if (coordsMatch) {
+    const lat = parseFloat(coordsMatch[1]);
+    const lng = parseFloat(coordsMatch[2]);
+    if (
+      Number.isFinite(lat) && Number.isFinite(lng)
+      && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180
+    ) {
+      return { type: 'coords', lat, lng };
+    }
+  }
+
+  // パターン2: Google Maps URL に @lat,lng,zoom が含まれる
+  // 例: https://www.google.com/maps/place/.../@43.7705,142.3651,17z/...
+  const atMatch = t.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (atMatch) {
+    const lat = parseFloat(atMatch[1]);
+    const lng = parseFloat(atMatch[2]);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return { type: 'coords', lat, lng };
+    }
+  }
+
+  // パターン3: ?q=lat,lng / ?ll=lat,lng / ?query=lat,lng
+  const qMatch = t.match(/[?&](?:q|ll|query)=(-?\d+\.\d+),(-?\d+\.\d+)/);
+  if (qMatch) {
+    const lat = parseFloat(qMatch[1]);
+    const lng = parseFloat(qMatch[2]);
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      return { type: 'coords', lat, lng };
+    }
+  }
+
+  // URL ぽいけど 座標が拾えなかった → unsupported (短縮 URL など)
+  if (/^https?:\/\//.test(t)) return null;
+
+  // それ以外は住所として扱う
+  return { type: 'address', query: t };
+}
 
 // ── タイルレイヤー設定 ──
 // Google Maps と同じタイルサーバーを使う
@@ -183,6 +237,23 @@ function PanToSelected({ members, selectedId }: { members: MemberWithVisitInfo[]
     return () => window.clearTimeout(t);
   }, [selectedId, members, map]);
 
+  return null;
+}
+
+// 入力バーから渡された座標へ プログラムでパンする small helper.
+// panTarget が更新されたら panTo + 必要なら zoom を保証する。
+function PanToInputTarget({ panTarget }: { panTarget: { lat: number; lng: number; nonce: number } | null }) {
+  const map = useMap();
+  const lastNonceRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!panTarget) return;
+    if (panTarget.nonce === lastNonceRef.current) return;
+    lastNonceRef.current = panTarget.nonce;
+    const zoom = map.getZoom();
+    // ピン編集中は detail を見やすい zoom 17 以上を保証
+    const targetZoom = zoom < 17 ? 17 : zoom;
+    map.flyTo([panTarget.lat, panTarget.lng], targetZoom, { animate: true, duration: 0.5 });
+  }, [panTarget, map]);
   return null;
 }
 
@@ -430,6 +501,26 @@ export default function MapView({
     | null
   >(null);
 
+  // 2026-05-09 ヒデさん指示: 編集モード上部に住所/Maps URL/座標 入力バーを追加。
+  //   inputDraft = ユーザーが入力中の生テキスト
+  //   inputBusy  = 住所→座標変換 (geocode) 中フラグ
+  //   panTarget  = 入力決定時に flyTo するための「目標座標 + 連番」
+  //                (連番は 同じ座標を再決定したとき再 fire させるため)
+  const [inputDraft, setInputDraft] = useState('');
+  const [inputBusy, setInputBusy] = useState(false);
+  const [inputError, setInputError] = useState<string | null>(null);
+  const [panTarget, setPanTarget] = useState<{ lat: number; lng: number; nonce: number } | null>(null);
+  const panNonceRef = useRef(0);
+
+  // 編集モードを抜けたら入力バーをクリア
+  useEffect(() => {
+    if (!editingMemberId) {
+      setInputDraft('');
+      setInputBusy(false);
+      setInputError(null);
+    }
+  }, [editingMemberId]);
+
   // ドラッグ終了 → 即コミットせず pendingPin に入れて確認バーを出す。
   // 同時にリバースジオコード (バックグラウンド) して住所プレビューも引いておく。
   const handlePinDragRelease = async (memberId: string, oldLat: number, oldLng: number, newLat: number, newLng: number) => {
@@ -455,6 +546,56 @@ export default function MapView({
   const cancelPendingPin = () => {
     setPendingPin(null);
     setEditingMemberId(null);
+  };
+
+  // 入力バー submit ハンドラ。住所/座標/URL を解析して pendingPin を更新。
+  // 同時に map を新位置へ flyTo する (PanToInputTarget 経由)。
+  const handleInputSubmit = async () => {
+    if (!editingMemberId) return;
+    const member = members.find(m => m.id === editingMemberId);
+    if (!member || member.lat == null || member.lng == null) return;
+
+    const parsed = parseLocationInput(inputDraft);
+    if (!parsed) {
+      setInputError('住所か Maps の URL/座標 (例 43.77, 142.36) を入力してね');
+      return;
+    }
+
+    setInputError(null);
+    let newLat: number;
+    let newLng: number;
+
+    if (parsed.type === 'coords') {
+      newLat = parsed.lat;
+      newLng = parsed.lng;
+    } else {
+      // 住所 → ジオコード
+      setInputBusy(true);
+      try {
+        const r = await fetch(`/api/geocode?q=${encodeURIComponent(parsed.query)}`);
+        const data = await r.json();
+        if (!r.ok || !data.found) {
+          setInputError('この住所が見つからへんかった');
+          setInputBusy(false);
+          return;
+        }
+        newLat = parseFloat(data.lat);
+        newLng = parseFloat(data.lng);
+      } catch {
+        setInputError('住所検索に失敗');
+        setInputBusy(false);
+        return;
+      }
+      setInputBusy(false);
+    }
+
+    // pendingPin 更新 (= 確認カードに新住所のプレビューが入る)
+    await handlePinDragRelease(editingMemberId, member.lat, member.lng, newLat, newLng);
+    // map をその位置へ flyTo (PanToInputTarget が拾う)
+    panNonceRef.current += 1;
+    setPanTarget({ lat: newLat, lng: newLng, nonce: panNonceRef.current });
+    // 入力欄はクリア (連続入力しやすく)
+    setInputDraft('');
   };
 
   const confirmPendingPin = async () => {
@@ -606,6 +747,7 @@ export default function MapView({
       />
       <PanToSelected members={geoMembers} selectedId={selectedMemberId} />
       <PanToEditing members={geoMembers} editingId={editingMemberId} />
+      <PanToInputTarget panTarget={panTarget} />
       <FitToMembers members={geoMembers} />
       <MapClickHandler
         onClick={() => {
@@ -656,7 +798,9 @@ export default function MapView({
             position={[displayLat, displayLng]}
             icon={icon}
             zIndexOffset={isEditing || isPending ? 2500 : (isSelected ? 1000 : 0)}
-            draggable={isEditing && !isPending}
+            // 2026-05-09 ヒデさん指示: pending 中でもドラッグ可能に。OK 押すまで
+            // 何度でも調整できる体験にする (ドラッグするたびに pendingPin 更新)。
+            draggable={isEditing}
             eventHandlers={{
               click: () => onMemberSelect(member.id),
               dragend: (e) => {
@@ -703,57 +847,118 @@ export default function MapView({
                 pointerEvents: 'auto',
               }}
             >
-              ピンをドラッグして位置を直す。マップタップで終了
+              ピンをドラッグ または 上のバーから住所/座標を入力
             </div>
           </div>
         </div>
       )}
     </MapContainer>
 
-    {/* ─────── ピン位置確認モーダル ───────
-        ヒデさん指示 (2026-05-07): ドラッグ後すぐ決定/取消 ではなく
-        「ここでよろしいですか」確認モーダルを挟む。
-        createPortal で body 直下に出すことで 親要素 (z-0 のマップラッパ) の
-        stacking context に閉じ込められ ボトムシートに覆われるバグを回避。 */}
+    {/* ─────── 編集モード: 上部 住所/URL/座標 入力バー ───────
+        ヒデさん指示 (2026-05-09): ドラッグだけじゃなく、住所文字列や Google Maps の
+        URL / 座標 (lat,lng) を貼り付けてピンを移動できる入力欄を追加。
+        createPortal で body 直下に出して、ホームの検索バー(z-20)より上 (z-[90]) に
+        重ねる。編集モード中は検索バーを覆い隠す形で表示される。 */}
+    {editingMemberId && typeof document !== 'undefined' && createPortal(
+      <div
+        className="fixed inset-x-0 top-0 z-[90] pointer-events-none"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 8px)' }}
+      >
+        <div className="px-3 pointer-events-auto">
+          <form
+            onSubmit={(e) => { e.preventDefault(); if (!inputBusy) void handleInputSubmit(); }}
+            className="bg-white rounded-full shadow-[0_3px_10px_rgba(0,0,0,0.22)] flex items-center h-12 px-4 border border-[#E5E5EA]"
+          >
+            <SearchIcon size={20} className="text-[#8E8E93] shrink-0" />
+            <input
+              type="text"
+              value={inputDraft}
+              onChange={(e) => { setInputDraft(e.target.value); setInputError(null); }}
+              placeholder="住所 / Maps URL / 座標 を入力"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              className="flex-1 ml-3 bg-transparent outline-none text-[15px] placeholder:text-[#8E8E93]"
+            />
+            {inputDraft && !inputBusy && (
+              <button
+                type="button"
+                onClick={() => { setInputDraft(''); setInputError(null); }}
+                aria-label="クリア"
+                className="w-8 h-8 rounded-full flex items-center justify-center active:bg-[#F0F0F0] mr-1"
+              >
+                <XIcon size={16} className="text-[#8E8E93]" />
+              </button>
+            )}
+            {inputDraft && (
+              <button
+                type="submit"
+                disabled={inputBusy}
+                aria-label="移動"
+                className="w-9 h-9 rounded-full bg-[#007AFF] text-white flex items-center justify-center active:opacity-80 disabled:opacity-50 transition-opacity"
+              >
+                {inputBusy ? (
+                  <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <ArrowRight size={18} />
+                )}
+              </button>
+            )}
+          </form>
+          {inputError && (
+            <div className="mt-2 mx-2 px-3 py-2 rounded-xl bg-[#FFE5E3] text-[#B91C1C] text-[12px] font-bold">
+              {inputError}
+            </div>
+          )}
+        </div>
+      </div>,
+      document.body,
+    )}
+
+    {/* ─────── ピン位置確認カード (非ブロッキング) ───────
+        ヒデさん指示 (2026-05-09): 確認モーダルだとマップ操作がブロックされて
+        「OK 押すまでにドラッグで微調整」ができなかった。背景の半透明バック
+        ドロップを撤去して、ボトムカードだけ pointer-events: auto にする。
+        マップ部分は引き続きピンチ・パン・ピンドラッグ全て可能。 */}
     {pendingPin && typeof document !== 'undefined' && createPortal(
       <div
-        role="dialog"
-        aria-modal="true"
-        className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center"
-        style={{ background: 'rgba(0,0,0,0.5)' }}
-        onClick={cancelPendingPin}
+        className="fixed inset-x-0 bottom-0 z-[100] pointer-events-none"
+        style={{ paddingBottom: 'calc(8px + env(safe-area-inset-bottom))' }}
       >
-        <div
-          className="bg-white w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl shadow-2xl p-5"
-          style={{ paddingBottom: 'calc(20px + env(safe-area-inset-bottom))' }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <h2 className="text-lg font-bold text-[#111] mb-1">ここでよろしいですか？</h2>
-          <p className="text-xs text-[#6B7280] mb-4">この位置にピンを移動します。</p>
+        <div className="mx-auto max-w-sm px-2">
+          <div
+            className="bg-white rounded-2xl shadow-2xl p-5 pointer-events-auto"
+            style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.18)' }}
+          >
+            <h2 className="text-base font-bold text-[#000] mb-1">ここでよろしいですか？</h2>
+            <p className="text-[11px] text-[#6E6E73] mb-3">
+              ピンをドラッグするか、上のバーから住所・座標を再入力すれば 何度でも微調整できます。
+            </p>
 
-          <div className="rounded-xl bg-[#F5F5F4] px-3 py-2.5 mb-5">
-            <div className="text-[10px] font-bold text-[#6B7280] mb-0.5">新しい住所</div>
-            <div className="text-[13px] font-bold text-[#111] break-all">
-              {pendingPin.addrLoading ? '住所を取得中…' : (pendingPin.newAddress ?? '住所は取得できませんでした')}
+            <div className="rounded-xl bg-[#F2F2F7] px-3 py-2.5 mb-4">
+              <div className="text-[10px] font-bold text-[#6E6E73] mb-0.5">新しい住所</div>
+              <div className="text-[13px] font-bold text-[#000] break-all">
+                {pendingPin.addrLoading ? '住所を取得中…' : (pendingPin.newAddress ?? '住所は取得できませんでした')}
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={cancelPendingPin}
-              className="flex-1 h-12 rounded-full font-bold text-sm text-[#374151] bg-[#F3F4F6] active:bg-[#E5E7EB] transition-colors"
-            >
-              取消
-            </button>
-            <button
-              type="button"
-              onClick={() => { void confirmPendingPin(); }}
-              disabled={pendingPin.addrLoading}
-              className="flex-1 h-12 rounded-full font-bold text-sm text-white bg-[#111] active:opacity-80 disabled:opacity-50 transition-opacity"
-            >
-              決定
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={cancelPendingPin}
+                className="flex-1 h-11 rounded-full font-bold text-sm text-[#3C3C43] bg-[#F2F2F7] active:bg-[#E5E5EA] transition-colors"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={() => { void confirmPendingPin(); }}
+                disabled={pendingPin.addrLoading}
+                className="flex-1 h-11 rounded-full font-bold text-sm text-white bg-[#007AFF] active:opacity-80 disabled:opacity-50 transition-opacity"
+              >
+                決定
+              </button>
+            </div>
           </div>
         </div>
       </div>,
