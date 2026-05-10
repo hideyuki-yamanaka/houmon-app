@@ -335,7 +335,17 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
             </div>
           </div>
 
+          {/* メモ（Tiptapリッチテキスト） */}
+          <div>
+            <label className="text-sm font-semibold text-[var(--color-subtext)] block mb-2">メモ</label>
+            <TiptapEditor
+              content={notes}
+              onChange={handleNotesChange}
+            />
+          </div>
+
           {/* 住所不明セクション (status='unknown_address' を選んだ時だけ表示)。
+              ヒデさん指示 (2026-05-10): メモの下 に配置 (旧: 対応者の直後)。
               データはメンバー単位 (members.address_issue_*) で 訪問ログ詳細・
               メンバー詳細でも同じデータを編集する。 */}
           {status === 'unknown_address' && (
@@ -347,15 +357,6 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
               />
             </div>
           )}
-
-          {/* メモ（Tiptapリッチテキスト） */}
-          <div>
-            <label className="text-sm font-semibold text-[var(--color-subtext)] block mb-2">メモ</label>
-            <TiptapEditor
-              content={notes}
-              onChange={handleNotesChange}
-            />
-          </div>
 
           {/* 画像アップロード */}
           <div>

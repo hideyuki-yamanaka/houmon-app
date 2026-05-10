@@ -209,21 +209,24 @@ export default function VisitDetailClient() {
                 </div>
               </div>
             )}
+
+            {/* 住所不明セクション (visit.status='unknown_address' の時だけ表示)。
+                ヒデさん指示 (2026-05-10): visit カードの「中」に格納する形へ。
+                -mx-4 -mb-4 で外側カードの p-4 をキャンセル → AddressIssueSection
+                自体の px-4 が card 全幅に合うように。border-top で 写真/メモとの
+                区切り。 */}
+            {visit.status === 'unknown_address' && member && (
+              <div className="-mx-4 -mb-4 border-t border-[#F0F0F0]">
+                <AddressIssueSection
+                  memberId={member.id}
+                  initialNote={member.addressIssueNote}
+                  initialResolved={member.addressIssueResolved}
+                />
+              </div>
+            )}
           </div>
             );
           })()}
-
-          {/* 住所不明セクション (visit.status='unknown_address' の時だけ表示)。
-              データはメンバー単位 (members.address_issue_*)。 */}
-          {visit.status === 'unknown_address' && member && (
-            <div className="ios-card overflow-hidden">
-              <AddressIssueSection
-                memberId={member.id}
-                initialNote={member.addressIssueNote}
-                initialResolved={member.addressIssueResolved}
-              />
-            </div>
-          )}
 
           <div className="flex justify-end !-mt-2">
             <button
