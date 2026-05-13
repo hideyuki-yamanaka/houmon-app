@@ -831,7 +831,41 @@ export default function MapView({
   }, [geoMembers, editingMemberId, pendingPin?.memberId]);
 
   // クラスタ用 picker (同住所メンバー一覧のボトムシート)
+  // 他のシート (FilterModal 等) と同じく スライドイン/アウトのアニメを付ける。
+  // - clusterPicker: 表示中の members 配列。null なら未表示。
+  // - clusterClosing: 閉じアニメ再生中。true の間は シートに translateY(100%) +
+  //   backdrop に opacity 0 transition を当てて、320ms 後に DOM から外す。
+  const CLUSTER_SHEET_MS = 320;
   const [clusterPicker, setClusterPicker] = useState<MemberWithVisitInfo[] | null>(null);
+  const [clusterClosing, setClusterClosing] = useState(false);
+  const clusterCloseTimerRef = useRef<number | null>(null);
+
+  const openClusterPicker = (members: MemberWithVisitInfo[]) => {
+    // 閉じアニメ中に別ピン押されたらアニメ取り消して即差し替え
+    if (clusterCloseTimerRef.current != null) {
+      window.clearTimeout(clusterCloseTimerRef.current);
+      clusterCloseTimerRef.current = null;
+    }
+    setClusterClosing(false);
+    setClusterPicker(members);
+  };
+
+  const closeClusterPicker = () => {
+    if (!clusterPicker || clusterClosing) return;
+    setClusterClosing(true);
+    clusterCloseTimerRef.current = window.setTimeout(() => {
+      setClusterPicker(null);
+      setClusterClosing(false);
+      clusterCloseTimerRef.current = null;
+    }, CLUSTER_SHEET_MS);
+  };
+
+  // アンマウント時 タイマーリーク防止
+  useEffect(() => () => {
+    if (clusterCloseTimerRef.current != null) {
+      window.clearTimeout(clusterCloseTimerRef.current);
+    }
+  }, []);
 
   if (typeof window === 'undefined') {
     return <div style={{ width: '100%', height: '100%', background: '#E8EAED' }} />;
@@ -939,7 +973,7 @@ export default function MapView({
               icon={icon}
               zIndexOffset={selectedInGroup ? 1000 : 0}
               eventHandlers={{
-                click: () => setClusterPicker(group),
+                click: () => openClusterPicker(group),
               }}
             />
           );
@@ -1029,11 +1063,26 @@ export default function MapView({
         メンバー詳細シートが開く (= onMemberSelect 経由)。 */}
     {clusterPicker && typeof document !== 'undefined' && createPortal(
       <>
+        {/* backdrop: 開く時 fadeIn、閉じる時 opacity-0 transition */}
         <div
-          className="fixed inset-0 bg-black/30 z-[70]"
-          onClick={() => setClusterPicker(null)}
+          className={`fixed inset-0 z-[70] bg-black/30 ${
+            clusterClosing ? 'opacity-0 transition-opacity duration-300' : 'animate-modal-backdrop-fade'
+          }`}
+          onClick={closeClusterPicker}
         />
-        <div className="fixed left-0 right-0 bottom-0 z-[71] bg-white rounded-t-2xl shadow-2xl px-5 pt-3 pb-[max(24px,env(safe-area-inset-bottom))] max-w-md mx-auto">
+        {/* sheet: 開く時 modal-slide-up、閉じる時 translateY(100%) transition */}
+        <div
+          className={`fixed left-0 right-0 bottom-0 z-[71] bg-white rounded-t-2xl shadow-2xl px-5 pt-3 pb-[max(24px,env(safe-area-inset-bottom))] max-w-md mx-auto ${
+            clusterClosing ? '' : 'animate-modal-slide-up'
+          }`}
+          style={{
+            transform: clusterClosing ? 'translateY(100%)' : undefined,
+            transition: clusterClosing
+              ? `transform ${CLUSTER_SHEET_MS}ms cubic-bezier(0.32, 0.72, 0, 1)`
+              : undefined,
+            willChange: 'transform',
+          }}
+        >
           <div className="w-10 h-1 bg-black/15 rounded-full mx-auto mb-3" />
           <div className="flex items-center justify-between mb-3">
             <div>
@@ -1042,7 +1091,7 @@ export default function MapView({
             </div>
             <button
               type="button"
-              onClick={() => setClusterPicker(null)}
+              onClick={closeClusterPicker}
               aria-label="閉じる"
               className="w-8 h-8 rounded-full bg-[#F0F0F0] flex items-center justify-center active:bg-[#E0E0E0]"
             >
@@ -1058,7 +1107,9 @@ export default function MapView({
                   key={m.id}
                   type="button"
                   onClick={() => {
-                    setClusterPicker(null);
+                    // 閉じアニメ走らせつつ、詳細シートは即開く
+                    // (両者が同時にスライドして自然な遷移になる)
+                    closeClusterPicker();
                     onMemberSelect(m.id);
                   }}
                   className="flex items-center gap-3 py-2 px-3 rounded-xl border border-black/10 active:bg-[#F8F8F8] text-left"
