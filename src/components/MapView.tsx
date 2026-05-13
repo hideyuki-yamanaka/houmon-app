@@ -206,6 +206,111 @@ function createMemberPin(member: MemberWithVisitInfo, isSelected: boolean): L.Di
   });
 }
 
+// ── 同じ住所に複数人いる時の クラスタピン ──
+// (兄弟・家族など) 同じ lat/lng に重なるピンが 1個に見える問題を回避するため、
+// グループ化して 「水滴ピン + 右上に人数バッジ」を 1個だけ立てる。
+// タップすると 親が用意した cluster picker (ボトムシート) が開いて、
+// その住所にいる全員を選べる。
+function createClusterPin(members: MemberWithVisitInfo[], isSelected: boolean): L.DivIcon {
+  const head = members[0];
+  const orgColor = getMemberOrgColor(head);
+  const anyVisited = members.some(m => m.totalVisits > 0);
+  const anyWantToVisit = members.some(m => !!m.wantToVisit);
+
+  const pinColor = anyVisited ? orgColor : '#FFFFFF';
+  const dotColor = anyVisited ? '#FFFFFF' : orgColor;
+  const strokeColor = orgColor;
+  const scale = isSelected ? 1.3 : 1;
+  const w = 60;
+  const h = 70;
+  const count = members.length;
+
+  const inner = anyWantToVisit
+    ? `
+      <svg width="40" height="40" viewBox="0 0 40 40" fill="none" style="
+        transform: scale(${scale});
+        transform-origin: bottom center;
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        overflow: visible;
+        filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));
+      ">
+        <circle cx="20" cy="20" r="18" fill="#FFCC00" stroke="#FFFFFF" stroke-width="2.5"/>
+        <path d="M20 9 L23.09 16.26 L31 17.27 L25 22.71 L26.18 30.5 L20 26.27 L13.82 30.5 L15 22.71 L9 17.27 L16.91 16.26 Z"
+              fill="#FFFFFF" stroke="#FFFFFF" stroke-width="0.8" stroke-linejoin="round"/>
+      </svg>
+    `
+    : `
+      <svg width="28" height="40" viewBox="0 0 28 40" fill="none" style="
+        transform: scale(${scale});
+        transform-origin: bottom center;
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        overflow: visible;
+        filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));
+      ">
+        <path d="M14 0C6.268 0 0 6.268 0 14C0 24.5 14 40 14 40S28 24.5 28 14C28 6.268 21.732 0 14 0Z"
+              fill="${pinColor}" stroke="${strokeColor}" stroke-width="${anyVisited ? 1 : 2}"/>
+        <circle cx="14" cy="13.5" r="5" fill="${dotColor}"/>
+      </svg>
+    `;
+
+  // バッジは ピン頭部右上に重ねる。SVG 内ではなく外側 div で position:absolute
+  // で配置することで、ピン本体の transform に合わせて拡縮できる。
+  const badge = `
+    <div style="
+      position: absolute;
+      top: 4px;
+      right: 14px;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 4px;
+      border-radius: 999px;
+      background: #FF3B30;
+      color: white;
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid #FFFFFF;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      box-sizing: border-box;
+      transform: scale(${scale});
+      transform-origin: top right;
+      pointer-events: none;
+    ">${count}</div>
+  `;
+
+  const html = `
+    <div style="
+      position: relative;
+      width: ${w}px;
+      height: ${h}px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      overflow: visible;
+      cursor: pointer;
+      will-change: transform;
+    ">${inner}${badge}</div>
+  `;
+
+  return L.divIcon({
+    className: 'map-pin-icon-cluster',
+    html,
+    iconSize: [w, h],
+    iconAnchor: [w / 2, h],
+    popupAnchor: [0, -h + 10],
+  });
+}
+
+// 同じ住所判定の精度。 5桁 ≒ 1.1m。
+// 兄弟など同じ建物に紐づくピンは確実に同じキーになる。
+// 1m 以上ズラしたいユーザー操作 (手動ドラッグ) では別グループになる。
+function coordKey(m: MemberWithVisitInfo): string {
+  return `${m.lat!.toFixed(5)},${m.lng!.toFixed(5)}`;
+}
+
 // ── 選択メンバーにパン ──
 // ボトムシートのアニメ(380ms)と同時にマップを動かすと iPhone ではコンポジター
 // が詰まってガタガタになる。シートアニメが終わってから静かにパンする。
@@ -684,6 +789,40 @@ export default function MapView({
     return createMemberPin(m, true);
   }, [selectedMemberId, geoMembers]);
 
+  // ── 同一住所のメンバーを束ねる ──
+  // 同じ lat/lng (5桁丸め ≒ 1m 以内) のメンバーをグループ化。
+  // 2人以上いる位置は クラスタピン (人数バッジ付き) で 1個だけ立て、
+  // タップしたら下の cluster picker で全員を選べるようにする。
+  //
+  // 編集中/pendingPin メンバーが居るグループは「位置が動く可能性あり」なので
+  // クラスタリングをスキップして、そのグループは個別ピンに分解して表示する。
+  const renderUnits = useMemo(() => {
+    type Unit =
+      | { kind: 'single'; member: MemberWithVisitInfo }
+      | { kind: 'cluster'; key: string; members: MemberWithVisitInfo[] };
+    const groups = new Map<string, MemberWithVisitInfo[]>();
+    for (const m of geoMembers) {
+      const k = coordKey(m);
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k)!.push(m);
+    }
+    const units: Unit[] = [];
+    for (const [k, group] of groups.entries()) {
+      const containsInteractive = group.some(
+        m => m.id === editingMemberId || pendingPin?.memberId === m.id,
+      );
+      if (group.length === 1 || containsInteractive) {
+        for (const m of group) units.push({ kind: 'single', member: m });
+      } else {
+        units.push({ kind: 'cluster', key: k, members: group });
+      }
+    }
+    return units;
+  }, [geoMembers, editingMemberId, pendingPin?.memberId]);
+
+  // クラスタ用 picker (同住所メンバー一覧のボトムシート)
+  const [clusterPicker, setClusterPicker] = useState<MemberWithVisitInfo[] | null>(null);
+
   if (typeof window === 'undefined') {
     return <div style={{ width: '100%', height: '100%', background: '#E8EAED' }} />;
   }
@@ -776,7 +915,27 @@ export default function MapView({
         />
       )}
 
-      {geoMembers.map(member => {
+      {renderUnits.map(unit => {
+        if (unit.kind === 'cluster') {
+          const { key, members: group } = unit;
+          const selectedInGroup = group.some(m => m.id === selectedMemberId);
+          const icon = createClusterPin(group, selectedInGroup);
+          // クラスタは同一座標なので 代表 1 件の lat/lng を使う
+          const head = group[0];
+          return (
+            <Marker
+              key={`cluster-${key}`}
+              position={[head.lat!, head.lng!]}
+              icon={icon}
+              zIndexOffset={selectedInGroup ? 1000 : 0}
+              eventHandlers={{
+                click: () => setClusterPicker(group),
+              }}
+            />
+          );
+        }
+
+        const member = unit.member;
         const isSelected = member.id === selectedMemberId;
         const isEditing = member.id === editingMemberId;
         const isPending = pendingPin?.memberId === member.id;
@@ -853,6 +1012,69 @@ export default function MapView({
         </div>
       )}
     </MapContainer>
+
+    {/* ─────── 同じ住所に複数人いる時の cluster picker ───────
+        マップ上で「2」「3」のバッジ付きピンをタップしたら、その住所に
+        紐づいてるメンバーを ボトムシートで全員見せる。タップで通常の
+        メンバー詳細シートが開く (= onMemberSelect 経由)。 */}
+    {clusterPicker && typeof document !== 'undefined' && createPortal(
+      <>
+        <div
+          className="fixed inset-0 bg-black/30 z-[70]"
+          onClick={() => setClusterPicker(null)}
+        />
+        <div className="fixed left-0 right-0 bottom-0 z-[71] bg-white rounded-t-2xl shadow-2xl px-5 pt-3 pb-[max(24px,env(safe-area-inset-bottom))] max-w-md mx-auto">
+          <div className="w-10 h-1 bg-black/15 rounded-full mx-auto mb-3" />
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="text-xs text-[var(--color-subtext)]">📍 同じ住所に</div>
+              <div className="font-bold text-base mt-0.5">{clusterPicker.length}人</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setClusterPicker(null)}
+              aria-label="閉じる"
+              className="w-8 h-8 rounded-full bg-[#F0F0F0] flex items-center justify-center active:bg-[#E0E0E0]"
+            >
+              <XIcon size={16} className="text-[#666]" />
+            </button>
+          </div>
+          <div className="flex flex-col gap-2 max-h-[60vh] overflow-y-auto">
+            {clusterPicker.map(m => {
+              const color = getMemberOrgColor(m);
+              const visited = m.totalVisits > 0;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => {
+                    setClusterPicker(null);
+                    onMemberSelect(m.id);
+                  }}
+                  className="flex items-center gap-3 py-2 px-3 rounded-xl border border-black/10 active:bg-[#F8F8F8] text-left"
+                >
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
+                    style={{ background: color }}
+                  >
+                    {(m.name ?? '?').slice(0, 1)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold truncate">{m.name}</div>
+                    <div className="text-[11px] text-[var(--color-subtext)] mt-0.5">
+                      {visited ? `訪問 ${m.totalVisits}回` : '未訪問'}
+                      {m.wantToVisit ? ' ・ ★行きたい' : ''}
+                    </div>
+                  </div>
+                  <ArrowRight size={16} className="text-[#999] shrink-0" />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </>,
+      document.body,
+    )}
 
     {/* ─────── 編集モード: 上部 住所/URL/座標 入力バー ───────
         ヒデさん指示 (2026-05-09): ドラッグだけじゃなく、住所文字列や Google Maps の
