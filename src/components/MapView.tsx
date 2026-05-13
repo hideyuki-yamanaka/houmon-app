@@ -257,35 +257,40 @@ function createClusterPin(members: MemberWithVisitInfo[], isSelected: boolean): 
   // で配置することで、ピン本体の transform に合わせて拡縮できる。
   // 容器 60x70、ピンSVG (28x40) は flex-end + center で 下中央。
   // つまり SVG 占有矩形は x:16-44, y:30-70。
-  // ピン頭の右上 (44, 30) に 少し重なる位置にバッジを置く:
-  //   top: 26 (頭の上端 30 から 4px はみ出る)
-  //   right: 8  (頭の右端 44 から 8px はみ出る → 60-8=52 が badge 右端)
+  // バッジはピン頭の右上に 少し重ねて 数字が読める位置に。
+  //   - ピン頭の右端 (x=44) に左半分を被せる
+  //   - 上端 (y=30) より 4px 上にはみ出す
+  //   - z-index 2 で SVG (drop-shadow filter で stacking context 作る) より上
+  //     に強制 → 兄弟 DOM 順だけだと iOS Safari でバッジが沈むことがある
   const badge = `
     <div style="
       position: absolute;
-      top: 26px;
-      right: 8px;
-      min-width: 20px;
-      height: 20px;
-      padding: 0 4px;
+      top: 22px;
+      right: 6px;
+      min-width: 22px;
+      height: 22px;
+      padding: 0 5px;
       border-radius: 999px;
       background: #FF3B30;
       color: white;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 800;
       line-height: 1;
       display: flex;
       align-items: center;
       justify-content: center;
       border: 2px solid #FFFFFF;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.35);
       box-sizing: border-box;
       transform: scale(${scale});
       transform-origin: top right;
       pointer-events: none;
+      z-index: 2;
     ">${count}</div>
   `;
 
+  // 内側 SVG を z-index:1 の div に包む。badge の z-index:2 と合わせて
+  // 「badge が必ずピンの上に乗る」レイヤー順を強制。
   const html = `
     <div style="
       position: relative;
@@ -297,7 +302,7 @@ function createClusterPin(members: MemberWithVisitInfo[], isSelected: boolean): 
       overflow: visible;
       cursor: pointer;
       will-change: transform;
-    ">${inner}${badge}</div>
+    "><div style="position: relative; z-index: 1; display: flex; align-items: flex-end;">${inner}</div>${badge}</div>
   `;
 
   return L.divIcon({
