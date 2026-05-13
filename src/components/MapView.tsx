@@ -255,11 +255,16 @@ function createClusterPin(members: MemberWithVisitInfo[], isSelected: boolean): 
 
   // バッジは ピン頭部右上に重ねる。SVG 内ではなく外側 div で position:absolute
   // で配置することで、ピン本体の transform に合わせて拡縮できる。
+  // 容器 60x70、ピンSVG (28x40) は flex-end + center で 下中央。
+  // つまり SVG 占有矩形は x:16-44, y:30-70。
+  // ピン頭の右上 (44, 30) に 少し重なる位置にバッジを置く:
+  //   top: 26 (頭の上端 30 から 4px はみ出る)
+  //   right: 8  (頭の右端 44 から 8px はみ出る → 60-8=52 が badge 右端)
   const badge = `
     <div style="
       position: absolute;
-      top: 4px;
-      right: 14px;
+      top: 26px;
+      right: 8px;
       min-width: 20px;
       height: 20px;
       padding: 0 4px;
