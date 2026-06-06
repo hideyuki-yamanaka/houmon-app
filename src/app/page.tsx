@@ -8,7 +8,7 @@ import { getMembersWithVisitInfo, getAllVisits } from '../lib/storage';
 import { supabase, isMockMode } from '../lib/supabase';
 import { searchMembers } from '../lib/search';
 import MemberBottomSheet from '../components/MemberBottomSheet';
-import MembersListSheet, { applyAllFilters, type AppliedFilters } from '../components/MembersListSheet';
+import MembersListSheet, { applyAllFilters, classifyMember, type AppliedFilters, type VisitTab } from '../components/MembersListSheet';
 import SearchHits from '../components/SearchHits';
 import { type FilterSelection, EMPTY_FILTER, migrateFilter } from '../components/DistrictFilter';
 import type { MapLayerMode } from '../components/MapView';
@@ -55,6 +55,17 @@ export default function HomePage() {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem('houmon_categoryFilter') || null;
   });
+  // 3 タブ。マップピンと メンバー一覧シートを 1 つの state で同期。
+  // (2026-05-13 ヒデさん指示で連動するように修正)
+  const [tab, setTab] = useState<VisitTab>(() => {
+    if (typeof window === 'undefined') return 'go';
+    const v = localStorage.getItem('houmon_tab');
+    return (v === 'go' || v === 'no' || v === 'skip') ? v : 'go';
+  });
+  const handleTabChange = useCallback((next: VisitTab) => {
+    setTab(next);
+    try { localStorage.setItem('houmon_tab', next); } catch {}
+  }, []);
   // ピン位置編集モード: ボトムシート内の Move ボタン押下で立ち上がる。
   // null = 編集中ではない。string = その id のピンが draggable + 確認モーダル待ち。
   const [editingPinMemberId, setEditingPinMemberId] = useState<string | null>(null);
@@ -210,11 +221,20 @@ export default function HomePage() {
     </div>
   ), [handleLocate, locating]);
 
-  // フィルター3点（地区/期間/カテゴリ）を全部適用した後のメンバー。
-  // これがマップピンとリスト両方の "唯一の真実" になる。
-  const filteredMembers = useMemo(() => {
-    return applyAllFilters(members, { filter, periodFilter, categoryFilter });
-  }, [members, filter, periodFilter, categoryFilter]);
+  // フィルター3点（地区/期間/カテゴリ）を適用したメンバー (タブ判定の前)。
+  // タブ件数バッジは これを土台に「いける/いけない/スキップ」の分布を出す。
+  const preTabMembers = useMemo(
+    () => applyAllFilters(members, { filter, periodFilter, categoryFilter }),
+    [members, filter, periodFilter, categoryFilter],
+  );
+
+  // 上記に さらに タブ判定 (classifyMember) を掛けた最終集合。
+  // マップピンと リスト両方の "唯一の真実"。
+  // 「ヤング × いける人」のような組合せも自然に満たす。
+  const filteredMembers = useMemo(
+    () => preTabMembers.filter(m => classifyMember(m) === tab),
+    [preTabMembers, tab],
+  );
 
   // メンバー単位の訪問ログ Map。各シートで MemberCard withLogs に渡すため作る。
   // allVisits は既に visited_at desc(新しい順)で取得済 → そのまま push で OK。
@@ -333,7 +353,10 @@ export default function HomePage() {
           - メンバー選択中は隠す（MemberBottomSheet が前面に来る）
           - ユーザーがマップをドラッグしたら mini スナップへ自動で下がる */}
       <MembersListSheet
-        members={members}
+        // タブ件数バッジを 現在のフィルタ下で計算したいので、
+        // 「タブ判定前 / 地区・期間・カテゴリ適用後」の集合を渡す。
+        // MembersListSheet 内で classifyMember(m) === tab に絞り直す。
+        members={preTabMembers}
         visitsByMember={visitsByMember}
         // 編集モード中は一覧シートも閉じておく。ピン編集に集中させる + 確認モーダルが
         // シートに覆われる事故を防ぐ (2026-05-07 ヒデさん指示)。
@@ -344,6 +367,8 @@ export default function HomePage() {
         periodFilter={periodFilter}
         categoryFilter={categoryFilter}
         onFiltersChange={handleFiltersChange}
+        tab={tab}
+        onTabChange={handleTabChange}
         sheetHandleRef={listSheetRef}
         renderAbove={renderLocateButton}
       />

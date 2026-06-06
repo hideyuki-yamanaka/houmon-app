@@ -55,6 +55,10 @@ interface Props {
   categoryFilter: string | null;
   /** フィルター3点まとめて変更する（マップと一覧を同時に動かすため） */
   onFiltersChange: (next: AppliedFilters) => void;
+  /** 3 タブ (いける/いけない/スキップ)。HomePage で hold してマップピンと同期。 */
+  tab: VisitTab;
+  /** タブ切替通知 */
+  onTabChange: (next: VisitTab) => void;
   /** 親から imperative にスナップ位置を制御したい時の ref */
   sheetHandleRef?: Ref<SheetHandle>;
   /** シート上端の外に浮かべる要素（現在地ボタン等） */
@@ -109,11 +113,12 @@ export default function MembersListSheet({
   periodFilter,
   categoryFilter,
   onFiltersChange,
+  tab,
+  onTabChange,
   sheetHandleRef,
   renderAbove,
 }: Props) {
   const [filterModalOpen, setFilterModalOpen] = useState(false);
-  const [tab, setTab] = useState<VisitTab>('go');
   const router = useRouter();
 
   // 3 タブごとの件数 (フィルタ前)。タブ切替 UI のバッジに使う
@@ -128,17 +133,19 @@ export default function MembersListSheet({
   // 二重適用しても結果は同じ（idempotent）。あえて再適用してるのは、
   // FilterModal が「地区/期間/カテゴリ」を個別の draft 状態で動かしても
   // ちゃんと再計算されるようにするための保険。
+  // members は HomePage で「地区/期間/カテゴリ」までは絞り込み済み (タブ判定前)。
+  // ここで タブ判定を掛けて 表示用リストを作る。
+  // タブ件数バッジ (tabCounts) はこの members を そのまま走査するので、
+  // 「ヤング × (いける/いけない/スキップ)」のような件数が正しく出る。
   const filtered = useMemo(() => {
-    // 3 タブで一次絞り (排他)。タブ切替前に既存フィルタもそのまま動く。
-    const tabFiltered = members.filter(m => classifyMember(m) === tab);
-    const result = applyAllFilters(tabFiltered, { filter, periodFilter, categoryFilter });
+    const result = members.filter(m => classifyMember(m) === tab);
     result.sort((a, b) => {
       const aKana = a.nameKana ?? a.name;
       const bKana = b.nameKana ?? b.name;
       return aKana.localeCompare(bKana, 'ja');
     });
     return result;
-  }, [members, tab, filter, categoryFilter, periodFilter]);
+  }, [members, tab]);
 
 const hasAnyFilter =
     filter.honbu !== null ||
@@ -239,7 +246,7 @@ const hasAnyFilter =
                   return (
                     <button
                       key={t.key}
-                      onClick={() => setTab(t.key)}
+                      onClick={() => onTabChange(t.key)}
                       className={`flex-1 py-1.5 rounded-full flex items-center justify-center gap-1 transition-colors ${
                         active ? 'bg-white shadow-sm' : ''
                       }`}

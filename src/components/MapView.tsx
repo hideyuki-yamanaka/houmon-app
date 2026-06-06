@@ -766,17 +766,12 @@ export default function MapView({
   }, []);
 
   // ── 2026-05-13 ヒデさん指示 ──
-  // マップピンは「いける人」のみ。skipped (手動) / 転居 / 拒否 / 住所不明
-  // のメンバーは ピン完全非表示。リスト側の「いけない人」「スキップ」タブ
-  // で見えるようにする。MembersListSheet 側の classifyMember と同じ判定。
+  // 渡された members は HomePage 側で すでに タブ × フィルタ で絞り込み済み。
+  // ここでは lat/lng がある人だけ落として そのまま地図に出す。
+  // (旧版で MapView 内で再分類していたが タブ切替がマップに伝わらず不一致が
+  // 起きていた。HomePage が "唯一の真実" を作るパターンに統一。)
   const geoMembers = useMemo(
-    () => members.filter(m => {
-      if (m.lat == null || m.lng == null) return false;
-      if (m.skipped) return false;
-      const s = m.lastVisitStatus;
-      if (s === 'unknown_address' || s === 'moved' || s === 'refused') return false;
-      return true;
-    }),
+    () => members.filter(m => m.lat != null && m.lng != null),
     [members]
   );
 
