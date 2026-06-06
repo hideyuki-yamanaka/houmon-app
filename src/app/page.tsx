@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { LocateFixed, Search, X, Layers, Settings } from 'lucide-react';
+import { LocateFixed, Search, X, Layers } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { useRouter } from 'next/navigation';
 import type { MemberWithVisitInfo, Visit } from '../lib/types';
 import { getMembersWithVisitInfo, getAllVisits } from '../lib/storage';
 import { supabase, isMockMode } from '../lib/supabase';
@@ -23,7 +22,6 @@ const MapView = dynamic(() => import('../components/MapView'), { ssr: false });
 const LAST_VIEWED_MEMBER_KEY = 'houmon_lastViewedMemberId';
 
 export default function HomePage() {
-  const router = useRouter();
   const [members, setMembers] = useState<MemberWithVisitInfo[]>([]);
   const [allVisits, setAllVisits] = useState<Visit[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(() => {
@@ -198,19 +196,9 @@ export default function HomePage() {
     [members, selectedId]
   );
 
-  // 現在地ボタン + 設定 (歯車) ボタン
-  // 両シートの renderAbove に渡して シート上端右に縦積みで追従させる。
-  // 設定ボタンは ヒデさん指示 (2026-05-06) で 現在地ボタンの真上に配置。
+  // 現在地ボタンのみ。設定ボタンは 2026-05-13 にボトムナビへ移設。
   const renderLocateButton = useCallback(() => (
     <div className="flex flex-col items-end gap-2">
-      <button
-        type="button"
-        onClick={() => router.push('/settings')}
-        aria-label="設定"
-        className="w-12 h-12 rounded-full bg-white shadow-[0_3px_10px_rgba(0,0,0,0.22)] flex items-center justify-center active:scale-95 transition-transform"
-      >
-        <Settings size={22} className="text-[#5F6368]" strokeWidth={2} />
-      </button>
       <button
         onClick={handleLocate}
         disabled={locating}
@@ -220,7 +208,7 @@ export default function HomePage() {
         <LocateFixed size={22} strokeWidth={2} className={locating ? 'animate-spin' : ''} />
       </button>
     </div>
-  ), [handleLocate, locating, router]);
+  ), [handleLocate, locating]);
 
   // フィルター3点（地区/期間/カテゴリ）を全部適用した後のメンバー。
   // これがマップピンとリスト両方の "唯一の真実" になる。

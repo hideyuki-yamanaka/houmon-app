@@ -2,13 +2,15 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { MapPin, CalendarDays, LayoutDashboard } from 'lucide-react';
+import { MapPin, CalendarDays, LayoutDashboard, Settings } from 'lucide-react';
 import { tapHaptic } from '../lib/haptics';
 
 const TABS = [
   { href: '/', label: 'ホーム', icon: MapPin },
   { href: '/calendar', label: 'カレンダー', icon: CalendarDays },
   { href: '/log', label: 'ダッシュボード', icon: LayoutDashboard },
+  // 2026-05-13 ヒデさん指示: マップ画面の歯車ボタンを廃止し、ボトムナビ右端へ移設
+  { href: '/settings', label: '設定', icon: Settings },
 ] as const;
 
 export default function BottomTabBar() {

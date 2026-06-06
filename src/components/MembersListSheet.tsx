@@ -9,6 +9,25 @@ import { type FilterSelection, matchFilter } from './DistrictFilter';
 import SwipeableBottomSheet, { type SheetHandle } from './SwipeableBottomSheet';
 import FilterModal, { PERIOD_FILTERS } from './FilterModal';
 
+// ── 3 タブ判定 (2026-05-13 ヒデさん指示) ──
+//   いける人  : 訪問対象。スキップ/転居/拒否/住所不明 以外。
+//   いけない人: システム判定。前回 訪問ログが moved or refused。
+//   スキップ  : ユーザーが ★ の隣の⏭で 手動 ON、または lastVisitStatus = unknown_address。
+//
+// 分類は 排他 (1人は必ず 1 タブのみ) 。優先順位:
+//   1. skipped === true  → スキップ
+//   2. lastVisitStatus === 'unknown_address' → スキップ
+//   3. lastVisitStatus === 'moved' or 'refused' → いけない人
+//   4. それ以外 → いける人
+export type VisitTab = 'go' | 'no' | 'skip';
+
+export function classifyMember(m: MemberWithVisitInfo): VisitTab {
+  if (m.skipped) return 'skip';
+  if (m.lastVisitStatus === 'unknown_address') return 'skip';
+  if (m.lastVisitStatus === 'moved' || m.lastVisitStatus === 'refused') return 'no';
+  return 'go';
+}
+
 // ──────────────────────────────────────────────────────────────
 // ホームの地図上に常時出す「メンバー一覧シート」
 //
@@ -94,7 +113,15 @@ export default function MembersListSheet({
   renderAbove,
 }: Props) {
   const [filterModalOpen, setFilterModalOpen] = useState(false);
+  const [tab, setTab] = useState<VisitTab>('go');
   const router = useRouter();
+
+  // 3 タブごとの件数 (フィルタ前)。タブ切替 UI のバッジに使う
+  const tabCounts = useMemo(() => {
+    const c = { go: 0, no: 0, skip: 0 };
+    for (const m of members) c[classifyMember(m)]++;
+    return c;
+  }, [members]);
 
   // 注意: ここで filtered に渡す members は、すでに HomePage 側でも
   // 同じ applyAllFilters を通った filteredMembers が渡ってくるので、
@@ -102,14 +129,16 @@ export default function MembersListSheet({
   // FilterModal が「地区/期間/カテゴリ」を個別の draft 状態で動かしても
   // ちゃんと再計算されるようにするための保険。
   const filtered = useMemo(() => {
-    const result = applyAllFilters(members, { filter, periodFilter, categoryFilter });
+    // 3 タブで一次絞り (排他)。タブ切替前に既存フィルタもそのまま動く。
+    const tabFiltered = members.filter(m => classifyMember(m) === tab);
+    const result = applyAllFilters(tabFiltered, { filter, periodFilter, categoryFilter });
     result.sort((a, b) => {
       const aKana = a.nameKana ?? a.name;
       const bKana = b.nameKana ?? b.name;
       return aKana.localeCompare(bKana, 'ja');
     });
     return result;
-  }, [members, filter, categoryFilter, periodFilter]);
+  }, [members, tab, filter, categoryFilter, periodFilter]);
 
 const hasAnyFilter =
     filter.honbu !== null ||
@@ -154,9 +183,11 @@ const hasAnyFilter =
                   <h2 className="text-lg font-bold">メンバー</h2>
                   <span className="text-sm text-[var(--color-subtext)]">
                     {filtered.length}人
-                    <span className="ml-1 text-[var(--color-subtext)]">
-                      （訪問済み{filtered.filter(m => m.totalVisits > 0).length}人）
-                    </span>
+                    {tab === 'go' && (
+                      <span className="ml-1 text-[var(--color-subtext)]">
+                        （訪問済み{filtered.filter(m => m.totalVisits > 0).length}人）
+                      </span>
+                    )}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -196,6 +227,32 @@ const hasAnyFilter =
                     )}
                   </button>
                 </div>
+              </div>
+              {/* 3 タブ (いける / いけない / スキップ) — 2026-05-13 ヒデさん指示 */}
+              <div className="mt-2 flex gap-1 bg-[#F2F2F7] rounded-full p-1">
+                {([
+                  { key: 'go' as const,   label: 'いける人',  n: tabCounts.go },
+                  { key: 'no' as const,   label: 'いけない人', n: tabCounts.no },
+                  { key: 'skip' as const, label: 'スキップ',  n: tabCounts.skip },
+                ]).map(t => {
+                  const active = tab === t.key;
+                  return (
+                    <button
+                      key={t.key}
+                      onClick={() => setTab(t.key)}
+                      className={`flex-1 py-1.5 rounded-full flex items-center justify-center gap-1 transition-colors ${
+                        active ? 'bg-white shadow-sm' : ''
+                      }`}
+                    >
+                      <span className={`text-[12px] font-bold ${active ? 'text-[#111]' : 'text-[var(--color-subtext)]'}`}>
+                        {t.label}
+                      </span>
+                      <span className={`text-[10px] font-bold rounded-full px-1.5 py-0.5 ${
+                        active ? 'bg-[#111] text-white' : 'bg-black/10 text-[#666]'
+                      }`}>{t.n}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

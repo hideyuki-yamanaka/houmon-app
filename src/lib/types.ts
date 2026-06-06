@@ -49,6 +49,10 @@ export interface Member {
   visitCycleDays: number;
   /** 「行きたい」ブックマーク。ON にするとマップピンが星マークに変わる */
   wantToVisit?: boolean;
+  /** 「スキップ」フラグ (2026-05-13 ヒデさん指示)。
+   *  ON のメンバーは マップピン非表示、メンバー一覧の「スキップ」タブにだけ出る。
+   *  復元 = OFF にすると元に戻る (行きたい★と同じ可逆 ON/OFF パターン)。 */
+  skipped?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -147,6 +151,8 @@ export interface MemberRow {
   honbu_inferred?: boolean | null;
   /** 「行きたい」ブックマーク(ALTER TABLE で後付けカラム。古い行は NULL ありえる) */
   want_to_visit: boolean | null;
+  /** 「スキップ」フラグ (2026-05-13 後付け。SQL マイグ未実行 DB との互換のため optional)。 */
+  skipped?: boolean | null;
   /** 住所不明タスク (2026-05-10 追加。SQL マイグ未実行 DB との互換のため optional)。 */
   address_issue_note?: string | null;
   address_issue_resolved?: boolean | null;

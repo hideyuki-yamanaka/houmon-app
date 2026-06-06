@@ -9,15 +9,13 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { ChevronLeft, Bell, BellOff, Loader2, AlertCircle, Users, ChevronRight, User as UserIcon, Sparkles } from 'lucide-react';
+import { Bell, BellOff, Loader2, AlertCircle, Users, ChevronRight, User as UserIcon, Sparkles } from 'lucide-react';
 import {
   getPushSubscriptionStatus,
   subscribeToPush,
   unsubscribeFromPush,
   type PushStatus,
 } from '../../lib/push';
-import { useSwipeBack } from '../../lib/useSwipeBack';
 import { tapHaptic } from '../../lib/haptics';
 import { useOwnerContext } from '../../lib/auth';
 
@@ -27,9 +25,9 @@ import { useOwnerContext } from '../../lib/auth';
 const SHOW_TEST_NOTIFY = false;
 
 export default function SettingsPage() {
-  const router = useRouter();
-  useSwipeBack(() => router.back());
-
+  // 2026-05-13: マップ画面の歯車ボタンを廃止、ボトムナビ右端の「設定」タブに移設。
+  // タブ間はナビゲーション (戻るボタン不要)、useSwipeBack も撤去。
+  //
   // 2026-05-06: 共有・招待 はオーナー (=ヒデさん) のみ表示。
   // 招待された人 (isOwner=false) のときは導線ごと非表示にする。
   const { isOwner } = useOwnerContext();
@@ -70,23 +68,20 @@ export default function SettingsPage() {
     !!status && status !== 'unsupported' && status !== 'denied';
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)]">
-      {/* ヘッダ */}
-      <header className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-black/5">
-        <div className="max-w-[640px] mx-auto flex items-center px-2 py-2">
-          <Link
-            href="/"
-            onClick={() => tapHaptic()}
-            className="flex items-center gap-1 text-[15px] text-[var(--color-primary)] active:opacity-60 px-2 py-1"
-          >
-            <ChevronLeft size={20} />
-            <span>戻る</span>
-          </Link>
-          <h1 className="flex-1 text-center text-[16px] font-semibold pr-12">設定</h1>
-        </div>
-      </header>
+    <div className="absolute inset-0 flex flex-col bg-[var(--color-bg)]">
+      {/* 他タブ (カレンダー / ダッシュボード) と同じ ios-nav 風ヘッダ。
+          見出し「設定」のみ、戻るボタンなし (タブ間移動はボトムナビで)。 */}
+      <div className="ios-nav px-4 py-3">
+        <h1 className="text-xl font-bold text-center">設定</h1>
+      </div>
 
-      <main className="max-w-[640px] mx-auto px-4 py-4 space-y-6">
+      <main
+        className="flex-1 overflow-y-auto max-w-[640px] mx-auto w-full px-4 space-y-6"
+        style={{
+          paddingTop: 'var(--tune-section-pad-top, 0.75rem)',
+          paddingBottom: 'calc(60px + env(safe-area-inset-bottom))',
+        }}
+      >
         {/* 通知セクション */}
         <section className="bg-white rounded-2xl shadow-sm border border-black/5 overflow-hidden">
           <div className="px-4 py-3 border-b border-black/5">
