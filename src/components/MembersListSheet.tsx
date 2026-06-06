@@ -301,6 +301,8 @@ const hasAnyFilter =
         onChange={handleFilterChange}
         members={members}
         matchCount={filtered.length}
+        // タブ切替でカテゴリ選択肢を動的に絞る
+        tab={tab}
       />
     </>
   );

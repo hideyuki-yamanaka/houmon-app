@@ -34,6 +34,30 @@ export const CATEGORY_FILTERS: { key: string; label: string }[] = [
     .map(([key, config]) => ({ key, label: config.label })),
 ];
 
+// ── 2026-05-13 ヒデさん指示 ──
+// 3 タブ判定 (classifyMember) と矛盾するカテゴリは、そのタブでは選んでも
+// 必ず 0 件になるので、最初から選択肢に出さない (動的に絞る)。
+// 例) 「いける人」タブ → 拒否/転居/住所不明 を非表示。
+// 例) 「いけない人」タブ → 転居/拒否 のみ。
+// 例) 「スキップ」タブ → 住所不明 のみ。
+// "tab" を渡さない / undefined のときは全選択肢を返す (後方互換)。
+export type VisitTabKey = 'go' | 'no' | 'skip';
+export function getCategoryFiltersForTab(tab: VisitTabKey | undefined): { key: string; label: string }[] {
+  if (!tab) return CATEGORY_FILTERS;
+  if (tab === 'go') {
+    // いける人: 訪問済み / 未訪問 / 本人会えた / 家族会えた / 不在
+    return CATEGORY_FILTERS.filter(c =>
+      !['refused', 'moved', 'unknown_address'].includes(c.key),
+    );
+  }
+  if (tab === 'no') {
+    // いけない人: 転居 / 拒否
+    return CATEGORY_FILTERS.filter(c => c.key === 'refused' || c.key === 'moved');
+  }
+  // skip: 住所不明 のみ
+  return CATEGORY_FILTERS.filter(c => c.key === 'unknown_address');
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -52,6 +76,9 @@ interface Props {
   members: MemberWithVisitInfo[];
   /** 現在のフィルターでマッチする件数（親で計算して渡す） */
   matchCount: number;
+  /** 現在の 3 タブ (いける/いけない/スキップ)。カテゴリ選択肢を動的に絞るのに使う。
+   *  渡さない (undefined) と 後方互換で全カテゴリを表示。 */
+  tab?: VisitTabKey;
 }
 
 const SLIDE_DURATION_MS = 320;
@@ -65,7 +92,21 @@ export default function FilterModal({
   onChange,
   members,
   matchCount,
+  tab,
 }: Props) {
+  // タブに応じた カテゴリ選択肢。タブ未指定なら 全カテゴリ。
+  const categoryOptions = getCategoryFiltersForTab(tab);
+
+  // 現在の categoryFilter が タブ切替で無効になった場合、自動でクリアする。
+  // 例) "拒否" 選択中 → タブを いける人 に切替 → "拒否" は表示されないので
+  //     その状態のままだと UI に「現在のカテゴリ」が消えて混乱する。
+  useEffect(() => {
+    if (!categoryFilter) return;
+    const stillValid = categoryOptions.some(c => c.key === categoryFilter);
+    if (!stillValid) {
+      onChange({ filter, periodFilter, categoryFilter: null });
+    }
+  }, [tab, categoryFilter, categoryOptions, filter, periodFilter, onChange]);
   // mounted: DOM に存在するか（閉じアニメ中も true）
   // closing: 閉じアニメ再生中（下にスライドアウト）
   const [mounted, setMounted] = useState(open);
@@ -218,7 +259,7 @@ export default function FilterModal({
               >
                 すべて
               </button>
-              {CATEGORY_FILTERS.map((c) => (
+              {categoryOptions.map((c) => (
                 <button
                   key={c.key}
                   onClick={() => setCategoryAndNotify(categoryFilter === c.key ? null : c.key)}
