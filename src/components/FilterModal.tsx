@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import type { MemberWithVisitInfo } from '../lib/types';
-import { VISIT_STATUS_CONFIG } from '../lib/constants';
 import DistrictFilter, { type FilterSelection } from './DistrictFilter';
 
 // ──────────────────────────────────────────────────────────────
@@ -17,45 +16,66 @@ import DistrictFilter, { type FilterSelection } from './DistrictFilter';
 //   - 閉じるのは ×ボタン or 背景タップ or ESC のみ
 // ──────────────────────────────────────────────────────────────
 
-export const PERIOD_FILTERS: { key: string; label: string; minDays: number; maxDays: number }[] = [
-  { key: 'today',     label: '本日',    minDays: 0,  maxDays: 0  },
-  { key: 'this_week', label: '今週',    minDays: 0,  maxDays: 7  },
-  { key: 'last_week', label: '先週',    minDays: 8,  maxDays: 14 },
-  { key: 'two_weeks', label: '2週間前', minDays: 15, maxDays: 21 },
-  { key: 'one_month', label: '1ヶ月',   minDays: 0,  maxDays: 30 },
-];
+// 2026-05-13 ヒデさん指示で「最終訪問からの期間」フィルタを廃止。
+// PERIOD_FILTERS は 後方互換のため空配列としてエクスポート (旧呼び出し対策)。
+export const PERIOD_FILTERS: { key: string; label: string; minDays: number; maxDays: number }[] = [];
 
-export const CATEGORY_FILTERS: { key: string; label: string }[] = [
-  { key: 'visited', label: '訪問済み' },
+// ── 2026-05-13 フィルタ全面リニューアル (ヒデさん指示) ──
+// 旧「カテゴリ」(訪問ステータス 全6種を 1つ選ぶ) を 2 セクションに分割:
+//   1. カテゴリ (大まかな見え方): すべて / 訪問済み / 未訪問
+//   2. 訪問ログ (細かい行動カテゴリ): ダッシュボード内訳と統一感のある 4 グループ
+//        会えた (met_self + met_family + refused)
+//        不在 (absent)
+//        住所不明 (unknown_address)
+//        転居 (moved)
+// 色も ダッシュボードの 4 ブロック (src/app/log/page.tsx) と同じ tinted bg + fg。
+
+export type CategoryKey = 'visited' | 'unvisited';
+export type VisitLogKey = 'met' | 'absent' | 'unknown_address' | 'moved';
+
+export const CATEGORY_OPTIONS: { key: CategoryKey; label: string }[] = [
+  { key: 'visited',   label: '訪問済み' },
   { key: 'unvisited', label: '未訪問' },
-  // 'met'（会えた）は『訪問済み』と意味が被るため除外
-  ...Object.entries(VISIT_STATUS_CONFIG)
-    .filter(([key]) => key !== 'met')
-    .map(([key, config]) => ({ key, label: config.label })),
 ];
 
-// ── 2026-05-13 ヒデさん指示 ──
-// 3 タブ判定 (classifyMember) と矛盾するカテゴリは、そのタブでは選んでも
-// 必ず 0 件になるので、最初から選択肢に出さない (動的に絞る)。
-// 例) 「いける人」タブ → 拒否/転居/住所不明 を非表示。
-// 例) 「いけない人」タブ → 転居/拒否 のみ。
-// 例) 「スキップ」タブ → 住所不明 のみ。
-// "tab" を渡さない / undefined のときは全選択肢を返す (後方互換)。
+// 訪問ログ の 4 グループ。ダッシュボード log/page.tsx の blocks 定義と
+// 同じ fg/bg 色、同じ statuses 配列。タップ時にこれらの statuses の
+// いずれかに lastVisitStatus が当たれば該当扱い。
+import type { VisitStatus } from '../lib/types';
+export const VISITLOG_GROUPS: {
+  key: VisitLogKey;
+  label: string;
+  statuses: VisitStatus[];
+  fg: string;
+  bg: string;
+}[] = [
+  { key: 'met',             label: '会えた',   statuses: ['met_self', 'met_family', 'refused'], fg: '#1D7A3F', bg: '#D6F4DE' },
+  { key: 'absent',          label: '不在',     statuses: ['absent'],                            fg: '#3C3C43', bg: '#E5E5EA' },
+  { key: 'unknown_address', label: '住所不明', statuses: ['unknown_address'],                   fg: '#C2410C', bg: '#FFEAD0' },
+  { key: 'moved',           label: '転居',     statuses: ['moved'],                             fg: '#7B2DBF', bg: '#F3E8FF' },
+];
+
+// 旧 CATEGORY_FILTERS (string union) は コードから 0 件参照になるよう削除予定。
+// 一旦 空配列で後方互換 (型保持) のためエクスポート。
+export const CATEGORY_FILTERS: { key: string; label: string }[] = [];
+
+// ── タブ別 動的絞り込み ──
+// 3 タブ判定 (classifyMember) と矛盾する 訪問ログ option は、そのタブでは
+// 選んでも 必ず 0 件になるので、最初から選択肢に出さない。
 export type VisitTabKey = 'go' | 'no' | 'skip';
-export function getCategoryFiltersForTab(tab: VisitTabKey | undefined): { key: string; label: string }[] {
-  if (!tab) return CATEGORY_FILTERS;
+export function getVisitLogOptionsForTab(tab: VisitTabKey | undefined): typeof VISITLOG_GROUPS {
+  if (!tab) return VISITLOG_GROUPS;
   if (tab === 'go') {
-    // いける人: 訪問済み / 未訪問 / 本人会えた / 家族会えた / 不在
-    return CATEGORY_FILTERS.filter(c =>
-      !['refused', 'moved', 'unknown_address'].includes(c.key),
-    );
+    // いける人: 会えた (met_self + met_family のみ) / 不在
+    // 拒否 は いけない人タブに行くので 会えた は表示するが refused は当たらない
+    return VISITLOG_GROUPS.filter(g => g.key === 'met' || g.key === 'absent');
   }
   if (tab === 'no') {
-    // いけない人: 転居 / 拒否
-    return CATEGORY_FILTERS.filter(c => c.key === 'refused' || c.key === 'moved');
+    // いけない人: 会えた (refused のみ当たる) / 転居
+    return VISITLOG_GROUPS.filter(g => g.key === 'met' || g.key === 'moved');
   }
   // skip: 住所不明 のみ
-  return CATEGORY_FILTERS.filter(c => c.key === 'unknown_address');
+  return VISITLOG_GROUPS.filter(g => g.key === 'unknown_address');
 }
 
 interface Props {
@@ -63,21 +83,21 @@ interface Props {
   onClose: () => void;
   /** 現在の地区フィルター（親から） */
   filter: FilterSelection;
-  /** 現在の期間フィルターキー */
-  periodFilter: string | null;
-  /** 現在のカテゴリフィルターキー */
-  categoryFilter: string | null;
+  /** 現在のカテゴリ (すべて / 訪問済み / 未訪問) */
+  categoryFilter: CategoryKey | null;
+  /** 現在の 訪問ログ グループ (会えた / 不在 / 住所不明 / 転居) */
+  visitLogFilter: VisitLogKey | null;
   /** タップした瞬間に親へ通知する（リアルタイム反映） */
   onChange: (next: {
     filter: FilterSelection;
-    periodFilter: string | null;
-    categoryFilter: string | null;
+    categoryFilter: CategoryKey | null;
+    visitLogFilter: VisitLogKey | null;
   }) => void;
   members: MemberWithVisitInfo[];
   /** 現在のフィルターでマッチする件数（親で計算して渡す） */
   matchCount: number;
-  /** 現在の 3 タブ (いける/いけない/スキップ)。カテゴリ選択肢を動的に絞るのに使う。
-   *  渡さない (undefined) と 後方互換で全カテゴリを表示。 */
+  /** 現在の 3 タブ (いける/いけない/スキップ)。訪問ログ選択肢を動的に絞るのに使う。
+   *  渡さない (undefined) と 後方互換で全選択肢を表示。 */
   tab?: VisitTabKey;
 }
 
@@ -87,26 +107,24 @@ export default function FilterModal({
   open,
   onClose,
   filter,
-  periodFilter,
   categoryFilter,
+  visitLogFilter,
   onChange,
   members,
   matchCount,
   tab,
 }: Props) {
-  // タブに応じた カテゴリ選択肢。タブ未指定なら 全カテゴリ。
-  const categoryOptions = getCategoryFiltersForTab(tab);
+  // タブに応じた 訪問ログ選択肢。タブ未指定なら 全グループ。
+  const visitLogOptions = getVisitLogOptionsForTab(tab);
 
-  // 現在の categoryFilter が タブ切替で無効になった場合、自動でクリアする。
-  // 例) "拒否" 選択中 → タブを いける人 に切替 → "拒否" は表示されないので
-  //     その状態のままだと UI に「現在のカテゴリ」が消えて混乱する。
+  // タブ切替で 現在の訪問ログが 無効になった場合、自動でクリアする。
   useEffect(() => {
-    if (!categoryFilter) return;
-    const stillValid = categoryOptions.some(c => c.key === categoryFilter);
+    if (!visitLogFilter) return;
+    const stillValid = visitLogOptions.some(g => g.key === visitLogFilter);
     if (!stillValid) {
-      onChange({ filter, periodFilter, categoryFilter: null });
+      onChange({ filter, categoryFilter, visitLogFilter: null });
     }
-  }, [tab, categoryFilter, categoryOptions, filter, periodFilter, onChange]);
+  }, [tab, visitLogFilter, visitLogOptions, filter, categoryFilter, onChange]);
   // mounted: DOM に存在するか（閉じアニメ中も true）
   // closing: 閉じアニメ再生中（下にスライドアウト）
   const [mounted, setMounted] = useState(open);
@@ -153,13 +171,13 @@ export default function FilterModal({
 
   // タップ即 onChange（リアルタイム反映）
   const setFilterAndNotify = (next: FilterSelection) => {
-    onChange({ filter: next, periodFilter, categoryFilter });
+    onChange({ filter: next, categoryFilter, visitLogFilter });
   };
-  const setPeriodAndNotify = (next: string | null) => {
-    onChange({ filter, periodFilter: next, categoryFilter });
+  const setCategoryAndNotify = (next: CategoryKey | null) => {
+    onChange({ filter, categoryFilter: next, visitLogFilter });
   };
-  const setCategoryAndNotify = (next: string | null) => {
-    onChange({ filter, periodFilter, categoryFilter: next });
+  const setVisitLogAndNotify = (next: VisitLogKey | null) => {
+    onChange({ filter, categoryFilter, visitLogFilter: next });
   };
 
   return (
@@ -215,37 +233,7 @@ export default function FilterModal({
             />
           </section>
 
-          {/* ── 期間 ── */}
-          <section>
-            <h3 className="text-xs font-bold text-[var(--color-subtext)] mb-2">最終訪問からの期間</h3>
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                onClick={() => setPeriodAndNotify(null)}
-                className={`px-3 py-1.5 text-[12px] rounded-full border transition-colors ${
-                  !periodFilter
-                    ? 'bg-[#222] text-white border-[#222]'
-                    : 'bg-white text-[#222] border-[#E5E5EA] active:bg-[#F5F5F5]'
-                }`}
-              >
-                すべて
-              </button>
-              {PERIOD_FILTERS.map((p) => (
-                <button
-                  key={p.key}
-                  onClick={() => setPeriodAndNotify(periodFilter === p.key ? null : p.key)}
-                  className={`px-3 py-1.5 text-[12px] rounded-full border transition-colors ${
-                    periodFilter === p.key
-                      ? 'bg-[#222] text-white border-[#222]'
-                      : 'bg-white text-[#222] border-[#E5E5EA] active:bg-[#F5F5F5]'
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {/* ── カテゴリ（訪問ステータス） ── */}
+          {/* ── カテゴリ (すべて / 訪問済み / 未訪問) ── */}
           <section>
             <h3 className="text-xs font-bold text-[var(--color-subtext)] mb-2">カテゴリ</h3>
             <div className="flex flex-wrap gap-1.5">
@@ -259,7 +247,7 @@ export default function FilterModal({
               >
                 すべて
               </button>
-              {categoryOptions.map((c) => (
+              {CATEGORY_OPTIONS.map((c) => (
                 <button
                   key={c.key}
                   onClick={() => setCategoryAndNotify(categoryFilter === c.key ? null : c.key)}
@@ -272,6 +260,46 @@ export default function FilterModal({
                   {c.label}
                 </button>
               ))}
+            </div>
+          </section>
+
+          {/* ── 訪問ログ (会えた / 不在 / 住所不明 / 転居) ──
+              ダッシュボード 訪問ログ内訳 (src/app/log/page.tsx) と統一感のある
+              tinted bg + 同色 fg。タップで active = ボーダー強調 + 太字。 */}
+          <section>
+            <h3 className="text-xs font-bold text-[var(--color-subtext)] mb-2">訪問ログ</h3>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => setVisitLogAndNotify(null)}
+                className={`px-3 py-1.5 text-[12px] rounded-full border transition-colors ${
+                  !visitLogFilter
+                    ? 'bg-[#222] text-white border-[#222]'
+                    : 'bg-white text-[#222] border-[#E5E5EA] active:bg-[#F5F5F5]'
+                }`}
+              >
+                すべて
+              </button>
+              {visitLogOptions.map((g) => {
+                const active = visitLogFilter === g.key;
+                return (
+                  <button
+                    key={g.key}
+                    onClick={() => setVisitLogAndNotify(active ? null : g.key)}
+                    className="px-3 py-1.5 text-[12px] rounded-full border transition-colors font-semibold"
+                    style={{
+                      background: g.bg,
+                      color: g.fg,
+                      borderColor: active ? g.fg : 'transparent',
+                      borderWidth: active ? 2 : 1,
+                      // active 時は ボーダー幅 2 で他より一段強調
+                      paddingLeft: active ? '11px' : '12px',
+                      paddingRight: active ? '11px' : '12px',
+                    }}
+                  >
+                    {g.label}
+                  </button>
+                );
+              })}
             </div>
           </section>
         </div>

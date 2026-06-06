@@ -9,6 +9,7 @@ import { supabase, isMockMode } from '../lib/supabase';
 import { searchMembers } from '../lib/search';
 import MemberBottomSheet from '../components/MemberBottomSheet';
 import MembersListSheet, { applyAllFilters, classifyMember, type AppliedFilters, type VisitTab } from '../components/MembersListSheet';
+import type { CategoryKey, VisitLogKey } from '../components/FilterModal';
 import SearchHits from '../components/SearchHits';
 import { type FilterSelection, EMPTY_FILTER, migrateFilter } from '../components/DistrictFilter';
 import type { MapLayerMode } from '../components/MapView';
@@ -47,13 +48,20 @@ export default function HomePage() {
       return migrateFilter(JSON.parse(s));
     } catch { return EMPTY_FILTER; }
   });
-  const [periodFilter, setPeriodFilter] = useState<string | null>(() => {
+  // 2026-05-13 フィルタ大改装 (ヒデさん指示):
+  // - 「最終訪問からの期間」フィルタを廃止 → houmon_periodFilter は無視
+  // - 旧 categoryFilter (訪問ステータス) を 2 セクションに分割:
+  //     houmon_categoryFilter (新) = 'visited' | 'unvisited' | null
+  //     houmon_visitLogFilter      = 'met' | 'absent' | 'unknown_address' | 'moved' | null
+  const [categoryFilter, setCategoryFilter] = useState<CategoryKey | null>(() => {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem('houmon_periodFilter') || null;
+    const v = localStorage.getItem('houmon_categoryFilter');
+    return v === 'visited' || v === 'unvisited' ? v : null;
   });
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(() => {
+  const [visitLogFilter, setVisitLogFilter] = useState<VisitLogKey | null>(() => {
     if (typeof window === 'undefined') return null;
-    return localStorage.getItem('houmon_categoryFilter') || null;
+    const v = localStorage.getItem('houmon_visitLogFilter');
+    return v === 'met' || v === 'absent' || v === 'unknown_address' || v === 'moved' ? v : null;
   });
   // 3 タブ。マップピンと メンバー一覧シートを 1 つの state で同期。
   // (2026-05-13 ヒデさん指示で連動するように修正)
@@ -71,14 +79,14 @@ export default function HomePage() {
   const [editingPinMemberId, setEditingPinMemberId] = useState<string | null>(null);
   const handleFiltersChange = useCallback((next: AppliedFilters) => {
     setFilter(next.filter);
-    setPeriodFilter(next.periodFilter);
     setCategoryFilter(next.categoryFilter);
+    setVisitLogFilter(next.visitLogFilter);
     try {
       localStorage.setItem('houmon_filter', JSON.stringify(next.filter));
-      if (next.periodFilter) localStorage.setItem('houmon_periodFilter', next.periodFilter);
-      else localStorage.removeItem('houmon_periodFilter');
       if (next.categoryFilter) localStorage.setItem('houmon_categoryFilter', next.categoryFilter);
       else localStorage.removeItem('houmon_categoryFilter');
+      if (next.visitLogFilter) localStorage.setItem('houmon_visitLogFilter', next.visitLogFilter);
+      else localStorage.removeItem('houmon_visitLogFilter');
     } catch { /* ignore */ }
   }, []);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -221,11 +229,11 @@ export default function HomePage() {
     </div>
   ), [handleLocate, locating]);
 
-  // フィルター3点（地区/期間/カテゴリ）を適用したメンバー (タブ判定の前)。
+  // フィルター3点（地区 / カテゴリ / 訪問ログ）を適用したメンバー (タブ判定の前)。
   // タブ件数バッジは これを土台に「いける/いけない/スキップ」の分布を出す。
   const preTabMembers = useMemo(
-    () => applyAllFilters(members, { filter, periodFilter, categoryFilter }),
-    [members, filter, periodFilter, categoryFilter],
+    () => applyAllFilters(members, { filter, categoryFilter, visitLogFilter }),
+    [members, filter, categoryFilter, visitLogFilter],
   );
 
   // 上記に さらに タブ判定 (classifyMember) を掛けた最終集合。
@@ -364,8 +372,8 @@ export default function HomePage() {
         onClose={() => { /* closable=false なので呼ばれない */ }}
         onSelectMember={(id) => setSelectedId(id)}
         filter={filter}
-        periodFilter={periodFilter}
         categoryFilter={categoryFilter}
+        visitLogFilter={visitLogFilter}
         onFiltersChange={handleFiltersChange}
         tab={tab}
         onTabChange={handleTabChange}

@@ -7,7 +7,7 @@ import type { MemberWithVisitInfo, Visit } from '../lib/types';
 import MemberCard from './MemberCard';
 import { type FilterSelection, matchFilter } from './DistrictFilter';
 import SwipeableBottomSheet, { type SheetHandle } from './SwipeableBottomSheet';
-import FilterModal, { PERIOD_FILTERS } from './FilterModal';
+import FilterModal, { VISITLOG_GROUPS, type CategoryKey, type VisitLogKey } from './FilterModal';
 
 // ── 3 タブ判定 (2026-05-13 ヒデさん指示) ──
 //   いける人  : 訪問対象。スキップ/転居/拒否/住所不明 以外。
@@ -49,11 +49,11 @@ interface Props {
   onSelectMember: (id: string) => void;
   /** 地区フィルター（HomePage で hold） */
   filter: FilterSelection;
-  /** 期間フィルター（HomePage で hold） */
-  periodFilter: string | null;
-  /** カテゴリフィルター（HomePage で hold） */
-  categoryFilter: string | null;
-  /** フィルター3点まとめて変更する（マップと一覧を同時に動かすため） */
+  /** カテゴリ (すべて/訪問済み/未訪問) */
+  categoryFilter: CategoryKey | null;
+  /** 訪問ログ (会えた/不在/住所不明/転居) */
+  visitLogFilter: VisitLogKey | null;
+  /** フィルターまとめて変更する（マップと一覧を同時に動かすため） */
   onFiltersChange: (next: AppliedFilters) => void;
   /** 3 タブ (いける/いけない/スキップ)。HomePage で hold してマップピンと同期。 */
   tab: VisitTab;
@@ -67,29 +67,32 @@ interface Props {
 
 export type AppliedFilters = {
   filter: FilterSelection;
-  periodFilter: string | null;
-  categoryFilter: string | null;
+  /** カテゴリ (すべて=null / 訪問済み / 未訪問) */
+  categoryFilter: CategoryKey | null;
+  /** 訪問ログ (会えた / 不在 / 住所不明 / 転居) */
+  visitLogFilter: VisitLogKey | null;
 };
 
 // 実際の matcher。FilterModal からプレビュー件数を求めるのにも、
 // HomePage がマップピンの絞り込みに使うのにも、両方に使う共通関数。
+// 2026-05-13 大改装: 期間フィルタ撤廃、カテゴリ/訪問ログを 2 セクションに分離。
 export function applyAllFilters(members: MemberWithVisitInfo[], a: AppliedFilters): MemberWithVisitInfo[] {
-  const period = a.periodFilter ? PERIOD_FILTERS.find((p) => p.key === a.periodFilter) : null;
+  const visitLogGroup = a.visitLogFilter
+    ? VISITLOG_GROUPS.find((g) => g.key === a.visitLogFilter)
+    : null;
   return members.filter((m) => {
     if (!matchFilter(m, a.filter)) return false;
-    if (a.categoryFilter) {
-      if (a.categoryFilter === 'unvisited') {
-        if (m.totalVisits > 0) return false;
-      } else if (a.categoryFilter === 'visited') {
-        if (m.totalVisits === 0) return false;
-      } else {
-        if (m.lastVisitStatus !== a.categoryFilter) return false;
-      }
+    // カテゴリ: 訪問済み / 未訪問
+    if (a.categoryFilter === 'unvisited') {
+      if (m.totalVisits > 0) return false;
+    } else if (a.categoryFilter === 'visited') {
+      if (m.totalVisits === 0) return false;
     }
-    if (period) {
-      const d = m.daysSinceLastVisit;
-      if (d === undefined) return false;
-      if (d < period.minDays || d > period.maxDays) return false;
+    // 訪問ログ: 4 グループ。lastVisitStatus が グループの statuses に含まれるか。
+    if (visitLogGroup) {
+      const s = m.lastVisitStatus;
+      if (!s) return false;
+      if (!visitLogGroup.statuses.includes(s)) return false;
     }
     return true;
   });
@@ -110,8 +113,8 @@ export default function MembersListSheet({
   onClose,
   onSelectMember,
   filter,
-  periodFilter,
   categoryFilter,
+  visitLogFilter,
   onFiltersChange,
   tab,
   onTabChange,
@@ -152,8 +155,8 @@ const hasAnyFilter =
     filter.bu !== null ||
     filter.district !== null ||
     filter.category !== null ||
-    periodFilter !== null ||
-    categoryFilter !== null;
+    categoryFilter !== null ||
+    visitLogFilter !== null;
 
   // FilterModal のリアルタイム onChange ハンドラ
   // 親 (HomePage) に3点まとめて通知 → マップピンも即連動
@@ -296,12 +299,12 @@ const hasAnyFilter =
         open={filterModalOpen}
         onClose={() => setFilterModalOpen(false)}
         filter={filter}
-        periodFilter={periodFilter}
         categoryFilter={categoryFilter}
+        visitLogFilter={visitLogFilter}
         onChange={handleFilterChange}
         members={members}
         matchCount={filtered.length}
-        // タブ切替でカテゴリ選択肢を動的に絞る
+        // タブ切替で 訪問ログ選択肢を動的に絞る
         tab={tab}
       />
     </>
