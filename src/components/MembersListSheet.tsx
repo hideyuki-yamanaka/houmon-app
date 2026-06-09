@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { SlidersHorizontal, Printer } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit } from '../lib/types';
 import MemberCard from './MemberCard';
-import { type FilterSelection, matchFilter } from './DistrictFilter';
+import DistrictFilter, { type FilterSelection, matchFilter } from './DistrictFilter';
 import SwipeableBottomSheet, { type SheetHandle } from './SwipeableBottomSheet';
 import FilterModal, { VISITLOG_GROUPS, type CategoryKey, type VisitLogKey } from './FilterModal';
 
@@ -39,6 +39,11 @@ export function classifyMember(m: MemberWithVisitInfo): VisitTab {
 
 interface Props {
   members: MemberWithVisitInfo[];
+  /** 全メンバー (地区/カテゴリ/訪問ログ で絞る前)。
+   *  トップの地区フィルターの セグメント/本部/部/地区 のカウント表示に使う。
+   *  preTabMembers を使うと 地区を絞った瞬間に他本部が (0) になってしまうため、
+   *  カウントだけは常に全件ベースで出す。 */
+  allMembers?: MemberWithVisitInfo[];
   /** メンバー単位の訪問ログ Map(新しい順)。各メンバーカードに withLogs で渡す */
   visitsByMember?: Map<string, Visit[]>;
   /** シートを開くかどうか（ホームでは常に true） */
@@ -108,6 +113,7 @@ const MINI_HEIGHT = 80;
 
 export default function MembersListSheet({
   members,
+  allMembers,
   visitsByMember,
   open,
   onClose,
@@ -150,11 +156,12 @@ export default function MembersListSheet({
     return result;
   }, [members, tab]);
 
-const hasAnyFilter =
-    filter.honbu !== null ||
-    filter.bu !== null ||
-    filter.district !== null ||
-    filter.category !== null ||
+  // フィルターアイコンの「●」ドットは モーダル内に格納したフィルタが
+  // 効いている時だけ点ける。地区/ヤング/男子部 はトップに常時出したので除外。
+  //   - tab: 既定 'go' (いける人) 以外を選んでいる
+  //   - categoryFilter (訪問済み/未訪問) / visitLogFilter (会えた等) が ON
+  const hasAnyFilter =
+    tab !== 'go' ||
     categoryFilter !== null ||
     visitLogFilter !== null;
 
@@ -238,31 +245,17 @@ const hasAnyFilter =
                   </button>
                 </div>
               </div>
-              {/* 3 タブ (いける / いけない / スキップ) — 2026-05-13 ヒデさん指示 */}
-              <div className="mt-2 flex gap-1 bg-[#F2F2F7] rounded-full p-1">
-                {([
-                  { key: 'go' as const,   label: 'いける人',  n: tabCounts.go },
-                  { key: 'no' as const,   label: 'いけない人', n: tabCounts.no },
-                  { key: 'skip' as const, label: 'スキップ',  n: tabCounts.skip },
-                ]).map(t => {
-                  const active = tab === t.key;
-                  return (
-                    <button
-                      key={t.key}
-                      onClick={() => onTabChange(t.key)}
-                      className={`flex-1 py-1.5 rounded-full flex items-center justify-center gap-1 transition-colors ${
-                        active ? 'bg-white shadow-sm' : ''
-                      }`}
-                    >
-                      <span className={`text-[12px] font-bold ${active ? 'text-[#111]' : 'text-[var(--color-subtext)]'}`}>
-                        {t.label}
-                      </span>
-                      <span className={`text-[10px] font-bold rounded-full px-1.5 py-0.5 ${
-                        active ? 'bg-[#111] text-white' : 'bg-black/10 text-[#666]'
-                      }`}>{t.n}</span>
-                    </button>
-                  );
-                })}
+              {/* 地区フィルター (すべて/ヤング/男子部 + 本部→部→地区) をトップに常時表示。
+                  2026-06-09 ヒデさん指示: いける/いけない/スキップ は フィルターアイコン
+                  (FilterModal) に格納し、代わりに地区の絞り込みを表に出す。
+                  セグメントは常時表示、本部/部/地区 の詳細は▼で開閉 (alwaysOpen 無し)。
+                  カウントは preTabMembers ではなく全件 (allMembers) ベースで安定表示。 */}
+              <div className="mt-2">
+                <DistrictFilter
+                  selection={filter}
+                  onChange={(next) => onFiltersChange({ filter: next, categoryFilter, visitLogFilter })}
+                  members={allMembers ?? members}
+                />
               </div>
             </div>
 
@@ -302,10 +295,11 @@ const hasAnyFilter =
         categoryFilter={categoryFilter}
         visitLogFilter={visitLogFilter}
         onChange={handleFilterChange}
-        members={members}
         matchCount={filtered.length}
-        // タブ切替で 訪問ログ選択肢を動的に絞る
+        // 3 タブ (いける/いけない/スキップ) を モーダル内に移設 (2026-06-09)
         tab={tab}
+        onTabChange={onTabChange}
+        tabCounts={tabCounts}
       />
     </>
   );

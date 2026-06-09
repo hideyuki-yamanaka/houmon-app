@@ -365,6 +365,9 @@ export default function HomePage() {
         // 「タブ判定前 / 地区・期間・カテゴリ適用後」の集合を渡す。
         // MembersListSheet 内で classifyMember(m) === tab に絞り直す。
         members={preTabMembers}
+        // トップの地区フィルターの セグメント/本部/部/地区 カウントは
+        // 地区で絞り込んでも 0 にならないよう、全件ベースで出す。
+        allMembers={members}
         visitsByMember={visitsByMember}
         // 編集モード中は一覧シートも閉じておく。ピン編集に集中させる + 確認モーダルが
         // シートに覆われる事故を防ぐ (2026-05-07 ヒデさん指示)。

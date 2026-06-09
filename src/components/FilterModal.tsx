@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import type { MemberWithVisitInfo } from '../lib/types';
-import DistrictFilter, { type FilterSelection } from './DistrictFilter';
+import { type FilterSelection } from './DistrictFilter';
 
 // ──────────────────────────────────────────────────────────────
 // フィルター設定モーダル（地区 / 期間 / カテゴリ を縦並びで一括編集）
@@ -93,12 +92,15 @@ interface Props {
     categoryFilter: CategoryKey | null;
     visitLogFilter: VisitLogKey | null;
   }) => void;
-  members: MemberWithVisitInfo[];
   /** 現在のフィルターでマッチする件数（親で計算して渡す） */
   matchCount: number;
   /** 現在の 3 タブ (いける/いけない/スキップ)。訪問ログ選択肢を動的に絞るのに使う。
    *  渡さない (undefined) と 後方互換で全選択肢を表示。 */
   tab?: VisitTabKey;
+  /** タブ切替通知。2026-06-09 で 3 タブを モーダル内に移設したため必要。 */
+  onTabChange?: (next: VisitTabKey) => void;
+  /** 3 タブごとの件数バッジ (フィルタ前)。モーダル内のタブ選択 UI に出す。 */
+  tabCounts?: { go: number; no: number; skip: number };
 }
 
 const SLIDE_DURATION_MS = 320;
@@ -110,9 +112,10 @@ export default function FilterModal({
   categoryFilter,
   visitLogFilter,
   onChange,
-  members,
   matchCount,
   tab,
+  onTabChange,
+  tabCounts,
 }: Props) {
   // タブに応じた 訪問ログ選択肢。タブ未指定なら 全グループ。
   const visitLogOptions = getVisitLogOptionsForTab(tab);
@@ -170,9 +173,6 @@ export default function FilterModal({
   if (!mounted) return null;
 
   // タップ即 onChange（リアルタイム反映）
-  const setFilterAndNotify = (next: FilterSelection) => {
-    onChange({ filter: next, categoryFilter, visitLogFilter });
-  };
   const setCategoryAndNotify = (next: CategoryKey | null) => {
     onChange({ filter, categoryFilter: next, visitLogFilter });
   };
@@ -222,16 +222,39 @@ export default function FilterModal({
 
         {/* 本体（スクロール） */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
-          {/* ── 地区 ── */}
-          <section>
-            <h3 className="text-xs font-bold text-[var(--color-subtext)] mb-2">地区</h3>
-            <DistrictFilter
-              selection={filter}
-              onChange={setFilterAndNotify}
-              members={members}
-              alwaysOpen
-            />
-          </section>
+          {/* ── 表示する人 (いける人 / いけない人 / スキップ) ──
+              2026-06-09 ヒデさん指示で トップの 3 タブを ここに移設。
+              代わりに 地区フィルター(すべて/ヤング/男子部) を トップに常時表示。 */}
+          {onTabChange && (
+            <section>
+              <h3 className="text-xs font-bold text-[var(--color-subtext)] mb-2">表示する人</h3>
+              <div className="flex gap-1 bg-[#F2F2F7] rounded-full p-1">
+                {([
+                  { key: 'go' as const,   label: 'いける人',  n: tabCounts?.go ?? 0 },
+                  { key: 'no' as const,   label: 'いけない人', n: tabCounts?.no ?? 0 },
+                  { key: 'skip' as const, label: 'スキップ',  n: tabCounts?.skip ?? 0 },
+                ]).map((t) => {
+                  const active = tab === t.key;
+                  return (
+                    <button
+                      key={t.key}
+                      onClick={() => onTabChange(t.key)}
+                      className={`flex-1 py-1.5 rounded-full flex items-center justify-center gap-1 transition-colors ${
+                        active ? 'bg-white shadow-sm' : ''
+                      }`}
+                    >
+                      <span className={`text-[12px] font-bold ${active ? 'text-[#111]' : 'text-[var(--color-subtext)]'}`}>
+                        {t.label}
+                      </span>
+                      <span className={`text-[10px] font-bold rounded-full px-1.5 py-0.5 ${
+                        active ? 'bg-[#111] text-white' : 'bg-black/10 text-[#666]'
+                      }`}>{t.n}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           {/* ── カテゴリ (すべて / 訪問済み / 未訪問) ── */}
           <section>
