@@ -109,6 +109,8 @@ const VISIT_TOOL: Anthropic.Tool = {
 // のような "後から確認しづらい事実項目" は特に念押しする。
 const MEMBER_PROPS: Record<string, unknown> = {
   category: { type: 'string', enum: ['general', 'young'], description: '一般=general、ヤング(青年部/ヤング世代)=young。言及が無ければ入れない' },
+  age: { type: 'integer', minimum: 0, maximum: 120, description: '年齢。「38歳」のように具体的な数字が言われた時だけ入れる' },
+  ageRange: { type: 'string', description: '「30代」「20代後半」のように年代でしか言われていない場合はここに原文のまま入れる。具体的な年齢が言われているなら空にする' },
   honbu: { type: 'string', description: '本部名。下の一覧の表記に正規化する' },
   bu: { type: 'string', description: '部・支部名。下の一覧の表記に正規化する' },
   district: { type: 'string', description: '地区名。下の一覧の表記に正規化する' },
@@ -121,8 +123,7 @@ const MEMBER_PROPS: Record<string, unknown> = {
   family: { type: 'string', description: '同居している家族。例「親」' },
   educationLevel: { type: 'string', description: '教学の級。1級/2級/3級/任用試験 のいずれか' },
   workplace: { type: 'string', description: '職場・勤務先' },
-  notes: { type: 'string', description: '一言で済む短い備考。訪問時の注意など' },
-  info: { type: 'string', description: '人物像・家族構成・活動状況などの詳しいメモ。複数行可' },
+  info: { type: 'string', description: 'その人についての一般的な情報。人物像・家族構成・仕事・活動状況など、いつ訪問しても変わらない性質の話をここに入れる' },
 };
 
 const VISIT_PROPS: Record<string, unknown> = {
@@ -138,7 +139,7 @@ const VISIT_PROPS: Record<string, unknown> = {
     items: { type: 'string', enum: ['father', 'mother', 'wife', 'son', 'sibling'] },
     description: '本人以外で対応してくれた人。父=father 母=mother 妻=wife 息子=son 兄弟姉妹=sibling',
   },
-  memo: { type: 'string', description: '訪問メモ本文。ですます調に整えて、段落は改行で区切る。事実は足さない' },
+  memo: { type: 'string', description: '今回の訪問での出来事・様子・話した内容。ですます調に整えて、段落は改行で区切る。事実は足さない' },
 };
 
 const AUTO_TOOL: Anthropic.Tool = {
@@ -197,11 +198,21 @@ ${orgOptionsText()}
 - 「誰の話か」を person に入れる。名字だけ、下の名前だけの時は分かる方だけ。
 - 訪問の出来事 (行った/会えた/留守だった/断られた 等) が語られていれば hasVisit=true。
   人の紹介や名簿情報を伝えているだけなら hasVisit=false。
-- その人の属性 (組織・住所・職場・人物像など) は member に入れる。
-- その訪問での出来事・話した内容は visit.memo に入れる。
 - 「ヤング」「青年部」「男子部」等の言及があれば member.category=young。
-- 人物像・エピソード・家族構成・活動状況のような長めの話は member.info に、
-  「次回は夕方以降が良い」のような一言メモは member.notes に入れる。`;
+
+# 「情報」と「メモ」の振り分け (ヒデさん指示)
+自由な文章は 必ず この 2 つのどちらかに入れる。両方に同じ話を重複させない。
+- member.info (情報) … その人についての一般的な情報。
+    いつ訪問しても当てはまる性質のもの。
+    例) 人物像・見た目・性格 / 家族構成 / 仕事や勤務先 / 学会活動の状況 /
+        普段の生活リズム / 連絡の付きやすさ
+- visit.memo (メモ) … 今回の訪問に紐づく話。
+    その日その時に起きたこと。
+    例) 誰が出てきたか / どんな様子だったか / 何を話したか /
+        次はいつ来てほしいと言われたか / 渡したもの・預かったもの
+
+迷ったら「来月また訪問した時にも同じことが言えるか?」で判断する。
+言えるなら情報、その日限りの話ならメモ。`;
   }
 
   if (mode === 'member') {

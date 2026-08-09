@@ -32,7 +32,7 @@ import type { Member, Respondent, VisitStatus } from '../../lib/types';
 import { createMember, createVisit, updateVisit, updateMember, getMembers } from '../../lib/storage';
 import { supabase, isMockMode } from '../../lib/supabase';
 import { VISIT_STATUS_CONFIG, RESPONDENT_CONFIG } from '../../lib/constants';
-import { today as todayStr, formatOrgLabel } from '../../lib/utils';
+import { today as todayStr, formatOrgLabel, resolveAge } from '../../lib/utils';
 import { tapHaptic } from '../../lib/haptics';
 import { useSwipeBack } from '../../lib/useSwipeBack';
 
@@ -80,8 +80,14 @@ const MEMBER_PROPS: Record<string, keyof Member> = {
   workplace: 'workplace', notes: 'notes', info: 'info',
 };
 
-// 自由記述なので「食い違い」ではなく「追記」として扱う項目
+// 自由記述。上書きせず「今までの内容の後ろに追記」する項目 (ヒデさん指示 2026-08-09:
+// 「すでに書いている情報はメモっている情報なので、それをエラー判定としない」)
 const APPENDABLE = new Set(['notes', 'info']);
+
+// 「正解が 1 つに決まる」項目。ここが登録内容と食い違う時だけ 要確認 (赤) にする。
+// 引っ越し・転職・役職変更のように "変わるのが普通" の項目は 要確認にはせず、
+// 穏やかに「更新しますか?」と聞くだけにする。
+const FACTUAL = new Set(['honbu', 'bu', 'district', 'category', 'birthday', 'enrollmentDate', 'educationLevel']);
 
 const normalize = (s: string) => s.replace(/[\s　]/g, '');
 
@@ -89,13 +95,19 @@ const showValue = (field: string, v: unknown): string =>
   field === 'category' ? (v === 'young' ? 'ヤング' : '一般') : String(v ?? '');
 
 /**
- * 既存メンバーの登録内容と、喋られた内容の食い違い (2026-08-09 ヒデさん指示)。
- *   add      … 登録が空 → 追加できる (既定 ON)
- *   conflict … 登録と違うことを言っている → 上書きになるので既定 OFF + 警告
- *   append   … 備考/情報。既存の文章に追記する形 (既定 OFF)
- *   same     … 一致。行としては出さず、件数だけ知らせる
+ * 既存メンバーの登録内容と、喋られた内容の突き合わせ (2026-08-09 ヒデさん指示)。
+ *
+ *   check   … 正解が 1 つの項目 (本部・地区・生年月日 等) が食い違っている。
+ *             「どっちが正しい?」の確認。上書きは既定 OFF。
+ *   age     … 年齢の食い違い。確認だけで、更新はしない (生年月日から計算される
+ *             ことがあるので勝手に触ると壊れる)
+ *   update  … 住所・電話・職場など "変わるのが普通" の項目。既定 OFF で
+ *             「変わったなら更新しますか?」と穏やかに聞く
+ *   append  … 備考・情報。今までの内容を消さず 後ろに追記する。既定 ON
+ *   add     … 登録が空 → 追加できる。既定 ON
+ *   same    … 一致。行としては出さず、件数だけ知らせる
  */
-type DiffKind = 'add' | 'conflict' | 'append' | 'same';
+type DiffKind = 'check' | 'age' | 'update' | 'append' | 'add' | 'same';
 interface Diff {
   field: string;
   label: string;
@@ -106,9 +118,18 @@ interface Diff {
   nextValue: string;
 }
 
+/** 「30代」のような年代表現が、登録されている年齢と噛み合っているか */
+function ageMatchesRange(age: number, range: string): boolean {
+  const m = range.match(/(\d+)\s*代/);
+  if (!m) return true; // 判定できない表現は食い違い扱いにしない
+  const decade = parseInt(m[1], 10);
+  return age >= decade && age < decade + 10;
+}
+
 function computeDiffs(member: Member | null, spokenMember: Record<string, unknown> | undefined): Diff[] {
   if (!member || !spokenMember) return [];
   const out: Diff[] = [];
+
   for (const [field, label] of Object.entries(MEMBER_LABELS)) {
     const raw = spokenMember[field];
     if (raw === undefined || raw === null || raw === '') continue;
@@ -122,10 +143,31 @@ function computeDiffs(member: Member | null, spokenMember: Record<string, unknow
       out.push({ field, label, kind: 'same', spoken, stored, nextValue: String(raw) });
     } else if (APPENDABLE.has(field)) {
       out.push({ field, label, kind: 'append', spoken, stored, nextValue: `${stored}\n${String(raw)}` });
+    } else if (FACTUAL.has(field)) {
+      out.push({ field, label, kind: 'check', spoken, stored, nextValue: String(raw) });
     } else {
-      out.push({ field, label, kind: 'conflict', spoken, stored, nextValue: String(raw) });
+      out.push({ field, label, kind: 'update', spoken, stored, nextValue: String(raw) });
     }
   }
+
+  // 年齢の突き合わせ。生年月日から計算される値なので、確認だけして更新はしない。
+  const storedAge = resolveAge(member);
+  if (storedAge != null) {
+    const spokenAge = typeof spokenMember.age === 'number' ? spokenMember.age : null;
+    const spokenRange = typeof spokenMember.ageRange === 'string' ? spokenMember.ageRange.trim() : '';
+    if (spokenAge != null && Math.abs(spokenAge - storedAge) >= 2) {
+      out.push({
+        field: '__age', label: '年齢', kind: 'age',
+        spoken: `${spokenAge}歳`, stored: `${storedAge}歳`, nextValue: '',
+      });
+    } else if (spokenRange && !ageMatchesRange(storedAge, spokenRange)) {
+      out.push({
+        field: '__age', label: '年齢', kind: 'age',
+        spoken: spokenRange, stored: `${storedAge}歳`, nextValue: '',
+      });
+    }
+  }
+
   return out;
 }
 
@@ -164,6 +206,11 @@ export default function QuickClient() {
   const [visitDateWasSpoken, setVisitDateWasSpoken] = useState(false);
   const [visitStatus, setVisitStatus] = useState<VisitStatus>('met_self');
   const [visitStatusWasSpoken, setVisitStatusWasSpoken] = useState(false);
+  /** 対応者。AI の抽出値を初期値にして、画面で自由に足し引きできる */
+  const [visitRespondents, setVisitRespondents] = useState<Respondent[]>([]);
+  /** 振り分けきれなかった内容をどこに入れるか (ヒデさん指示 2026-08-09)。
+   *  基本はメモ。訪問の話が無い時は情報を既定にする。 */
+  const [leftoverTarget, setLeftoverTarget] = useState<'memo' | 'info' | 'none'>('memo');
   const [saving, setSaving] = useState(false);
 
   // 起動時にメンバー一覧を先読み (名前の照合に使う)
@@ -194,8 +241,9 @@ export default function QuickClient() {
   );
   const [diffChecked, setDiffChecked] = useState<Record<string, boolean>>({});
   useEffect(() => {
-    // 空欄への追加だけ既定 ON。上書き (conflict) と追記 (append) は既定 OFF。
-    setDiffChecked(Object.fromEntries(diffs.map(d => [d.field, d.kind === 'add'])));
+    // 追加 (add) と 追記 (append) は既定 ON — 今までの情報を消さないので安全。
+    // 上書きになる 要確認 (check) / 更新提案 (update) は既定 OFF。
+    setDiffChecked(Object.fromEntries(diffs.map(d => [d.field, d.kind === 'add' || d.kind === 'append'])));
   }, [diffs]);
 
   // 新規登録しようとしている時、似た名前の既存メンバーが居ないか。
@@ -280,15 +328,13 @@ export default function QuickClient() {
     if (typeof hour === 'number' && hour >= 0 && hour <= 23) {
       vRows.push({ key: 'v_hour', label: '時刻', display: `${hour}時`, value: hour });
     }
-    const resp = Array.isArray(data.visit?.respondents)
-      ? (data.visit.respondents as string[]).filter((r): r is Respondent => r in RESPONDENT_CONFIG)
-      : [];
-    if (resp.length > 0) {
-      vRows.push({
-        key: 'v_respondents', label: '対応者',
-        display: resp.map(r => RESPONDENT_CONFIG[r].label).join('・'), value: resp,
-      });
-    }
+    // 対応者は「AI が挙げた分を初期選択」にして、画面上で足し引きできるようにする
+    // (ヒデさん指示 2026-08-09: 対応者も複数選択できるように)
+    setVisitRespondents(
+      Array.isArray(data.visit?.respondents)
+        ? (data.visit.respondents as string[]).filter((r): r is Respondent => r in RESPONDENT_CONFIG)
+        : [],
+    );
     const memo = typeof data.visit?.memo === 'string' ? data.visit.memo.trim() : '';
     if (memo) vRows.push({ key: 'v_memo', label: 'メモ', display: memo, value: memo });
     setVisitRows(vRows);
@@ -303,6 +349,7 @@ export default function QuickClient() {
     setVisitStatus(spokenStatus ?? 'met_self');
     setVisitStatusWasSpoken(!!spokenStatus);
 
+    setLeftoverTarget(data.hasVisit ? 'memo' : 'info');
     setChecked(Object.fromEntries([...mRows, ...vRows].map(r => [r.key, true])));
     setPhase('confirm');
   };
@@ -323,6 +370,10 @@ export default function QuickClient() {
     setError(null);
     try {
       let memberId: string;
+      // 振り分けきれなかった内容の行き先 (ヒデさん指示 2026-08-09)
+      const leftoverText = result?.leftover ?? '';
+      const leftoverToInfo = leftoverText && leftoverTarget === 'info' ? leftoverText : '';
+      const leftoverToMemo = leftoverText && leftoverTarget === 'memo' ? leftoverText : '';
 
       if (isNewMember) {
         const input: Record<string, unknown> = { name: nameFromRows(), district: '' };
@@ -332,6 +383,9 @@ export default function QuickClient() {
           if (!checked[row.key] || !row.key.startsWith('m_')) continue;
           const col = MEMBER_COLUMNS[row.key.slice(2)];
           if (col) input[col] = row.value;
+        }
+        if (leftoverToInfo) {
+          input.info = [input.info, leftoverToInfo].filter(Boolean).join('\n');
         }
         const created = await createMember(input as Parameters<typeof createMember>[0]);
         memberId = created.id;
@@ -344,10 +398,11 @@ export default function QuickClient() {
         const updates: Record<string, unknown> = {};
         const hour = visitRows.find(r => r.key === 'v_hour' && checked.v_hour)?.value;
         if (typeof hour === 'number') updates.visited_hour = hour;
-        const resp = visitRows.find(r => r.key === 'v_respondents' && checked.v_respondents)?.value;
-        if (Array.isArray(resp) && resp.length > 0) updates.respondents = resp;
-        const memo = visitRows.find(r => r.key === 'v_memo' && checked.v_memo)?.value;
-        if (typeof memo === 'string') updates.notes = plainTextToTiptap(memo);
+        if (visitRespondents.length > 0) updates.respondents = visitRespondents;
+        const memoRow = visitRows.find(r => r.key === 'v_memo' && checked.v_memo)?.value;
+        const memo = [typeof memoRow === 'string' ? memoRow : '', leftoverToMemo]
+          .filter(Boolean).join('\n');
+        if (memo) updates.notes = plainTextToTiptap(memo);
         if (Object.keys(updates).length > 0) await updateVisit(visit.id, updates);
       }
 
@@ -360,6 +415,12 @@ export default function QuickClient() {
           if (d.kind === 'same' || !diffChecked[d.field]) continue;
           const col = MEMBER_COLUMNS[d.field];
           if (col) patch[col] = d.nextValue;
+        }
+        // 振り分けきれなかった内容を「情報」に回した場合もここで反映する。
+        // 既に info の追記 diff が入っていれば その後ろに足す。
+        if (leftoverToInfo) {
+          const base = typeof patch.info === 'string' ? patch.info : (targetMember.info ?? '');
+          patch.info = [base, leftoverToInfo].filter(Boolean).join('\n');
         }
         if (Object.keys(patch).length > 0) {
           try {
@@ -391,7 +452,9 @@ export default function QuickClient() {
   const toggle = (key: string) => setChecked(c => ({ ...c, [key]: !c[key] }));
 
   // 突き合わせ結果を種類ごとに分けて表示する
-  const conflictDiffs = diffs.filter(d => d.kind === 'conflict' || d.kind === 'append');
+  const checkDiffs = diffs.filter(d => d.kind === 'check' || d.kind === 'age');
+  const updateDiffs = diffs.filter(d => d.kind === 'update');
+  const appendDiffs = diffs.filter(d => d.kind === 'append');
   const addDiffs = diffs.filter(d => d.kind === 'add');
   const sameDiffs = diffs.filter(d => d.kind === 'same');
 
@@ -418,7 +481,12 @@ export default function QuickClient() {
 
   return (
     <div className="bg-[var(--color-bg)] min-h-full">
-      <nav className="ios-nav flex items-center px-4 py-3 gap-2 sticky top-0 z-20 bg-[var(--color-bg)]">
+      {/* .ios-nav が background:transparent を持っていて Tailwind の bg-* が効かないので、
+          スクロール時に本文が透けないよう inline style で背景を指定する。 */}
+      <nav
+        className="ios-nav flex items-center px-4 py-3 gap-2 sticky top-0 z-20"
+        style={{ background: 'var(--color-bg)' }}
+      >
         {phase === 'confirm' ? (
           <button
             onClick={() => { tapHaptic(); setPhase('input'); }}
@@ -596,35 +664,109 @@ export default function QuickClient() {
                     この人の記録として登録します。違う人なら「変更」から選び直してください。
                   </p>
 
-                  {/* 登録済みの内容との突き合わせ結果 */}
-                  {conflictDiffs.length > 0 && (
+                  {/* ── 突き合わせ結果 ──
+                      ヒデさん指示 2026-08-09: 既に書いてある内容は「エラー」ではない。
+                      赤く出すのは 本部や生年月日のように 正解が 1 つしかない項目が
+                      食い違っている時だけ。それ以外は「追記しますか?」「更新しますか?」
+                      と穏やかに促すだけにする。 */}
+
+                  {/* 要確認: 正解が 1 つの項目の食い違い + 年齢 */}
+                  {checkDiffs.length > 0 && (
                     <div className="mt-3 rounded-xl border border-[#FECACA] bg-[#FFF1F1] overflow-hidden">
                       <div className="flex items-center gap-1.5 px-3 py-2 border-b border-[#FECACA]">
                         <AlertTriangle size={14} className="text-[#DC2626] shrink-0" />
                         <span className="text-[12px] font-bold text-[#DC2626]">
-                          登録内容と違うことを言っています（{conflictDiffs.length}件）
+                          確認してください（{checkDiffs.length}件）
                         </span>
                       </div>
                       <ul className="divide-y divide-[#FECACA]">
-                        {conflictDiffs.map(d => (
+                        {checkDiffs.map(d => (
                           <li key={d.field} className="px-3 py-2.5">
                             <p className="text-[11px] text-[var(--color-subtext)] mb-1">{d.label}</p>
                             <p className="text-[13px]">
-                              <span className="line-through text-[var(--color-subtext)]">{d.stored}</span>
-                              <span className="mx-1.5 text-[var(--color-subtext)]">→</span>
-                              <span className="font-bold text-[#DC2626]">{d.spoken}</span>
+                              <span className="text-[var(--color-subtext)]">登録: {d.stored}</span>
+                              <span className="mx-1.5 text-[var(--color-subtext)]">／</span>
+                              <span className="font-bold text-[#DC2626]">今回: {d.spoken}</span>
+                            </p>
+                            {d.kind === 'age' ? (
+                              <p className="text-[10px] text-[var(--color-subtext)] mt-1">
+                                年齢は生年月日から計算しています。直す時はメンバーカードで生年月日を確認してください。
+                              </p>
+                            ) : (
+                              <label className="flex items-center gap-2 mt-1.5 cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={!!diffChecked[d.field]}
+                                  onChange={() => setDiffChecked(c => ({ ...c, [d.field]: !c[d.field] }))}
+                                  className="w-4 h-4 accent-[#DC2626]"
+                                />
+                                <span className="text-[11px]">今回の内容に直す</span>
+                              </label>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* 更新提案: 引っ越し・転職など「変わるのが普通」の項目 */}
+                  {updateDiffs.length > 0 && (
+                    <div className="mt-2 rounded-xl border border-[#FED7AA] bg-[#FFF7ED] overflow-hidden">
+                      <div className="px-3 py-2 border-b border-[#FED7AA]">
+                        <span className="text-[12px] font-bold text-[#C2410C]">
+                          変わったかもしれない項目（{updateDiffs.length}件）
+                        </span>
+                      </div>
+                      <ul className="divide-y divide-[#FED7AA]">
+                        {updateDiffs.map(d => (
+                          <li key={d.field} className="px-3 py-2.5">
+                            <p className="text-[11px] text-[var(--color-subtext)] mb-1">{d.label}</p>
+                            <p className="text-[13px]">
+                              <span className="text-[var(--color-subtext)]">登録: {d.stored}</span>
+                              <span className="mx-1.5 text-[var(--color-subtext)]">／</span>
+                              <span className="font-bold">今回: {d.spoken}</span>
                             </p>
                             <label className="flex items-center gap-2 mt-1.5 cursor-pointer">
                               <input
                                 type="checkbox"
                                 checked={!!diffChecked[d.field]}
                                 onChange={() => setDiffChecked(c => ({ ...c, [d.field]: !c[d.field] }))}
-                                className="w-4 h-4 accent-[#DC2626]"
+                                className="w-4 h-4 accent-[#C2410C]"
                               />
-                              <span className="text-[11px]">
-                                {d.kind === 'append' ? '登録内容の後ろに追記する' : '喋った内容で上書きする'}
+                              <span className="text-[11px]">今回の内容に更新する</span>
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* 追記: 備考・情報。今までの内容は消さない */}
+                  {appendDiffs.length > 0 && (
+                    <div className="mt-2 rounded-xl border border-[#D6E4FF] bg-[#F5F8FF] overflow-hidden">
+                      <div className="px-3 py-2 border-b border-[#D6E4FF]">
+                        <span className="text-[12px] font-bold text-[var(--color-primary)]">
+                          今までの内容に追記します（{appendDiffs.length}件）
+                        </span>
+                      </div>
+                      <ul className="divide-y divide-[#D6E4FF]">
+                        {appendDiffs.map(d => (
+                          <li key={d.field} className="px-3 py-2.5">
+                            <label className="flex items-start gap-2.5 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={!!diffChecked[d.field]}
+                                onChange={() => setDiffChecked(c => ({ ...c, [d.field]: !c[d.field] }))}
+                                className="w-4 h-4 mt-0.5 shrink-0 accent-[#6366F1]"
+                              />
+                              <span className="flex-1 min-w-0">
+                                <span className="block text-[11px] text-[var(--color-subtext)]">{d.label}に追記</span>
+                                <span className="block text-[13px] whitespace-pre-wrap break-words">{d.spoken}</span>
                               </span>
                             </label>
+                            <p className="text-[10px] text-[var(--color-subtext)] mt-1.5 pl-6">
+                              今まで書いてある内容はそのまま残ります
+                            </p>
                           </li>
                         ))}
                       </ul>
@@ -705,21 +847,67 @@ export default function QuickClient() {
                   </div>
                 </div>
 
+                {/* 対応者: AI の抽出を初期値にして 自由に足し引きできる複数選択 */}
+                <div className="py-3 border-b border-[#F0F0F0]">
+                  <label className="block text-[11px] text-[var(--color-subtext)] mb-1.5">
+                    対応者（複数選べます）
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {(Object.entries(RESPONDENT_CONFIG) as [Respondent, { label: string }][]).map(([key, cfg]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => {
+                          tapHaptic();
+                          setVisitRespondents(prev => prev.includes(key)
+                            ? prev.filter(r => r !== key)
+                            : [...prev, key]);
+                        }}
+                        aria-pressed={visitRespondents.includes(key)}
+                        className={`chip ${visitRespondents.includes(key) ? 'selected' : ''}`}
+                      >
+                        {cfg.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {visitRows.length > 0
                   ? <RowList rows={visitRows} />
                   : <p className="text-[12px] text-[var(--color-subtext)] py-3">他に読み取れた項目はありません</p>}
               </div>
             )}
 
-            {/* ── 振り分けきれなかった内容 ── */}
+            {/* ── 振り分けきれなかった内容 ──
+                ヒデさん指示 2026-08-09: 捨てずに、好きなところへ入れられるようにする。
+                基本はメモ (その訪問の話)、その人の一般的な話なら情報。 */}
             {result.leftover && (
-              <div className="bg-[#F7F7F8] rounded-2xl px-4 py-3">
-                <p className="text-[11px] font-bold text-[var(--color-subtext)] mb-1">
-                  どの項目にも入らなかった内容
+              <div className="ios-card px-4 py-3">
+                <p className="text-[13px] font-bold mb-1">どの項目にも入らなかった内容</p>
+                <p className="text-[12px] whitespace-pre-wrap bg-[#F7F7F8] rounded-lg px-3 py-2 mt-1.5">
+                  {result.leftover}
                 </p>
-                <p className="text-[12px] whitespace-pre-wrap">{result.leftover}</p>
-                <p className="text-[10px] text-[var(--color-subtext)] mt-1.5">
-                  ※ この内容は登録されません。必要なら登録後にメンバーカードで足してください。
+                <p className="text-[11px] text-[var(--color-subtext)] mt-2.5 mb-1.5">どこに入れますか？</p>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { key: 'memo' as const, label: '訪問メモに入れる', disabled: !result.hasVisit },
+                    { key: 'info' as const, label: 'メンバー情報に入れる', disabled: false },
+                    { key: 'none' as const, label: '入れない', disabled: false },
+                  ]).map(opt => (
+                    <button
+                      key={opt.key}
+                      type="button"
+                      disabled={opt.disabled}
+                      onClick={() => { tapHaptic(); setLeftoverTarget(opt.key); }}
+                      aria-pressed={leftoverTarget === opt.key}
+                      className={`chip ${leftoverTarget === opt.key ? 'selected' : ''} disabled:opacity-30`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-[var(--color-subtext)] mt-2">
+                  メモ＝今回の訪問での出来事／情報＝その人についての一般的なこと
                 </p>
               </div>
             )}
@@ -818,12 +1006,17 @@ export default function QuickClient() {
 const MOCK_RESULT: AutoResult = {
   hasVisit: true,
   person: { sei: '山田', mei: '太郎' },
-  member: { honbu: '豊岡本部', bu: '豊岡部', district: '英雄地区' },
+  member: {
+    honbu: '豊岡本部', bu: '豊岡部', district: '英雄地区',
+    ageRange: '30代',
+    workplace: 'ユニクロ永山店',
+    info: 'お母さんと二人暮らしで、日中は仕事に出ています。',
+  },
   visit: {
     visitedHour: 17,
     status: 'met_family',
     respondents: ['mother'],
     memo: '本人は不在で、お母さんが対応してくださいました。\n最近は仕事が忙しいそうです。\n次回は日曜の昼にお願いしたいとのことでした。',
   },
-  leftover: '',
+  leftover: '家の前が停めにくいので、次は近くのコインパーキングに停めた方が良さそうです。',
 };
