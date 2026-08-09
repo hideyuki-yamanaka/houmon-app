@@ -107,10 +107,6 @@ interface MapViewProps {
    *  ボトムシート内の「ピン編集」アイコン → 親が制御する props 経由 に切替。 */
   editingMemberId?: string | null;
   onEditingMemberIdChange?: (id: string | null) => void;
-  /** 地図の中心が動くたびに通知 (2026-08-09)。
-   *  ホームの「+ 新規メンバー」ボタンが、押した瞬間の地図中心を
-   *  新規登録フォームに引き渡すために使う。 */
-  onCenterChange?: (lat: number, lng: number) => void;
   /** 何もない場所を長押しした時 (2026-08-09)。
    *  ヒデさん指示で「地図を長押し → その場所で新規メンバー登録」を復活。
    *  (2026-05-07 に廃止した長押し=ピン編集 とは別用途) */
@@ -583,22 +579,6 @@ function MapClickHandler({ onClick }: { onClick?: () => void }) {
   return null;
 }
 
-// ── 地図中心の変化を通知 ──
-function MapCenterReporter({ onChange }: { onChange?: (lat: number, lng: number) => void }) {
-  const map = useMap();
-  useEffect(() => {
-    if (!onChange) return;
-    const report = () => {
-      const c = map.getCenter();
-      onChange(c.lat, c.lng);
-    };
-    report(); // 初期値も一度流す
-    map.on('moveend', report);
-    return () => { map.off('moveend', report); };
-  }, [map, onChange]);
-  return null;
-}
-
 // ── 長押し検知 (2026-08-09) ──
 // Leaflet の 'contextmenu' は iOS Safari だと発火が不安定なので、
 // タッチ/マウスイベントから自前で判定する。
@@ -725,7 +705,6 @@ export default function MapView({
   layerMode = 'standard',
   editingMemberId: editingMemberIdProp = null,
   onEditingMemberIdChange,
-  onCenterChange,
   onLongPress,
   tempPin = null,
 }: MapViewProps) {
@@ -1084,7 +1063,6 @@ export default function MapView({
         }}
       />
       <SmoothZoomHandler />
-      <MapCenterReporter onChange={onCenterChange} />
       {/* ピン編集モード中は長押しを無効化 (ピンのドラッグ操作と競合するため) */}
       <LongPressHandler onLongPress={editingMemberId ? undefined : onLongPress} />
       <LocationController onLocate={(lat, lng) => setCurrentLocation({ lat, lng })} />

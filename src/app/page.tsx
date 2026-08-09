@@ -94,14 +94,10 @@ export default function HomePage() {
   }, []);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // ── メンバー新規登録の動線 (2026-08-09 ヒデさん指示) ──
-  //   + ボタン : 今見えてる地図の中心座標を持って登録フォームへ
-  //   長押し   : その地点に仮ピンを立てて、確認バーから登録フォームへ
+  // ── 新規登録の動線 (2026-08-09 ヒデさん指示) ──
+  //   + ボタン : AI おまかせ記録の画面 (/quick) へ。座標は渡さない
+  //   長押し   : その地点に仮ピンを立てて、確認バーからメンバー登録フォームへ
   const router = useRouter();
-  const mapCenterRef = useRef<{ lat: number; lng: number } | null>(null);
-  const handleCenterChange = useCallback((lat: number, lng: number) => {
-    mapCenterRef.current = { lat, lng };
-  }, []);
   const [newPin, setNewPin] = useState<{ lat: number; lng: number; address?: string } | null>(null);
   const handleLongPress = useCallback((lat: number, lng: number) => {
     tapHaptic();
@@ -120,18 +116,23 @@ export default function HomePage() {
       })
       .catch(() => { /* 住所は任意なので黙って諦める */ });
   }, []);
-  const gotoNewMember = useCallback((coords?: { lat: number; lng: number; address?: string }) => {
+  // 長押しで指定した地点からメンバー登録フォームへ。
+  // 座標と逆引き住所を渡すのは「ここ」と明示的に指した長押しの時だけ。
+  // (2026-08-09 ヒデさん指示: 言っていない住所を勝手に入れられると困る。
+  //  地図の中心はユーザーが指定したわけではないので + ボタンでは渡さない)
+  const gotoNewMemberAt = useCallback((coords: { lat: number; lng: number; address?: string }) => {
     tapHaptic();
     const params = new URLSearchParams();
-    const c: { lat: number; lng: number; address?: string } | null =
-      coords ?? mapCenterRef.current;
-    if (c) {
-      params.set('lat', c.lat.toFixed(6));
-      params.set('lng', c.lng.toFixed(6));
-      if (c.address) params.set('address', c.address);
-    }
-    const qs = params.toString();
-    router.push(`/members/new${qs ? `?${qs}` : ''}`);
+    params.set('lat', coords.lat.toFixed(6));
+    params.set('lng', coords.lng.toFixed(6));
+    if (coords.address) params.set('address', coords.address);
+    router.push(`/members/new?${params.toString()}`);
+  }, [router]);
+
+  // + ボタン → AI おまかせ記録の画面。ここから メンバー登録 / 訪問ログ にも行ける。
+  const gotoQuick = useCallback(() => {
+    tapHaptic();
+    router.push('/quick');
   }, [router]);
 
   // マップのレイヤーモード（通常 ⇄ 航空写真）。セッション中のみ保持（永続化なし）
@@ -189,6 +190,15 @@ export default function HomePage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  // 復元した selectedId が「もう居ないメンバー」を指していたら解除する。
+  // (別端末で削除された / データが入れ替わった 等)。これを放置すると
+  // メンバーシートは空、一覧シートは selectedId のせいで非表示、という
+  // 「地図しか出ない」状態になり、+ ボタンにも触れなくなる。
+  useEffect(() => {
+    if (loading || !selectedId) return;
+    if (!members.some(m => m.id === selectedId)) setSelectedId(null);
+  }, [loading, members, selectedId]);
 
   // ─── iPhone / iPad シームレス同期: Supabase Realtime 購読 ───
   // visits / members どちらかが変わったら debounce 付きで全件再フェッチ。
@@ -264,8 +274,8 @@ export default function HomePage() {
     <div className="flex flex-col items-end gap-2">
       {/* + メンバー新規登録 (2026-08-09)。押した時点の地図中心を引き継ぐ。 */}
       <button
-        onClick={() => gotoNewMember()}
-        aria-label="メンバーを新規登録"
+        onClick={gotoQuick}
+        aria-label="AIにおまかせ記録・新規登録"
         className="w-12 h-12 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center shadow-[0_3px_10px_rgba(0,0,0,0.28)] active:scale-95 transition-transform"
       >
         <Plus size={26} strokeWidth={2.4} />
@@ -279,7 +289,7 @@ export default function HomePage() {
         <LocateFixed size={22} strokeWidth={2} className={locating ? 'animate-spin' : ''} />
       </button>
     </div>
-  ), [handleLocate, locating, gotoNewMember]);
+  ), [handleLocate, locating, gotoQuick]);
 
   // フィルター3点（地区 / カテゴリ / 訪問ログ）を適用したメンバー (タブ判定の前)。
   // タブ件数バッジは これを土台に「いける/いけない/スキップ」の分布を出す。
@@ -345,7 +355,6 @@ export default function HomePage() {
           layerMode={layerMode}
           editingMemberId={editingPinMemberId}
           onEditingMemberIdChange={setEditingPinMemberId}
-          onCenterChange={handleCenterChange}
           onLongPress={handleLongPress}
           tempPin={newPin}
         />
@@ -485,7 +494,7 @@ export default function HomePage() {
               </button>
               <button
                 type="button"
-                onClick={() => gotoNewMember(newPin)}
+                onClick={() => gotoNewMemberAt(newPin)}
                 className="flex-[1.4] py-2.5 rounded-xl bg-[var(--color-primary)] text-white text-[13px] font-bold active:opacity-80 flex items-center justify-center gap-1.5"
               >
                 <UserPlus size={16} />

@@ -25,7 +25,7 @@ import { ORG_TREE } from '../../../lib/constants';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-type Mode = 'member' | 'visit';
+type Mode = 'member' | 'visit' | 'auto';
 
 interface RequestBody {
   mode?: Mode;
@@ -60,7 +60,7 @@ const MEMBER_TOOL: Anthropic.Tool = {
       honbu: { type: 'string', description: '本部名。下の一覧の表記に正規化する' },
       bu: { type: 'string', description: '部・支部名。下の一覧の表記に正規化する' },
       district: { type: 'string', description: '地区名。下の一覧の表記に正規化する' },
-      address: { type: 'string', description: '住所。「旭川市」が省略されていても補ってよい' },
+      address: { type: 'string', description: '住所。喋られた通りに書く。市区町村名などを補完してはいけない' },
       phone: { type: 'string', description: '自宅の固定電話' },
       mobile: { type: 'string', description: '携帯電話' },
       birthday: { type: 'string', description: '生年月日 YYYY-MM-DD' },
@@ -103,16 +103,106 @@ const VISIT_TOOL: Anthropic.Tool = {
   },
 };
 
+// ── 「言ってないことを勝手に入れる」対策の共通ツール定義 ──
+// ヒデさん指示 2026-08-09:「住所など言っていないことは勝手に推測して入れないで
+// ください。困るので。」 → プロンプトで強く縛ったうえで、住所・電話・生年月日
+// のような "後から確認しづらい事実項目" は特に念押しする。
+const MEMBER_PROPS: Record<string, unknown> = {
+  category: { type: 'string', enum: ['general', 'young'], description: '一般=general、ヤング(青年部/ヤング世代)=young。言及が無ければ入れない' },
+  honbu: { type: 'string', description: '本部名。下の一覧の表記に正規化する' },
+  bu: { type: 'string', description: '部・支部名。下の一覧の表記に正規化する' },
+  district: { type: 'string', description: '地区名。下の一覧の表記に正規化する' },
+  address: { type: 'string', description: '住所。喋られた通りに書く。市区町村名などを補完してはいけない' },
+  phone: { type: 'string', description: '自宅の固定電話' },
+  mobile: { type: 'string', description: '携帯電話' },
+  birthday: { type: 'string', description: '生年月日 YYYY-MM-DD。年が言われていなければ入れない' },
+  enrollmentDate: { type: 'string', description: '入会月日 YYYY-MM-DD。年が言われていなければ入れない' },
+  role: { type: 'string', description: '学会の役職。例「地区リーダー」' },
+  family: { type: 'string', description: '同居している家族。例「親」' },
+  educationLevel: { type: 'string', description: '教学の級。1級/2級/3級/任用試験 のいずれか' },
+  workplace: { type: 'string', description: '職場・勤務先' },
+  notes: { type: 'string', description: '一言で済む短い備考。訪問時の注意など' },
+  info: { type: 'string', description: '人物像・家族構成・活動状況などの詳しいメモ。複数行可' },
+};
+
+const VISIT_PROPS: Record<string, unknown> = {
+  visitedAt: { type: 'string', description: '訪問日 YYYY-MM-DD。「今日」「昨日」「一昨日」等は今日の日付から計算する。日付の言及が無ければ入れない' },
+  visitedHour: { type: 'integer', minimum: 0, maximum: 23, description: '訪問した時刻(0-23の整数)。「夕方」なら17、「昼」なら12 のように丸めてよい。時間の言及が無ければ入れない' },
+  status: {
+    type: 'string',
+    enum: ['met_self', 'met_family', 'absent', 'refused', 'unknown_address', 'moved'],
+    description: '本人に会えた=met_self / 家族に会えた=met_family / 不在=absent / 断られた=refused / 住所が分からない=unknown_address / 転居していた=moved。判断できなければ入れない',
+  },
+  respondents: {
+    type: 'array',
+    items: { type: 'string', enum: ['father', 'mother', 'wife', 'son', 'sibling'] },
+    description: '本人以外で対応してくれた人。父=father 母=mother 妻=wife 息子=son 兄弟姉妹=sibling',
+  },
+  memo: { type: 'string', description: '訪問メモ本文。ですます調に整えて、段落は改行で区切る。事実は足さない' },
+};
+
+const AUTO_TOOL: Anthropic.Tool = {
+  name: 'sort_into_forms',
+  description: '喋った内容を「メンバー情報」と「訪問ログ」に振り分ける',
+  input_schema: {
+    type: 'object',
+    properties: {
+      hasVisit: {
+        type: 'boolean',
+        description: '「訪問した/行った/会えた/留守だった」など、実際の訪問の出来事が語られているなら true。人の紹介だけなら false',
+      },
+      person: {
+        type: 'object',
+        description: '話に出てくる対象者の名前。言われた分だけ入れる',
+        properties: {
+          sei: { type: 'string', description: '名字。例「山田」' },
+          mei: { type: 'string', description: '下の名前。例「太郎」' },
+          kana: { type: 'string', description: '読み仮名(ひらがな)。はっきり言及された時だけ' },
+        },
+      },
+      member: { type: 'object', description: 'メンバーの属性情報。言われた項目だけ入れる', properties: MEMBER_PROPS },
+      visit: { type: 'object', description: '訪問ログの情報。hasVisit=false なら空オブジェクト', properties: VISIT_PROPS },
+      leftover: { type: 'string', description: 'どの項目にも振り分けられなかった内容。無ければ空文字' },
+    },
+    required: ['hasVisit', 'leftover'],
+  },
+};
+
 function buildSystem(mode: Mode, today: string, memberName?: string): string {
   const common = `あなたは家庭訪問アプリの入力アシスタントです。
 ユーザーが音声入力や手打ちで書き殴った日本語の文章を読んで、フォームの項目ごとに振り分けます。
 
-# 絶対に守るルール
-- 書かれていないことを推測で埋めない。分からない項目は値を入れない (キーごと省略する)。
+# 最重要ルール — 言われていないことは絶対に入れない
+- ユーザーが口に出していない情報は、どんなに「ありそう」でも入れてはいけない。
+- 特に 住所・電話番号・生年月日・所属組織(本部/部/地区) は、一言でも言及が
+  無ければ絶対に値を入れない。一般常識や過去の文脈からの補完も禁止。
+- 「旭川市」のような市区町村名すら、言われていなければ足さない。
+  「豊岡3条4丁目」と言われたら "豊岡3条4丁目" とだけ入れる。
+- 迷ったら「入れない」を選ぶ。空欄はユーザーが後から手で足せるが、
+  間違った値が入るのは取り返しがつかない。
+
+# その他のルール
 - 事実を足したり盛ったりしない。言い換えの範囲に留める。
 - 音声入力の誤字 (同音異義語の変換ミスなど) は文脈から自然に直してよい。
 - どの項目にも当てはまらなかった内容は leftover にそのまま残す。捨てない。
 - 今日の日付は ${today} です。相対的な日付表現はこれを基準に計算してください。`;
+
+  if (mode === 'auto') {
+    return `${common}
+
+# 組織の選択肢 (この表記に正規化すること。一覧に無い組織名は入れない)
+${orgOptionsText()}
+
+# 振り分けの考え方
+- 「誰の話か」を person に入れる。名字だけ、下の名前だけの時は分かる方だけ。
+- 訪問の出来事 (行った/会えた/留守だった/断られた 等) が語られていれば hasVisit=true。
+  人の紹介や名簿情報を伝えているだけなら hasVisit=false。
+- その人の属性 (組織・住所・職場・人物像など) は member に入れる。
+- その訪問での出来事・話した内容は visit.memo に入れる。
+- 「ヤング」「青年部」「男子部」等の言及があれば member.category=young。
+- 人物像・エピソード・家族構成・活動状況のような長めの話は member.info に、
+  「次回は夕方以降が良い」のような一言メモは member.notes に入れる。`;
+  }
 
   if (mode === 'member') {
     return `${common}
@@ -177,7 +267,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'リクエストが不正です' }, { status: 400 });
   }
 
-  const mode: Mode = body.mode === 'visit' ? 'visit' : 'member';
+  const mode: Mode = body.mode === 'visit' || body.mode === 'auto' ? body.mode : 'member';
   const text = (body.text ?? '').trim();
   if (!text) {
     return NextResponse.json({ error: '文章が空です' }, { status: 400 });
@@ -189,7 +279,7 @@ export async function POST(req: NextRequest) {
     ? (body.today as string)
     : new Date().toISOString().slice(0, 10);
 
-  const tool = mode === 'member' ? MEMBER_TOOL : VISIT_TOOL;
+  const tool = mode === 'auto' ? AUTO_TOOL : mode === 'member' ? MEMBER_TOOL : VISIT_TOOL;
   const anthropic = new Anthropic({ apiKey });
 
   let input: Record<string, unknown>;
@@ -216,14 +306,29 @@ export async function POST(req: NextRequest) {
   const leftover = typeof input.leftover === 'string' ? input.leftover.trim() : '';
   delete input.leftover;
 
-  // 空文字・空配列は「取れなかった」扱いにして落とす (確認画面に空行が並ぶのを防ぐ)
-  const fields: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(input)) {
-    if (v === null || v === undefined) continue;
-    if (typeof v === 'string' && v.trim() === '') continue;
-    if (Array.isArray(v) && v.length === 0) continue;
-    fields[k] = typeof v === 'string' ? v.trim() : v;
+  // 空文字・空配列・空オブジェクトは「取れなかった」扱いにして落とす。
+  // これをやらないと確認画面に空行が並び、「AI が何か入れた」ように見えてしまう。
+  const clean = (obj: unknown): Record<string, unknown> => {
+    const out: Record<string, unknown> = {};
+    if (!obj || typeof obj !== 'object') return out;
+    for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+      if (v === null || v === undefined) continue;
+      if (typeof v === 'string' && v.trim() === '') continue;
+      if (Array.isArray(v) && v.length === 0) continue;
+      out[k] = typeof v === 'string' ? v.trim() : v;
+    }
+    return out;
+  };
+
+  if (mode === 'auto') {
+    return NextResponse.json({
+      hasVisit: input.hasVisit === true,
+      person: clean(input.person),
+      member: clean(input.member),
+      visit: clean(input.visit),
+      leftover,
+    });
   }
 
-  return NextResponse.json({ fields, leftover });
+  return NextResponse.json({ fields: clean(input), leftover });
 }
