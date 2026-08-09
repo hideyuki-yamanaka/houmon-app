@@ -165,6 +165,21 @@ function orgPart(kind: OrgKind, value: string | null | undefined, inferred: bool
   return t + '(仮)';
 }
 
+/**
+ * 「住所不明」タグの判定 (2026-08-09 ヒデさん指示)。
+ *
+ * 住所テキストが空、または 地図に置く座標が無い人は マップにピンが出ないので
+ * そのままだと 一覧の中で埋もれて 行方不明になる。該当者にはメンバーカードで
+ * 「住所不明」タグを出し、一覧シートのヘッダーから その人達だけに絞り込める
+ * ようにしている。住所が分かった時点で メンバーカードから追記すれば消える。
+ */
+export function hasUnknownAddress(
+  m: { address?: string | null; lat?: number | null; lng?: number | null },
+): boolean {
+  if (!m.address || !m.address.trim()) return true;
+  return m.lat == null || m.lng == null;
+}
+
 export function formatOrgLabel(
   m: {
     honbu?: string | null;

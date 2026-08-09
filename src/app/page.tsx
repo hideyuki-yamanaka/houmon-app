@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
-import { LocateFixed, Search, X, Layers } from 'lucide-react';
+import { LocateFixed, Search, X, Layers, Plus, UserPlus } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import type { MemberWithVisitInfo, Visit } from '../lib/types';
 import { getMembersWithVisitInfo, getAllVisits } from '../lib/storage';
@@ -14,6 +15,7 @@ import SearchHits from '../components/SearchHits';
 import { type FilterSelection, EMPTY_FILTER, migrateFilter } from '../components/DistrictFilter';
 import type { MapLayerMode } from '../components/MapView';
 import type { SheetHandle } from '../components/SwipeableBottomSheet';
+import { tapHaptic } from '../lib/haptics';
 
 const MapView = dynamic(() => import('../components/MapView'), { ssr: false });
 
@@ -77,6 +79,7 @@ export default function HomePage() {
   // ピン位置編集モード: ボトムシート内の Move ボタン押下で立ち上がる。
   // null = 編集中ではない。string = その id のピンが draggable + 確認モーダル待ち。
   const [editingPinMemberId, setEditingPinMemberId] = useState<string | null>(null);
+
   const handleFiltersChange = useCallback((next: AppliedFilters) => {
     setFilter(next.filter);
     setCategoryFilter(next.categoryFilter);
@@ -90,6 +93,47 @@ export default function HomePage() {
     } catch { /* ignore */ }
   }, []);
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // ── メンバー新規登録の動線 (2026-08-09 ヒデさん指示) ──
+  //   + ボタン : 今見えてる地図の中心座標を持って登録フォームへ
+  //   長押し   : その地点に仮ピンを立てて、確認バーから登録フォームへ
+  const router = useRouter();
+  const mapCenterRef = useRef<{ lat: number; lng: number } | null>(null);
+  const handleCenterChange = useCallback((lat: number, lng: number) => {
+    mapCenterRef.current = { lat, lng };
+  }, []);
+  const [newPin, setNewPin] = useState<{ lat: number; lng: number; address?: string } | null>(null);
+  const handleLongPress = useCallback((lat: number, lng: number) => {
+    tapHaptic();
+    setSelectedId(null);
+    setShowSuggestions(false);
+    setNewPin({ lat, lng });
+    // 住所は後追いで逆引きして確認バーに出す (取れなくても登録は進められる)
+    fetch(`/api/geocode-reverse?lat=${lat}&lng=${lng}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d?.found && d.address) {
+          setNewPin(prev => (prev && prev.lat === lat && prev.lng === lng
+            ? { ...prev, address: d.address as string }
+            : prev));
+        }
+      })
+      .catch(() => { /* 住所は任意なので黙って諦める */ });
+  }, []);
+  const gotoNewMember = useCallback((coords?: { lat: number; lng: number; address?: string }) => {
+    tapHaptic();
+    const params = new URLSearchParams();
+    const c: { lat: number; lng: number; address?: string } | null =
+      coords ?? mapCenterRef.current;
+    if (c) {
+      params.set('lat', c.lat.toFixed(6));
+      params.set('lng', c.lng.toFixed(6));
+      if (c.address) params.set('address', c.address);
+    }
+    const qs = params.toString();
+    router.push(`/members/new${qs ? `?${qs}` : ''}`);
+  }, [router]);
+
   // マップのレイヤーモード（通常 ⇄ 航空写真）。セッション中のみ保持（永続化なし）
   const [layerMode, setLayerMode] = useState<MapLayerMode>('standard');
   const mapWrapRef = useRef<HTMLDivElement>(null);
@@ -215,9 +259,17 @@ export default function HomePage() {
     [members, selectedId]
   );
 
-  // 現在地ボタンのみ。設定ボタンは 2026-05-13 にボトムナビへ移設。
+  // 現在地ボタン + メンバー新規登録ボタン。設定ボタンは 2026-05-13 にボトムナビへ移設。
   const renderLocateButton = useCallback(() => (
     <div className="flex flex-col items-end gap-2">
+      {/* + メンバー新規登録 (2026-08-09)。押した時点の地図中心を引き継ぐ。 */}
+      <button
+        onClick={() => gotoNewMember()}
+        aria-label="メンバーを新規登録"
+        className="w-12 h-12 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center shadow-[0_3px_10px_rgba(0,0,0,0.28)] active:scale-95 transition-transform"
+      >
+        <Plus size={26} strokeWidth={2.4} />
+      </button>
       <button
         onClick={handleLocate}
         disabled={locating}
@@ -227,7 +279,7 @@ export default function HomePage() {
         <LocateFixed size={22} strokeWidth={2} className={locating ? 'animate-spin' : ''} />
       </button>
     </div>
-  ), [handleLocate, locating]);
+  ), [handleLocate, locating, gotoNewMember]);
 
   // フィルター3点（地区 / カテゴリ / 訪問ログ）を適用したメンバー (タブ判定の前)。
   // タブ件数バッジは これを土台に「いける/いけない/スキップ」の分布を出す。
@@ -287,11 +339,15 @@ export default function HomePage() {
             // シート自体はタップでは下げない（ユーザー要望: ドラッグで下がる仕様）。
             setSelectedId(null);
             setShowSuggestions(false);
+            setNewPin(null);
           }}
           onUserMapDrag={handleMapDrag}
           layerMode={layerMode}
           editingMemberId={editingPinMemberId}
           onEditingMemberIdChange={setEditingPinMemberId}
+          onCenterChange={handleCenterChange}
+          onLongPress={handleLongPress}
+          tempPin={newPin}
         />
       </div>
 
@@ -371,7 +427,7 @@ export default function HomePage() {
         visitsByMember={visitsByMember}
         // 編集モード中は一覧シートも閉じておく。ピン編集に集中させる + 確認モーダルが
         // シートに覆われる事故を防ぐ (2026-05-07 ヒデさん指示)。
-        open={!selectedId && !editingPinMemberId}
+        open={!selectedId && !editingPinMemberId && !newPin}
         onClose={() => { /* closable=false なので呼ばれない */ }}
         onSelectMember={(id) => setSelectedId(id)}
         filter={filter}
@@ -406,6 +462,39 @@ export default function HomePage() {
           setSelectedId(null);
         }}
       />
+
+      {/* 長押しで立てた仮ピンの確認バー (2026-08-09 ヒデさん指示)。
+          住所は逆引きが返り次第 差し込まれる。取れなくても登録は進められる。 */}
+      {newPin && (
+        <div
+          className="fixed left-0 right-0 z-[45] px-4"
+          style={{ bottom: 'calc(60px + env(safe-area-inset-bottom) + 16px)' }}
+        >
+          <div className="max-w-[1366px] mx-auto bg-white rounded-2xl shadow-[0_6px_20px_rgba(0,0,0,0.22)] p-4">
+            <p className="text-[13px] font-bold">この場所で新規登録しますか？</p>
+            <p className="text-[11px] text-[var(--color-subtext)] mt-1 truncate">
+              {newPin.address ?? `${newPin.lat.toFixed(5)}, ${newPin.lng.toFixed(5)}（住所を調べ中…）`}
+            </p>
+            <div className="flex gap-2 mt-3">
+              <button
+                type="button"
+                onClick={() => { tapHaptic(); setNewPin(null); }}
+                className="flex-1 py-2.5 rounded-xl bg-[#F0F0F0] text-[13px] font-bold text-[var(--color-subtext)] active:opacity-70"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={() => gotoNewMember(newPin)}
+                className="flex-[1.4] py-2.5 rounded-xl bg-[var(--color-primary)] text-white text-[13px] font-bold active:opacity-80 flex items-center justify-center gap-1.5"
+              >
+                <UserPlus size={16} />
+                ここで新規登録
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

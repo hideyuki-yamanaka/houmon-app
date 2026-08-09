@@ -6,7 +6,7 @@ import type { Member, MemberRow } from '../lib/types';
 import { STATUS_GRID_ITEMS, STATUS_LEVEL_DISPLAY, type StatusLevel } from '../lib/constants';
 import { updateMember } from '../lib/storage';
 import { guessKana } from '../lib/kanaGuess';
-import { resolveAge, formatOrgLabel } from '../lib/utils';
+import { resolveAge, formatOrgLabel, hasUnknownAddress } from '../lib/utils';
 import Highlight from './Highlight';
 
 interface Props {
@@ -435,6 +435,21 @@ export default function MemberInfo({ member, onUpdate, highlightQuery, highlight
           {F('address', '住所', local.address, {
             mapsLink: local.address ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(local.address)}` : undefined,
           })}
+
+          {/* 住所不明の案内 (2026-08-09 ヒデさん指示)。
+              住所テキストが無い or 地図座標が無い人は マップにピンが出ないので、
+              メンバー一覧の「住所不明」タグからしか辿れない。ここで気づけるようにする。 */}
+          {hasUnknownAddress(local) && (
+            <div className="mb-3 flex items-start gap-1.5 bg-[#FFEAD0] text-[#C2410C] rounded-lg px-2.5 py-2">
+              <MapPin size={13} className="shrink-0 mt-[1px]" />
+              <p className="text-[11px] leading-snug">
+                <strong className="font-bold">住所不明</strong>：
+                {local.address
+                  ? '地図に置く位置がまだ決まっていません。ホームの地図を長押しするか、住所を編集し直すと位置が付きます。'
+                  : '上の「住所」をタップして入力すると、地図にピンが出るようになります。'}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* 開いた時だけ見える残り */}

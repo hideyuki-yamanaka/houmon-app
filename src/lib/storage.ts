@@ -168,6 +168,81 @@ export async function updateMember(id: string, updates: Partial<MemberRow>): Pro
   if (error) throw error;
 }
 
+// ── 新規メンバー登録 (2026-08-09 追加) ─────────────────────────
+//
+// user_id には「データのオーナー」の id を入れる必要がある。
+//   - 自分がオーナー          → 自分の auth.uid()
+//   - 招待された editor の場合 → 招待元オーナーの id
+// ここを間違えて招待側の uid を入れると、オーナー側から新規メンバーが
+// 見えなくなる (RLS の members_select が user_id = accessible_owner_ids で
+// 絞るため)。useOwnerContext と同じロジックを非 React 版で実装。
+async function resolveOwnerId(): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('未ログイン状態ではメンバーを登録できません');
+  const { data: tmRows } = await supabase
+    .from('team_memberships')
+    .select('owner_id')
+    .eq('member_id', user.id)
+    .limit(1);
+  return (tmRows ?? [])[0]?.owner_id ?? user.id;
+}
+
+/** 新規メンバー登録で入力できる値。id / タイムスタンプ / user_id は内部で埋める。 */
+export type NewMemberInput = Partial<Omit<MemberRow, 'id' | 'created_at' | 'updated_at' | 'user_id'>> & {
+  name: string;
+};
+
+export async function createMember(input: NewMemberInput): Promise<Member> {
+  const id = nanoid(12);
+  const now = new Date().toISOString();
+  // district は DB 側 NOT NULL。未入力は空文字で通す (formatOrgLabel が「(不明)」表示にする)。
+  const row: MemberRow = {
+    name_kana: null,
+    address: null,
+    lat: null,
+    lng: null,
+    phone: null,
+    mobile: null,
+    birthday: null,
+    enrollment_date: null,
+    age: null,
+    workplace: null,
+    role: null,
+    education_level: null,
+    family: null,
+    altar_status: null,
+    daily_practice: null,
+    newspaper: null,
+    financial_contribution: null,
+    activity_status: null,
+    youth_group: null,
+    notes: null,
+    info: null,
+    want_to_visit: false,
+    ...input,
+    id,
+    district: input.district ?? '',
+    category: input.category ?? 'general',
+    honbu: input.honbu ?? null,
+    bu: input.bu ?? null,
+    visit_cycle_days: input.visit_cycle_days ?? 30,
+    user_id: null,
+    created_at: now,
+    updated_at: now,
+  };
+
+  if (isMockMode) {
+    const m = toMember(row);
+    MOCK_MEMBERS.push(m);
+    return m;
+  }
+
+  const rowWithOwner = { ...row, user_id: await resolveOwnerId() };
+  const { error } = await supabase.from('members').insert(rowWithOwner);
+  if (error) throw error;
+  return toMember(rowWithOwner);
+}
+
 export async function getAllMemberIds(): Promise<string[]> {
   if (isMockMode) return MOCK_MEMBERS.map(m => m.id);
   const { data, error } = await supabase

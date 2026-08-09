@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { ChevronRight, Clock, MapPin } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit } from '../lib/types';
-import { formatDate, resolveAge, formatOrgLabelShort } from '../lib/utils';
+import { formatDate, resolveAge, formatOrgLabelShort, hasUnknownAddress } from '../lib/utils';
 import { getMemberOrgColor } from '../lib/constants';
 import VisitsCarousel from './VisitsCarousel';
 
@@ -29,6 +29,7 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
   const age = resolveAge(member);
   const showLogs = !!withLogs && Array.isArray(visits) && visits.length > 0;
   const orgColor = getMemberOrgColor(member);
+  const addressUnknown = hasUnknownAddress(member);
 
   // 2 段カード (訪問ログ付き) のときはヘッダー下を別変数で詰められるようにする。
   // ヒデさん指示 (2026-05-06): 「2026年5月5日 14時(1回)」の行と下のグレー訪問ログの
@@ -73,13 +74,23 @@ export default function MemberCard({ member, onSelect, visits, withLogs }: Props
             style={{ display: 'var(--tune-mc-chevron, none)' }}
           />
         </div>
-        <div className="mt-0.5">
+        <div className="mt-0.5 flex items-center gap-1 flex-wrap">
           <span
             className="font-medium px-1.5 py-0.5 rounded bg-[#F0F0F0] text-[var(--color-subtext)] inline-block max-w-full truncate"
             style={{ fontSize: 'var(--tune-mc-meta, 0.625rem)' }}
           >
             {formatOrgLabelShort(member)}
           </span>
+          {/* 住所不明タグ (2026-08-09): 地図にピンを出せない人の目印。
+              住所を入れれば自動で消える。 */}
+          {addressUnknown && (
+            <span
+              className="font-bold px-1.5 py-0.5 rounded bg-[#FFEAD0] text-[#C2410C] shrink-0"
+              style={{ fontSize: 'var(--tune-mc-meta, 0.625rem)' }}
+            >
+              住所不明
+            </span>
+          )}
         </div>
         {member.address && (
           <div

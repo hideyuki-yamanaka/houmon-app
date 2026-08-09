@@ -2,8 +2,9 @@
 
 import { useMemo, useState, useCallback, type Ref, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { SlidersHorizontal, Printer } from 'lucide-react';
+import { SlidersHorizontal, Printer, MapPinOff } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit } from '../lib/types';
+import { hasUnknownAddress } from '../lib/utils';
 import MemberCard from './MemberCard';
 import DistrictFilter, { type FilterSelection, matchFilter } from './DistrictFilter';
 import SwipeableBottomSheet, { type SheetHandle } from './SwipeableBottomSheet';
@@ -146,7 +147,7 @@ export default function MembersListSheet({
   // ここで タブ判定を掛けて 表示用リストを作る。
   // タブ件数バッジ (tabCounts) はこの members を そのまま走査するので、
   // 「ヤング × (いける/いけない/スキップ)」のような件数が正しく出る。
-  const filtered = useMemo(() => {
+  const tabFiltered = useMemo(() => {
     const result = members.filter(m => classifyMember(m) === tab);
     result.sort((a, b) => {
       const aKana = a.nameKana ?? a.name;
@@ -155,6 +156,19 @@ export default function MembersListSheet({
     });
     return result;
   }, [members, tab]);
+
+  // 住所不明 (地図にピンを出せない人) の絞り込み。
+  // 2026-08-09 ヒデさん指示: 住所が分からんまま登録した人が一覧に埋もれるので、
+  // ヘッダーのタグをタップでその人達だけに切り替えられるようにする。
+  const [unknownAddressOnly, setUnknownAddressOnly] = useState(false);
+  const unknownAddressCount = useMemo(
+    () => tabFiltered.filter(hasUnknownAddress).length,
+    [tabFiltered],
+  );
+  const filtered = useMemo(
+    () => (unknownAddressOnly ? tabFiltered.filter(hasUnknownAddress) : tabFiltered),
+    [tabFiltered, unknownAddressOnly],
+  );
 
   // フィルターアイコンの「●」ドットは モーダル内に格納したフィルタが
   // 効いている時だけ点ける。地区/ヤング/男子部 はトップに常時出したので除外。
@@ -250,6 +264,22 @@ export default function MembersListSheet({
                   (FilterModal) に格納し、代わりに地区の絞り込みを表に出す。
                   セグメントは常時表示、本部/部/地区 の詳細は▼で開閉 (alwaysOpen 無し)。
                   カウントは preTabMembers ではなく全件 (allMembers) ベースで安定表示。 */}
+              {/* 住所不明タグ (2026-08-09)。該当者がいる時だけ出る トグル。 */}
+              {unknownAddressCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setUnknownAddressOnly(v => !v)}
+                  className={`mt-1.5 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors ${
+                    unknownAddressOnly
+                      ? 'bg-[#C2410C] text-white'
+                      : 'bg-[#FFEAD0] text-[#C2410C]'
+                  }`}
+                >
+                  <MapPinOff size={12} />
+                  住所不明 {unknownAddressCount}人
+                  {unknownAddressOnly && <span className="ml-0.5">×</span>}
+                </button>
+              )}
               <div className="mt-2">
                 <DistrictFilter
                   selection={filter}

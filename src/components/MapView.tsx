@@ -107,6 +107,16 @@ interface MapViewProps {
    *  ボトムシート内の「ピン編集」アイコン → 親が制御する props 経由 に切替。 */
   editingMemberId?: string | null;
   onEditingMemberIdChange?: (id: string | null) => void;
+  /** 地図の中心が動くたびに通知 (2026-08-09)。
+   *  ホームの「+ 新規メンバー」ボタンが、押した瞬間の地図中心を
+   *  新規登録フォームに引き渡すために使う。 */
+  onCenterChange?: (lat: number, lng: number) => void;
+  /** 何もない場所を長押しした時 (2026-08-09)。
+   *  ヒデさん指示で「地図を長押し → その場所で新規メンバー登録」を復活。
+   *  (2026-05-07 に廃止した長押し=ピン編集 とは別用途) */
+  onLongPress?: (lat: number, lng: number) => void;
+  /** 長押しで仮置きしたピン。確定するまで members には存在しない。 */
+  tempPin?: { lat: number; lng: number } | null;
 }
 
 // ── GPS現在地マーカー（DivIcon — SVG CircleMarkerより位置安定） ──
@@ -573,6 +583,124 @@ function MapClickHandler({ onClick }: { onClick?: () => void }) {
   return null;
 }
 
+// ── 地図中心の変化を通知 ──
+function MapCenterReporter({ onChange }: { onChange?: (lat: number, lng: number) => void }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!onChange) return;
+    const report = () => {
+      const c = map.getCenter();
+      onChange(c.lat, c.lng);
+    };
+    report(); // 初期値も一度流す
+    map.on('moveend', report);
+    return () => { map.off('moveend', report); };
+  }, [map, onChange]);
+  return null;
+}
+
+// ── 長押し検知 (2026-08-09) ──
+// Leaflet の 'contextmenu' は iOS Safari だと発火が不安定なので、
+// タッチ/マウスイベントから自前で判定する。
+//   - 押しっぱなし 550ms
+//   - その間の指の移動が 12px 未満 (スクロール/パンと区別)
+//   - ピンやコントロールの上で始まった場合は無視 (メンバー選択を邪魔しない)
+const LONG_PRESS_MS = 550;
+const LONG_PRESS_TOLERANCE_PX = 12;
+
+function LongPressHandler({ onLongPress }: { onLongPress?: (lat: number, lng: number) => void }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!onLongPress) return;
+    const container = map.getContainer();
+    let timer: number | null = null;
+    let startX = 0;
+    let startY = 0;
+
+    const clear = () => {
+      if (timer != null) { window.clearTimeout(timer); timer = null; }
+    };
+
+    const start = (clientX: number, clientY: number, target: EventTarget | null) => {
+      // ピン・クラスタ・Leaflet コントロールの上で始まった長押しは対象外
+      if (target instanceof Element && target.closest('.leaflet-marker-icon, .leaflet-control')) return;
+      startX = clientX;
+      startY = clientY;
+      clear();
+      timer = window.setTimeout(() => {
+        timer = null;
+        const rect = container.getBoundingClientRect();
+        const point = L.point(startX - rect.left, startY - rect.top);
+        const ll = map.containerPointToLatLng(point);
+        onLongPress(ll.lat, ll.lng);
+      }, LONG_PRESS_MS);
+    };
+
+    const move = (clientX: number, clientY: number) => {
+      if (timer == null) return;
+      if (Math.abs(clientX - startX) > LONG_PRESS_TOLERANCE_PX
+        || Math.abs(clientY - startY) > LONG_PRESS_TOLERANCE_PX) clear();
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) { clear(); return; } // ピンチ中は無効
+      start(e.touches[0].clientX, e.touches[0].clientY, e.target);
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length !== 1) { clear(); return; }
+      move(e.touches[0].clientX, e.touches[0].clientY);
+    };
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      start(e.clientX, e.clientY, e.target);
+    };
+    const onMouseMove = (e: MouseEvent) => move(e.clientX, e.clientY);
+
+    container.addEventListener('touchstart', onTouchStart, { passive: true });
+    container.addEventListener('touchmove', onTouchMove, { passive: true });
+    container.addEventListener('touchend', clear);
+    container.addEventListener('touchcancel', clear);
+    container.addEventListener('mousedown', onMouseDown);
+    container.addEventListener('mousemove', onMouseMove);
+    container.addEventListener('mouseup', clear);
+    container.addEventListener('mouseleave', clear);
+    // 地図が動き出したら長押しは中止 (慣性スクロール中の誤爆防止)
+    map.on('movestart', clear);
+    map.on('zoomstart', clear);
+
+    return () => {
+      clear();
+      container.removeEventListener('touchstart', onTouchStart);
+      container.removeEventListener('touchmove', onTouchMove);
+      container.removeEventListener('touchend', clear);
+      container.removeEventListener('touchcancel', clear);
+      container.removeEventListener('mousedown', onMouseDown);
+      container.removeEventListener('mousemove', onMouseMove);
+      container.removeEventListener('mouseup', clear);
+      container.removeEventListener('mouseleave', clear);
+      map.off('movestart', clear);
+      map.off('zoomstart', clear);
+    };
+  }, [map, onLongPress]);
+  return null;
+}
+
+// ── 長押しで置く「仮ピン」(まだ DB に存在しない新規メンバー候補) ──
+const TEMP_PIN_ICON = L.divIcon({
+  className: 'map-pin-icon-temp',
+  html: `
+    <div style="width:32px;height:46px;display:flex;align-items:flex-end;justify-content:center;overflow:visible;">
+      <svg width="32" height="46" viewBox="-2 -2 32 44" fill="none" style="overflow:visible;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.3));">
+        <path d="M14 0C6.268 0 0 6.268 0 14C0 24.5 14 40 14 40S28 24.5 28 14C28 6.268 21.732 0 14 0Z"
+              fill="#FF3B30" stroke="#FFFFFF" stroke-width="2"/>
+        <path d="M14 8.5V19M8.75 13.75H19.25" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/>
+      </svg>
+    </div>
+  `,
+  iconSize: [32, 46],
+  iconAnchor: [16, 46],
+});
+
 // ── ユーザードラッグ検知 ──
 // Leaflet の 'dragstart' は map.panTo() 等の programmatic な移動では発火しない。
 // ユーザーがマップを掴んで動かした時だけ呼ばれる純粋なジェスチャーイベント。
@@ -597,6 +725,9 @@ export default function MapView({
   layerMode = 'standard',
   editingMemberId: editingMemberIdProp = null,
   onEditingMemberIdChange,
+  onCenterChange,
+  onLongPress,
+  tempPin = null,
 }: MapViewProps) {
   const [currentLocation, setCurrentLocation] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -953,7 +1084,19 @@ export default function MapView({
         }}
       />
       <SmoothZoomHandler />
+      <MapCenterReporter onChange={onCenterChange} />
+      {/* ピン編集モード中は長押しを無効化 (ピンのドラッグ操作と競合するため) */}
+      <LongPressHandler onLongPress={editingMemberId ? undefined : onLongPress} />
       <LocationController onLocate={(lat, lng) => setCurrentLocation({ lat, lng })} />
+
+      {tempPin && (
+        <Marker
+          position={[tempPin.lat, tempPin.lng]}
+          icon={TEMP_PIN_ICON}
+          zIndexOffset={3000}
+          interactive={false}
+        />
+      )}
 
       {currentLocation && (
         <Marker

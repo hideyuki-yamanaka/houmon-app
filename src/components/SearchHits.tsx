@@ -12,7 +12,7 @@
  */
 
 import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Plus } from 'lucide-react';
 import type { SearchHit } from '../lib/search';
 import Highlight from './Highlight';
 import { formatOrgLabel } from '../lib/utils';
@@ -52,13 +52,52 @@ function buildHref(hit: SearchHit, query: string): string {
   return `/members/${hit.member.id}${qs ? `?${qs}` : ''}`;
 }
 
+/**
+ * Notion 風「見つからんかったら その場で作る」行。
+ * ヒット 0 件のときは目立つ形で、ヒットがある時もリスト末尾に常時出す。
+ * 打った文字はそのまま新規登録フォームの「名字」に入る。
+ */
+function CreateRow({
+  query,
+  onNavigate,
+  emphasized,
+}: {
+  query: string;
+  onNavigate?: () => void;
+  emphasized?: boolean;
+}) {
+  return (
+    <Link
+      href={`/members/new?name=${encodeURIComponent(query.trim())}`}
+      onClick={() => onNavigate?.()}
+      className={`flex items-center gap-3 px-4 active:bg-[#F0F0F0] ${
+        emphasized ? 'py-4' : 'py-3 border-t border-[#F0F0F0]'
+      }`}
+    >
+      <span className="w-7 h-7 rounded-full bg-[var(--color-primary)] text-white flex items-center justify-center shrink-0">
+        <Plus size={16} strokeWidth={2.5} />
+      </span>
+      <span className="flex-1 min-w-0 text-[14px] truncate">
+        <span className="font-bold">「{query.trim()}」</span>
+        <span className="text-[var(--color-subtext)]">を新規メンバーとして登録</span>
+      </span>
+      <ChevronRight size={16} className="text-[var(--color-icon-gray)] shrink-0" />
+    </Link>
+  );
+}
+
 export default function SearchHits({ hits, query, onNavigate, limit = 20 }: Props) {
   const shown = hits.slice(0, limit);
 
   if (shown.length === 0) {
     return (
-      <div className="mt-1 bg-white rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.15)] px-4 py-6 text-center text-[13px] text-[var(--color-subtext)]">
-        該当なし
+      <div className="mt-1 bg-white rounded-2xl shadow-[0_4px_12px_rgba(0,0,0,0.15)] overflow-hidden">
+        <div className="px-4 pt-5 pb-3 text-center text-[13px] text-[var(--color-subtext)]">
+          該当なし
+        </div>
+        <div className="border-t border-[#F0F0F0]">
+          <CreateRow query={query} onNavigate={onNavigate} emphasized />
+        </div>
       </div>
     );
   }
@@ -106,6 +145,7 @@ export default function SearchHits({ hits, query, onNavigate, limit = 20 }: Prop
           +他に {hits.length - limit} 件のヒット(絞り込んでな)
         </div>
       )}
+      <CreateRow query={query} onNavigate={onNavigate} />
     </div>
   );
 }
