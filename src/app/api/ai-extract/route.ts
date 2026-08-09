@@ -123,7 +123,14 @@ const MEMBER_PROPS: Record<string, unknown> = {
   family: { type: 'string', description: '同居している家族。例「親」' },
   educationLevel: { type: 'string', description: '教学の級。1級/2級/3級/任用試験 のいずれか' },
   workplace: { type: 'string', description: '職場・勤務先' },
-  info: { type: 'string', description: 'その人についての一般的な情報。人物像・家族構成・仕事・活動状況など、いつ訪問しても変わらない性質の話をここに入れる' },
+  // ステータスグリッドの項目。専用の欄があるものは info/memo に書かず必ずここへ。
+  altarStatus: { type: 'string', description: 'ご本尊の御安置状況。「お形木御本尊」「お守り御本尊」など言われた通りに' },
+  dailyPractice: { type: 'string', description: '勤行の実践状況。している=○ / していない=× のどちらかで入れる' },
+  newspaper: { type: 'string', description: '聖教新聞の購読状況。「マイ聖教」「家族で購読」「未購読」など' },
+  financialContribution: { type: 'string', description: '広布(財務)の状況。している=○ / していない=未' },
+  activityStatus: { type: 'string', description: '学会活動の状況。「会合に参加」「会えるが未活動」「未活動」など言われた通りに' },
+  youthGroup: { type: 'string', description: '創価青年部(創牙)などの所属。所属が言われた時だけ' },
+  info: { type: 'string', description: 'その人についての一般的な情報のうち、他のどの項目にも当てはまらないもの。専用の項目がある内容 (同居家族・職場・役職・教学・勤行など) はここに書かず、それぞれの項目に入れること' },
 };
 
 const VISIT_PROPS: Record<string, unknown> = {
@@ -200,8 +207,21 @@ ${orgOptionsText()}
   人の紹介や名簿情報を伝えているだけなら hasVisit=false。
 - 「ヤング」「青年部」「男子部」等の言及があれば member.category=young。
 
+# 専用の項目があるものは 必ず そちらへ (ヒデさん指示)
+「親と同居している」のように 専用の欄が用意されている内容は、その欄に入れる。
+info や memo に文章として書いてはいけない (二重に持つことになる)。
+  例) 「お母さんと二人暮らし」        → family = "親"
+      「ユニクロで働いてる」          → workplace = "ユニクロ"
+      「地区リーダーやってる」        → role = "地区リーダー"
+      「勤行はしてる」                → dailyPractice = "○"
+      「聖教はマイ聖教で取ってる」    → newspaper = "マイ聖教"
+      「会合には出てへん」            → activityStatus = "未活動"
+      「教学は2級まで取ってる」      → educationLevel = "2級"
+専用の欄に入れた内容を、さらに info や memo に書き足さないこと。
+
 # 「情報」と「メモ」の振り分け (ヒデさん指示)
-自由な文章は 必ず この 2 つのどちらかに入れる。両方に同じ話を重複させない。
+上のどの欄にも当てはまらなかった文章は、必ず この 2 つのどちらかに入れる。
+両方に同じ話を重複させない。
 - member.info (情報) … その人についての一般的な情報。
     いつ訪問しても当てはまる性質のもの。
     例) 人物像・見た目・性格 / 家族構成 / 仕事や勤務先 / 学会活動の状況 /

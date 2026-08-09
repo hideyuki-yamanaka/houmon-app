@@ -31,7 +31,7 @@ import {
 import type { Member, Respondent, VisitStatus } from '../../lib/types';
 import { createMember, createVisit, updateVisit, updateMember, getMembers } from '../../lib/storage';
 import { supabase, isMockMode } from '../../lib/supabase';
-import { VISIT_STATUS_CONFIG, RESPONDENT_CONFIG } from '../../lib/constants';
+import { VISIT_STATUS_CONFIG, RESPONDENT_CONFIG, ORG_TREE } from '../../lib/constants';
 import { today as todayStr, formatOrgLabel, resolveAge } from '../../lib/utils';
 import { tapHaptic } from '../../lib/haptics';
 import { useSwipeBack } from '../../lib/useSwipeBack';
@@ -59,7 +59,11 @@ const MEMBER_LABELS: Record<string, string> = {
   address: '住所', phone: '自宅TEL', mobile: '携帯',
   birthday: '生年月日', enrollmentDate: '入会月日',
   role: '役職', family: '同居', educationLevel: '教学',
-  workplace: '職場', notes: '備考', info: '情報',
+  workplace: '職場',
+  // ステータスグリッドの項目 (2026-08-09 ヒデさん指示で AI 抽出の対象に追加)
+  altarStatus: '御安置', dailyPractice: '勤行', newspaper: '聖教',
+  financialContribution: '広布', activityStatus: '活動', youthGroup: '創牙',
+  notes: '備考', info: '情報',
 };
 
 // members テーブルのカラム名 (camelCase → snake_case)
@@ -68,7 +72,11 @@ const MEMBER_COLUMNS: Record<string, string> = {
   address: 'address', phone: 'phone', mobile: 'mobile',
   birthday: 'birthday', enrollmentDate: 'enrollment_date',
   role: 'role', family: 'family', educationLevel: 'education_level',
-  workplace: 'workplace', notes: 'notes', info: 'info',
+  workplace: 'workplace',
+  altarStatus: 'altar_status', dailyPractice: 'daily_practice', newspaper: 'newspaper',
+  financialContribution: 'financial_contribution', activityStatus: 'activity_status',
+  youthGroup: 'youth_group',
+  notes: 'notes', info: 'info',
 };
 
 // AI が返すキー → Member オブジェクトのプロパティ名
@@ -77,7 +85,11 @@ const MEMBER_PROPS: Record<string, keyof Member> = {
   address: 'address', phone: 'phone', mobile: 'mobile',
   birthday: 'birthday', enrollmentDate: 'enrollmentDate',
   role: 'role', family: 'family', educationLevel: 'educationLevel',
-  workplace: 'workplace', notes: 'notes', info: 'info',
+  workplace: 'workplace',
+  altarStatus: 'altarStatus', dailyPractice: 'dailyPractice', newspaper: 'newspaper',
+  financialContribution: 'financialContribution', activityStatus: 'activityStatus',
+  youthGroup: 'youthGroup',
+  notes: 'notes', info: 'info',
 };
 
 // 自由記述。上書きせず「今までの内容の後ろに追記」する項目 (ヒデさん指示 2026-08-09:
@@ -197,6 +209,10 @@ export default function QuickClient() {
   const [memberRows, setMemberRows] = useState<Row[]>([]);
   const [visitRows, setVisitRows] = useState<Row[]>([]);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
+  /** 確認画面で編集した値 (2026-08-09 ヒデさん指示: 整理した内容をこちらで
+   *  編集できるように)。キーは row.key / diff.field。 */
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const setEdit = (key: string, v: string) => setEdits(e => ({ ...e, [key]: v }));
   /** 訪問ログの相手。null = 新規メンバーとして登録する */
   const [targetMember, setTargetMember] = useState<Member | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -244,6 +260,7 @@ export default function QuickClient() {
     // 追加 (add) と 追記 (append) は既定 ON — 今までの情報を消さないので安全。
     // 上書きになる 要確認 (check) / 更新提案 (update) は既定 OFF。
     setDiffChecked(Object.fromEntries(diffs.map(d => [d.field, d.kind === 'add' || d.kind === 'append'])));
+    setEdits(prev => ({ ...prev, ...Object.fromEntries(diffs.map(d => [d.field, d.spoken])) }));
   }, [diffs]);
 
   // 新規登録しようとしている時、似た名前の既存メンバーが居ないか。
@@ -351,16 +368,20 @@ export default function QuickClient() {
 
     setLeftoverTarget(data.hasVisit ? 'memo' : 'info');
     setChecked(Object.fromEntries([...mRows, ...vRows].map(r => [r.key, true])));
+    setEdits(prev => ({
+      ...prev,
+      ...Object.fromEntries([...mRows, ...vRows].map(r => [r.key, String(r.value ?? '')])),
+    }));
     setPhase('confirm');
   };
 
   // ── 登録 ──
   const isNewMember = targetMember === null;
-  const nameFromRows = () => {
-    const sei = memberRows.find(r => r.key === 'sei' && checked.sei)?.value as string | undefined;
-    const mei = memberRows.find(r => r.key === 'mei' && checked.mei)?.value as string | undefined;
-    return [sei, mei].filter(Boolean).join(' ');
-  };
+  // 画面で編集された値を使う。チェックが外れている行は無いものとして扱う。
+  const editedRow = (key: string): string | undefined =>
+    checked[key] ? (edits[key] ?? '').trim() || undefined : undefined;
+  const nameFromRows = () =>
+    [editedRow('sei'), editedRow('mei')].filter(Boolean).join(' ');
   const canSubmit = !saving && (isNewMember ? nameFromRows().length > 0 : true);
 
   const handleSubmit = async () => {
@@ -377,12 +398,14 @@ export default function QuickClient() {
 
       if (isNewMember) {
         const input: Record<string, unknown> = { name: nameFromRows(), district: '' };
-        const kana = memberRows.find(r => r.key === 'kana' && checked.kana)?.value;
-        if (typeof kana === 'string') input.name_kana = kana;
+        const kana = editedRow('kana');
+        if (kana) input.name_kana = kana;
         for (const row of memberRows) {
-          if (!checked[row.key] || !row.key.startsWith('m_')) continue;
+          if (!row.key.startsWith('m_')) continue;
+          const v = editedRow(row.key);
+          if (v === undefined) continue;
           const col = MEMBER_COLUMNS[row.key.slice(2)];
-          if (col) input[col] = row.value;
+          if (col) input[col] = v;
         }
         if (leftoverToInfo) {
           input.info = [input.info, leftoverToInfo].filter(Boolean).join('\n');
@@ -396,11 +419,11 @@ export default function QuickClient() {
       if (result?.hasVisit) {
         const visit = await createVisit(memberId, visitDate, visitStatus);
         const updates: Record<string, unknown> = {};
-        const hour = visitRows.find(r => r.key === 'v_hour' && checked.v_hour)?.value;
-        if (typeof hour === 'number') updates.visited_hour = hour;
+        const hourStr = editedRow('v_hour');
+        const hour = hourStr !== undefined ? Number.parseInt(hourStr, 10) : NaN;
+        if (Number.isInteger(hour) && hour >= 0 && hour <= 23) updates.visited_hour = hour;
         if (visitRespondents.length > 0) updates.respondents = visitRespondents;
-        const memoRow = visitRows.find(r => r.key === 'v_memo' && checked.v_memo)?.value;
-        const memo = [typeof memoRow === 'string' ? memoRow : '', leftoverToMemo]
+        const memo = [editedRow('v_memo') ?? '', leftoverToMemo]
           .filter(Boolean).join('\n');
         if (memo) updates.notes = plainTextToTiptap(memo);
         if (Object.keys(updates).length > 0) await updateVisit(visit.id, updates);
@@ -412,9 +435,12 @@ export default function QuickClient() {
       if (!isNewMember) {
         const patch: Record<string, unknown> = {};
         for (const d of diffs) {
-          if (d.kind === 'same' || !diffChecked[d.field]) continue;
+          if (d.kind === 'same' || d.kind === 'age' || !diffChecked[d.field]) continue;
           const col = MEMBER_COLUMNS[d.field];
-          if (col) patch[col] = d.nextValue;
+          if (!col) continue;
+          const edited = (edits[d.field] ?? d.spoken).trim();
+          if (!edited) continue;
+          patch[col] = d.kind === 'append' ? `${d.stored}\n${edited}` : edited;
         }
         // 振り分けきれなかった内容を「情報」に回した場合もここで反映する。
         // 既に info の追記 diff が入っていれば その後ろに足す。
@@ -451,6 +477,88 @@ export default function QuickClient() {
 
   const toggle = (key: string) => setChecked(c => ({ ...c, [key]: !c[key] }));
 
+  // ── 確認画面のインライン編集 (2026-08-09 ヒデさん指示) ──
+  // 行のキー ('m_info' / 'v_memo' / 'honbu' …) から、その項目に合う
+  // 入力欄の種類を決める。自由記述は textarea、時刻は 24 択、組織は選択式。
+  const baseField = (key: string) =>
+    key.startsWith('m_') ? key.slice(2) : key.startsWith('v_') ? key.slice(2) : key;
+
+  const getEdit = (field: string) => edits[`m_${field}`] ?? edits[field] ?? '';
+
+  // ⚠️ コンポーネントとして定義すると 毎レンダーで型が変わり input が再マウントされ、
+  //    1 文字打つたびにフォーカスが外れる。ただの関数にして JSX を返す。
+  const renderEditor = (rowKey: string) => {
+    const field = baseField(rowKey);
+    const value = edits[rowKey] ?? '';
+    const cls = 'w-full bg-[#F7F7F8] rounded-lg px-2.5 py-2 text-[14px] outline-none focus:bg-white focus:ring-1 focus:ring-[#6366F1]';
+
+    if (field === 'info' || field === 'notes' || field === 'memo') {
+      return (
+        <textarea
+          value={value}
+          onChange={(e) => setEdit(rowKey, e.target.value)}
+          rows={field === 'memo' ? 5 : 3}
+          className={`${cls} resize-y leading-relaxed`}
+        />
+      );
+    }
+    if (field === 'hour') {
+      return (
+        <select value={value} onChange={(e) => setEdit(rowKey, e.target.value)} className={cls}>
+          <option value="">未設定</option>
+          {Array.from({ length: 24 }, (_, i) => i).map(h => (
+            <option key={h} value={String(h)}>{h}時</option>
+          ))}
+        </select>
+      );
+    }
+    if (field === 'birthday' || field === 'enrollmentDate') {
+      return <input type="date" value={value} onChange={(e) => setEdit(rowKey, e.target.value)} className={cls} />;
+    }
+    if (field === 'category') {
+      return (
+        <div className="flex gap-2">
+          {([['general', '一般'], ['young', 'ヤング']] as const).map(([v, label]) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => { tapHaptic(); setEdit(rowKey, v); }}
+              className={`chip ${value === v || value === label ? 'selected' : ''}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      );
+    }
+    if (field === 'honbu' || field === 'bu' || field === 'district') {
+      const honbuNode = ORG_TREE.find(h => h.key === getEdit('honbu'));
+      const buNode = honbuNode?.bus.find(b => b.key === getEdit('bu'));
+      const options =
+        field === 'honbu' ? ORG_TREE.map(h => h.key)
+          : field === 'bu' ? (honbuNode?.bus ?? []).map(b => b.key)
+            : (buNode?.districts ?? []).map(d => d.key);
+      return (
+        <select
+          value={value}
+          onChange={(e) => {
+            setEdit(rowKey, e.target.value);
+            // 上位を変えたら下位はいったん空にする (ちぐはぐな組み合わせを防ぐ)
+            if (field === 'honbu') { setEdit('m_bu', ''); setEdit('bu', ''); setEdit('m_district', ''); setEdit('district', ''); }
+            if (field === 'bu') { setEdit('m_district', ''); setEdit('district', ''); }
+          }}
+          className={cls}
+        >
+          <option value="">未設定</option>
+          {/* AI が一覧に無い値を返した時も 選択肢として残す */}
+          {value && !options.includes(value) && <option value={value}>{value}</option>}
+          {options.map(o => <option key={o} value={o}>{o}</option>)}
+        </select>
+      );
+    }
+    return <input type="text" value={value} onChange={(e) => setEdit(rowKey, e.target.value)} className={cls} />;
+  };
+
   // 突き合わせ結果を種類ごとに分けて表示する
   const checkDiffs = diffs.filter(d => d.kind === 'check' || d.kind === 'age');
   const updateDiffs = diffs.filter(d => d.kind === 'update');
@@ -458,22 +566,25 @@ export default function QuickClient() {
   const addDiffs = diffs.filter(d => d.kind === 'add');
   const sameDiffs = diffs.filter(d => d.kind === 'same');
 
-  const RowList = ({ rows }: { rows: Row[] }) => (
+  const renderRows = (rows: Row[]) => (
     <ul className="divide-y divide-[#F0F0F0]">
       {rows.map(r => (
-        <li key={r.key}>
-          <label className="flex items-start gap-3 py-3 cursor-pointer">
+        <li key={r.key} className="py-3">
+          <div className="flex items-center gap-3 mb-1.5">
             <input
+              id={`chk-${r.key}`}
               type="checkbox"
               checked={!!checked[r.key]}
               onChange={() => toggle(r.key)}
-              className="w-5 h-5 mt-0.5 shrink-0 accent-[#6366F1]"
+              className="w-5 h-5 shrink-0 accent-[#6366F1]"
             />
-            <span className="flex-1 min-w-0">
-              <span className="block text-[11px] text-[var(--color-subtext)]">{r.label}</span>
-              <span className="block text-[14px] whitespace-pre-wrap break-words">{r.display}</span>
-            </span>
-          </label>
+            <label htmlFor={`chk-${r.key}`} className="text-[11px] text-[var(--color-subtext)] cursor-pointer">
+              {r.label}
+            </label>
+          </div>
+          <div className={`pl-8 ${checked[r.key] ? '' : 'opacity-40'}`}>
+            {renderEditor(r.key)}
+          </div>
         </li>
       ))}
     </ul>
@@ -654,7 +765,7 @@ export default function QuickClient() {
                     </div>
                   )}
 
-                  {memberRows.length > 0 ? <RowList rows={memberRows} /> : null}
+                  {memberRows.length > 0 ? renderRows(memberRows) : null}
                 </>
               ) : (
                 <div className="py-2">
@@ -693,15 +804,20 @@ export default function QuickClient() {
                                 年齢は生年月日から計算しています。直す時はメンバーカードで生年月日を確認してください。
                               </p>
                             ) : (
-                              <label className="flex items-center gap-2 mt-1.5 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={!!diffChecked[d.field]}
-                                  onChange={() => setDiffChecked(c => ({ ...c, [d.field]: !c[d.field] }))}
-                                  className="w-4 h-4 accent-[#DC2626]"
-                                />
-                                <span className="text-[11px]">今回の内容に直す</span>
-                              </label>
+                              <>
+                                <label className="flex items-center gap-2 mt-1.5 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={!!diffChecked[d.field]}
+                                    onChange={() => setDiffChecked(c => ({ ...c, [d.field]: !c[d.field] }))}
+                                    className="w-4 h-4 accent-[#DC2626]"
+                                  />
+                                  <span className="text-[11px]">今回の内容に直す</span>
+                                </label>
+                                {diffChecked[d.field] && (
+                                  <div className="mt-1.5">{renderEditor(d.field)}</div>
+                                )}
+                              </>
                             )}
                           </li>
                         ))}
@@ -735,6 +851,9 @@ export default function QuickClient() {
                               />
                               <span className="text-[11px]">今回の内容に更新する</span>
                             </label>
+                            {diffChecked[d.field] && (
+                              <div className="mt-1.5">{renderEditor(d.field)}</div>
+                            )}
                           </li>
                         ))}
                       </ul>
@@ -759,11 +878,13 @@ export default function QuickClient() {
                                 onChange={() => setDiffChecked(c => ({ ...c, [d.field]: !c[d.field] }))}
                                 className="w-4 h-4 mt-0.5 shrink-0 accent-[#6366F1]"
                               />
-                              <span className="flex-1 min-w-0">
-                                <span className="block text-[11px] text-[var(--color-subtext)]">{d.label}に追記</span>
-                                <span className="block text-[13px] whitespace-pre-wrap break-words">{d.spoken}</span>
+                              <span className="flex-1 min-w-0 text-[11px] text-[var(--color-subtext)]">
+                                {d.label}に追記
                               </span>
                             </label>
+                            <div className={`mt-1.5 pl-6 ${diffChecked[d.field] ? '' : 'opacity-40'}`}>
+                              {renderEditor(d.field)}
+                            </div>
                             <p className="text-[10px] text-[var(--color-subtext)] mt-1.5 pl-6">
                               今まで書いてある内容はそのまま残ります
                             </p>
@@ -784,18 +905,20 @@ export default function QuickClient() {
                       <ul className="divide-y divide-[#D6E4FF]">
                         {addDiffs.map(d => (
                           <li key={d.field}>
-                            <label className="flex items-start gap-2.5 px-3 py-2.5 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={!!diffChecked[d.field]}
-                                onChange={() => setDiffChecked(c => ({ ...c, [d.field]: !c[d.field] }))}
-                                className="w-4 h-4 mt-0.5 shrink-0 accent-[#6366F1]"
-                              />
-                              <span className="flex-1 min-w-0">
-                                <span className="block text-[11px] text-[var(--color-subtext)]">{d.label}</span>
-                                <span className="block text-[13px] whitespace-pre-wrap break-words">{d.spoken}</span>
-                              </span>
-                            </label>
+                            <div className="px-3 py-2.5">
+                              <label className="flex items-center gap-2.5 cursor-pointer mb-1.5">
+                                <input
+                                  type="checkbox"
+                                  checked={!!diffChecked[d.field]}
+                                  onChange={() => setDiffChecked(c => ({ ...c, [d.field]: !c[d.field] }))}
+                                  className="w-4 h-4 shrink-0 accent-[#6366F1]"
+                                />
+                                <span className="text-[11px] text-[var(--color-subtext)]">{d.label}</span>
+                              </label>
+                              <div className={`pl-6 ${diffChecked[d.field] ? '' : 'opacity-40'}`}>
+                                {renderEditor(d.field)}
+                              </div>
+                            </div>
                           </li>
                         ))}
                       </ul>
@@ -873,7 +996,7 @@ export default function QuickClient() {
                 </div>
 
                 {visitRows.length > 0
-                  ? <RowList rows={visitRows} />
+                  ? renderRows(visitRows)
                   : <p className="text-[12px] text-[var(--color-subtext)] py-3">他に読み取れた項目はありません</p>}
               </div>
             )}
