@@ -2,10 +2,10 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, Plus } from 'lucide-react';
+import { ChevronLeft, Plus, Trash2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import type { Member, Visit } from '../../../lib/types';
-import { getMember, getVisits } from '../../../lib/storage';
+import { getMember, getVisits, deleteMember } from '../../../lib/storage';
 import MemberInfo from '../../../components/MemberInfo';
 import InfoSection from '../../../components/InfoSection';
 import VisitCard from '../../../components/VisitCard';
@@ -45,6 +45,32 @@ export default function MemberDetailClient() {
   // ページ内データは全て debounce 自動保存だが、ユーザー安心のため明示的な
   // 確認 UI を出す。
   const [savedToastVisible, setSavedToastVisible] = useState(false);
+
+  // メンバー削除 (2026-08-09 ヒデさん指示)。
+  // 訪問ログごと消える取り消し不可の操作なので、確認モーダルを必ず挟む。
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const handleDelete = async () => {
+    if (deleting) return;
+    tapHaptic();
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteMember(id);
+      // 削除済みメンバーの id が sessionStorage に残ってるとホームで
+      // 「居ない人のピンを選択」状態になるので消しておく。
+      try {
+        if (sessionStorage.getItem('houmon_lastViewedMemberId') === id) {
+          sessionStorage.removeItem('houmon_lastViewedMemberId');
+        }
+      } catch { /* ignore */ }
+      router.replace('/');
+    } catch (e) {
+      setDeleteError(e instanceof Error ? e.message : String(e));
+      setDeleting(false);
+    }
+  };
 
   const fetchData = useCallback(() => {
     Promise.all([getMember(id), getVisits(id)])
@@ -231,7 +257,81 @@ export default function MemberDetailClient() {
               })()
             )}
           </div>
+
+          {/* ── メンバー削除 (2026-08-09 ヒデさん指示) ──
+              誤タップしても即消えないよう、必ず確認モーダルを挟む。
+              訪問ログも一緒に消える (visits は ON DELETE CASCADE)。 */}
+          <div className="mt-8">
+            <button
+              type="button"
+              onClick={() => { tapHaptic(); setDeleteError(null); setDeleteModalOpen(true); }}
+              className="w-full ios-card flex items-center justify-center gap-2 py-3.5 text-[15px] font-bold text-[#FF3B30] active:opacity-70 transition-opacity"
+            >
+              <Trash2 size={18} />
+              このメンバーを削除
+            </button>
+          </div>
       </div>
+
+      {/* 削除確認モーダル */}
+      {deleteModalOpen && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center px-6"
+          style={{ background: 'rgba(0,0,0,0.45)' }}
+          onClick={() => { if (!deleting) setDeleteModalOpen(false); }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="w-full max-w-[340px] bg-white rounded-2xl overflow-hidden shadow-[0_10px_40px_rgba(0,0,0,0.3)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 pt-5 pb-4 text-center">
+              <div className="w-11 h-11 rounded-full bg-[#FFE5E5] flex items-center justify-center mx-auto mb-3">
+                <AlertTriangle size={22} className="text-[#FF3B30]" />
+              </div>
+              <h2 className="text-[16px] font-bold">
+                「{member.name}」を削除しますか？
+              </h2>
+              <p className="text-[12px] text-[var(--color-subtext)] mt-2 leading-relaxed">
+                {visits.length > 0 ? (
+                  <>
+                    このメンバーの<strong className="text-[#FF3B30] font-bold">訪問ログ {visits.length}件</strong>も
+                    まとめて削除されます。
+                  </>
+                ) : (
+                  <>このメンバーの情報がすべて削除されます。</>
+                )}
+                <br />
+                <strong className="font-bold">元に戻すことはできません。</strong>
+              </p>
+              {deleteError && (
+                <p className="text-[11px] text-[#FF3B30] bg-[#FFE5E5] rounded-lg px-2.5 py-2 mt-3 text-left">
+                  {deleteError}
+                </p>
+              )}
+            </div>
+            <div className="flex border-t border-[#F0F0F0]">
+              <button
+                type="button"
+                onClick={() => { tapHaptic(); setDeleteModalOpen(false); }}
+                disabled={deleting}
+                className="flex-1 py-3.5 text-[15px] font-bold text-[var(--color-primary)] active:bg-[#F5F5F5] disabled:opacity-40"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 py-3.5 text-[15px] font-bold text-[#FF3B30] border-l border-[#F0F0F0] active:bg-[#FFF5F5] disabled:opacity-40"
+              >
+                {deleting ? '削除中…' : '削除する'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Link
         href={`/visits/new?memberId=${member.id}`}

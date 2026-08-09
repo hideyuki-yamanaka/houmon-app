@@ -243,6 +243,38 @@ export async function createMember(input: NewMemberInput): Promise<Member> {
   return toMember(rowWithOwner);
 }
 
+/**
+ * メンバーを完全削除 (2026-08-09 追加)。
+ *
+ * ⚠️ visits.member_id は ON DELETE CASCADE なので、そのメンバーの訪問ログも
+ *    まとめて消える。取り消し不可。呼び出し側で必ず確認モーダルを挟むこと。
+ *
+ * RLS の members_delete は user_id = auth.uid()、つまり「オーナー本人だけ」。
+ * 招待された editor が叩くと 0 行削除で成功扱いになるので、削除件数を見て
+ * 権限不足を明示的にエラーにする。
+ */
+export async function deleteMember(id: string): Promise<void> {
+  if (isMockMode) {
+    const i = MOCK_MEMBERS.findIndex(m => m.id === id);
+    if (i >= 0) MOCK_MEMBERS.splice(i, 1);
+    ensureMockHydrated();
+    for (let j = MOCK_VISITS.length - 1; j >= 0; j--) {
+      if (MOCK_VISITS[j].memberId === id) MOCK_VISITS.splice(j, 1);
+    }
+    persistMockVisits();
+    return;
+  }
+  const { data, error } = await supabase
+    .from('members')
+    .delete()
+    .eq('id', id)
+    .select('id');
+  if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error('削除する権限がありません（メンバーを削除できるのはオーナーだけです）');
+  }
+}
+
 export async function getAllMemberIds(): Promise<string[]> {
   if (isMockMode) return MOCK_MEMBERS.map(m => m.id);
   const { data, error } = await supabase
