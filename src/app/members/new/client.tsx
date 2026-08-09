@@ -23,6 +23,7 @@ import { ORG_TREE } from '../../../lib/constants';
 import { guessKana } from '../../../lib/kanaGuess';
 import { tapHaptic } from '../../../lib/haptics';
 import { useSwipeBack } from '../../../lib/useSwipeBack';
+import AiAssistSheet, { type AiFieldRow } from '../../../components/AiAssistSheet';
 import type { MemberCategory } from '../../../lib/types';
 
 const UNSET = '';
@@ -196,6 +197,76 @@ export default function NewMemberClient() {
   const [info, setInfo] = useState('');
   const [visitCycleDays, setVisitCycleDays] = useState('30');
 
+  // ── AI おまかせ入力 (2026-08-09) ──
+  // AI が返した項目 → 確認画面の行 に変換する。ここが「アプリ側の語彙」の定義。
+  const aiToRows = (f: Record<string, unknown>): AiFieldRow[] => {
+    const s = (k: string) => (typeof f[k] === 'string' ? (f[k] as string) : '');
+    const rows: AiFieldRow[] = [];
+    const push = (key: string, label: string, value: string) => {
+      if (value) rows.push({ key, label, display: value, value });
+    };
+    push('sei', '名字', s('sei'));
+    push('mei', '名前', s('mei'));
+    push('kana', '読み仮名', s('kana'));
+    if (f.category === 'young' || f.category === 'general') {
+      rows.push({
+        key: 'category',
+        label: '区分',
+        display: f.category === 'young' ? 'ヤング' : '一般',
+        value: f.category,
+      });
+    }
+    push('honbu', '本部', s('honbu'));
+    push('bu', '部・支部', s('bu'));
+    push('district', '地区', s('district'));
+    push('address', '住所', s('address'));
+    push('phone', '自宅TEL', s('phone'));
+    push('mobile', '携帯', s('mobile'));
+    push('birthday', '生年月日', s('birthday'));
+    push('enrollmentDate', '入会月日', s('enrollmentDate'));
+    push('role', '役職', s('role'));
+    push('family', '同居', s('family'));
+    push('educationLevel', '教学', s('educationLevel'));
+    push('workplace', '職場', s('workplace'));
+    push('notes', '備考', s('notes'));
+    push('info', '情報', s('info'));
+    return rows;
+  };
+
+  const applyAi = (rows: AiFieldRow[]) => {
+    const get = (k: string) => rows.find(r => r.key === k)?.value as string | undefined;
+    const setIf = (v: string | undefined, setter: (s: string) => void) => {
+      if (v !== undefined) setter(v);
+    };
+    setIf(get('sei'), setSei);
+    setIf(get('mei'), setMei);
+    setIf(get('kana'), (v) => { kanaTouchedRef.current = true; setKana(v); });
+    const cat = get('category');
+    if (cat === 'young' || cat === 'general') setCategory(cat);
+    // 組織は本部→部→地区の順に入れる (setHonbu が bu/district をリセットするため)
+    const h = get('honbu');
+    const b = get('bu');
+    const d = get('district');
+    if (h !== undefined) { setHonbu(h); setBu(''); setDistrict(''); }
+    if (b !== undefined) setBu(b);
+    if (d !== undefined) setDistrict(d);
+    setIf(get('address'), setAddress);
+    setIf(get('phone'), setPhone);
+    setIf(get('mobile'), setMobile);
+    setIf(get('birthday'), setBirthday);
+    setIf(get('enrollmentDate'), setEnrollmentDate);
+    setIf(get('role'), setRole);
+    setIf(get('family'), setFamily);
+    setIf(get('educationLevel'), setEducationLevel);
+    setIf(get('workplace'), setWorkplace);
+    setIf(get('notes'), setNotes);
+    setIf(get('info'), setInfo);
+    // 詳しい項目に入った値があるなら、見えるようにアコーディオンを開く
+    const detailKeys = ['phone', 'mobile', 'birthday', 'enrollmentDate', 'role', 'family',
+      'educationLevel', 'workplace', 'notes', 'info'];
+    if (rows.some(r => detailKeys.includes(r.key))) setDetailOpen(true);
+  };
+
   // ── 送信 ──
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -263,6 +334,15 @@ export default function NewMemberClient() {
         className="max-w-[1366px] mx-auto px-4 py-4 space-y-4"
         style={{ paddingBottom: 'calc(60px + env(safe-area-inset-bottom) + 32px)' }}
       >
+        {/* ── AI おまかせ入力 (2026-08-09 ヒデさん指示) ──
+            ダラダラ喋った内容を項目ごとに振り分けて、確認画面を挟んでから反映する。 */}
+        <AiAssistSheet
+          mode="member"
+          toRows={aiToRows}
+          onApply={applyAi}
+          placeholder={'例）豊岡本部の英雄地区の山田太郎さん、38歳。旭川市豊岡3条4丁目に住んでて、携帯は090-1234-5678。ユニクロで働いてる。お母さんと二人暮らしで、地区リーダーやってる。夜勤明けの午前は避けたほうがええ。'}
+        />
+
         {/* ── 名前 ── */}
         <div className="ios-card px-4 py-1">
           <div className="grid grid-cols-2 gap-x-4 border-b border-[#F0F0F0]">

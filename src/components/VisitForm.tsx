@@ -9,6 +9,7 @@ import { createVisit, updateVisit, uploadVisitImage } from '../lib/storage';
 import { today } from '../lib/utils';
 import TiptapEditor from './TiptapEditor';
 import AddressIssueSection from './AddressIssueSection';
+import AiAssistSheet, { type AiFieldRow } from './AiAssistSheet';
 
 interface Props {
   member: Member;
@@ -17,6 +18,32 @@ interface Props {
 }
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+
+// ── Tiptap doc ⇄ 平文 (AI おまかせ入力の反映で使う) ──
+// AI は平文で返してくるので、既存メモと繋いでから doc に組み直す。
+function tiptapToPlainText(doc: Record<string, unknown> | undefined): string {
+  if (!doc || doc.type !== 'doc' || !Array.isArray(doc.content)) return '';
+  const lines: string[] = [];
+  for (const node of doc.content as Record<string, unknown>[]) {
+    if (!node || node.type !== 'paragraph') continue;
+    const parts: string[] = [];
+    for (const child of (node.content as Record<string, unknown>[] | undefined) ?? []) {
+      if (child?.type === 'text' && typeof child.text === 'string') parts.push(child.text);
+    }
+    lines.push(parts.join(''));
+  }
+  return lines.join('\n').trim();
+}
+
+function plainTextToTiptap(text: string): Record<string, unknown> {
+  return {
+    type: 'doc',
+    content: text.split('\n').map(line => {
+      const t = line.trim();
+      return t ? { type: 'paragraph', content: [{ type: 'text', text: t }] } : { type: 'paragraph' };
+    }),
+  };
+}
 
 export default function VisitForm({ member, existingVisit, initialDate }: Props) {
   const router = useRouter();
@@ -168,6 +195,76 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
     debouncedSave({ notes: newNotes });
   };
 
+  // ── AI おまかせ入力 (2026-08-09 ヒデさん指示) ──
+  // 喋った内容を 日付/時刻/カテゴリ/対応者/メモ に振り分ける。
+  // Tiptap は content プロップの後追い変更を見ないので、反映時に key を
+  // 変えて作り直す (notesVersion)。
+  const [notesVersion, setNotesVersion] = useState(0);
+
+  const aiToRows = (f: Record<string, unknown>): AiFieldRow[] => {
+    const rows: AiFieldRow[] = [];
+    if (typeof f.visitedAt === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(f.visitedAt)) {
+      rows.push({ key: 'visitedAt', label: '日付', display: f.visitedAt, value: f.visitedAt });
+    }
+    if (typeof f.visitedHour === 'number' && f.visitedHour >= 0 && f.visitedHour <= 23) {
+      rows.push({ key: 'visitedHour', label: '時刻', display: `${f.visitedHour}時`, value: f.visitedHour });
+    }
+    if (typeof f.status === 'string' && f.status in VISIT_STATUS_CONFIG) {
+      const st = f.status as VisitStatus;
+      rows.push({ key: 'status', label: 'カテゴリ', display: VISIT_STATUS_CONFIG[st].label, value: st });
+    }
+    if (Array.isArray(f.respondents)) {
+      const list = (f.respondents as string[]).filter((r): r is Respondent => r in RESPONDENT_CONFIG);
+      if (list.length > 0) {
+        rows.push({
+          key: 'respondents',
+          label: '対応者',
+          display: list.map(r => RESPONDENT_CONFIG[r].label).join('・'),
+          value: list,
+        });
+      }
+    }
+    if (typeof f.memo === 'string' && f.memo.trim()) {
+      rows.push({ key: 'memo', label: 'メモ', display: f.memo.trim(), value: f.memo.trim() });
+    }
+    return rows;
+  };
+
+  const applyAi = (rows: AiFieldRow[]) => {
+    const get = (k: string) => rows.find(r => r.key === k)?.value;
+    const updates: Record<string, unknown> = {};
+
+    const newDate = get('visitedAt') as string | undefined;
+    if (newDate) { setDate(newDate); updates.visited_at = newDate; }
+
+    const newHour = get('visitedHour') as number | undefined;
+    if (newHour !== undefined) { setHour(newHour); updates.visited_hour = newHour; }
+
+    const newStatus = get('status') as VisitStatus | undefined;
+    if (newStatus) { setStatus(newStatus); updates.status = newStatus; }
+
+    const newResp = get('respondents') as Respondent[] | undefined;
+    if (newResp) { setRespondents(newResp); updates.respondents = newResp.length > 0 ? newResp : null; }
+
+    const memo = get('memo') as string | undefined;
+    if (memo) {
+      // 既存メモがあれば末尾に足す (上書きで消してしまわないように)
+      const existing = tiptapToPlainText(notes);
+      const merged = existing ? `${existing}\n${memo}` : memo;
+      const doc = plainTextToTiptap(merged);
+      setNotes(doc);
+      setNotesVersion(v => v + 1);
+      updates.notes = doc;
+    }
+
+    // 反映したものはそのまま保存まで通す (フォーム全体が自動保存方式のため)
+    if (Object.keys(updates).length > 0) {
+      if (!updates.status) updates.status = newStatus ?? status;
+      if (!updates.visited_at) updates.visited_at = newDate ?? date;
+      debouncedSave(updates, true);
+    }
+  };
+
   // 画像アップロード
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -272,6 +369,18 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
       <div className="flex-1 overflow-y-auto pb-8">
         <div className="max-w-[1366px] mx-auto px-4 pt-4 space-y-6">
 
+          {/* AI おまかせ入力 (2026-08-09 ヒデさん指示)。
+              喋った内容を 日付/時刻/カテゴリ/対応者/メモ に振り分けて、
+              確認画面を挟んでからフォームに反映する。 */}
+          <AiAssistSheet
+            mode="visit"
+            memberName={member.name}
+            toRows={aiToRows}
+            onApply={applyAi}
+            buttonLabel="AIにおまかせで記録"
+            placeholder={'例）今日の夕方5時ごろ訪問。本人は不在で、お母さんが出てきてくれた。最近は仕事が忙しいみたいで、帰りが遅いらしい。今度は日曜の昼に来てほしいと言われた。'}
+          />
+
           {/* 日付 + 時刻 (時刻は 1時間単位、24時間表記、未設定可) */}
           <div className="flex flex-wrap items-end gap-4">
             <div>
@@ -339,6 +448,9 @@ export default function VisitForm({ member, existingVisit, initialDate }: Props)
           <div>
             <label className="text-sm font-semibold text-[var(--color-subtext)] block mb-2">メモ</label>
             <TiptapEditor
+              // AI 反映で notes を外から差し替えた時、Tiptap は content プロップの
+              // 変更を見ないので key を変えて作り直す
+              key={notesVersion}
               content={notes}
               onChange={handleNotesChange}
             />
