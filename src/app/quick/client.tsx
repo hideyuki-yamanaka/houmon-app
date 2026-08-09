@@ -26,9 +26,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ChevronLeft, Sparkles, Loader2, UserPlus, NotebookPen, ArrowLeft, Search,
+  AlertTriangle, PlusCircle, Check,
 } from 'lucide-react';
 import type { Member, Respondent, VisitStatus } from '../../lib/types';
-import { createMember, createVisit, updateVisit, getMembers } from '../../lib/storage';
+import { createMember, createVisit, updateVisit, updateMember, getMembers } from '../../lib/storage';
 import { supabase, isMockMode } from '../../lib/supabase';
 import { VISIT_STATUS_CONFIG, RESPONDENT_CONFIG } from '../../lib/constants';
 import { today as todayStr, formatOrgLabel } from '../../lib/utils';
@@ -70,7 +71,63 @@ const MEMBER_COLUMNS: Record<string, string> = {
   workplace: 'workplace', notes: 'notes', info: 'info',
 };
 
+// AI が返すキー → Member オブジェクトのプロパティ名
+const MEMBER_PROPS: Record<string, keyof Member> = {
+  category: 'category', honbu: 'honbu', bu: 'bu', district: 'district',
+  address: 'address', phone: 'phone', mobile: 'mobile',
+  birthday: 'birthday', enrollmentDate: 'enrollmentDate',
+  role: 'role', family: 'family', educationLevel: 'educationLevel',
+  workplace: 'workplace', notes: 'notes', info: 'info',
+};
+
+// 自由記述なので「食い違い」ではなく「追記」として扱う項目
+const APPENDABLE = new Set(['notes', 'info']);
+
 const normalize = (s: string) => s.replace(/[\s　]/g, '');
+
+const showValue = (field: string, v: unknown): string =>
+  field === 'category' ? (v === 'young' ? 'ヤング' : '一般') : String(v ?? '');
+
+/**
+ * 既存メンバーの登録内容と、喋られた内容の食い違い (2026-08-09 ヒデさん指示)。
+ *   add      … 登録が空 → 追加できる (既定 ON)
+ *   conflict … 登録と違うことを言っている → 上書きになるので既定 OFF + 警告
+ *   append   … 備考/情報。既存の文章に追記する形 (既定 OFF)
+ *   same     … 一致。行としては出さず、件数だけ知らせる
+ */
+type DiffKind = 'add' | 'conflict' | 'append' | 'same';
+interface Diff {
+  field: string;
+  label: string;
+  kind: DiffKind;
+  spoken: string;
+  stored: string;
+  /** DB に書き込む値 (append なら 既存 + 改行 + 喋った内容) */
+  nextValue: string;
+}
+
+function computeDiffs(member: Member | null, spokenMember: Record<string, unknown> | undefined): Diff[] {
+  if (!member || !spokenMember) return [];
+  const out: Diff[] = [];
+  for (const [field, label] of Object.entries(MEMBER_LABELS)) {
+    const raw = spokenMember[field];
+    if (raw === undefined || raw === null || raw === '') continue;
+    const spoken = showValue(field, raw);
+    const storedRaw = member[MEMBER_PROPS[field]];
+    const stored = storedRaw === undefined || storedRaw === null ? '' : showValue(field, storedRaw);
+
+    if (!stored) {
+      out.push({ field, label, kind: 'add', spoken, stored: '', nextValue: String(raw) });
+    } else if (normalize(stored) === normalize(spoken)) {
+      out.push({ field, label, kind: 'same', spoken, stored, nextValue: String(raw) });
+    } else if (APPENDABLE.has(field)) {
+      out.push({ field, label, kind: 'append', spoken, stored, nextValue: `${stored}\n${String(raw)}` });
+    } else {
+      out.push({ field, label, kind: 'conflict', spoken, stored, nextValue: String(raw) });
+    }
+  }
+  return out;
+}
 
 function plainTextToTiptap(text: string): Record<string, unknown> {
   return {
@@ -126,6 +183,34 @@ export default function QuickClient() {
     const p = result?.person ?? {};
     return [p.sei, p.mei].filter(Boolean).join(' ');
   }, [result]);
+
+  // ── 既存データとの突き合わせ (2026-08-09 ヒデさん指示) ──
+  // 「登録している本部と言っている本部が違う」「もう登録されてる人がいる」を
+  // 登録前に気づけるようにする。targetMember は「変更」で切り替わるので、
+  // state に固めずここで都度計算する。
+  const diffs = useMemo(
+    () => computeDiffs(targetMember, result?.member),
+    [targetMember, result],
+  );
+  const [diffChecked, setDiffChecked] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    // 空欄への追加だけ既定 ON。上書き (conflict) と追記 (append) は既定 OFF。
+    setDiffChecked(Object.fromEntries(diffs.map(d => [d.field, d.kind === 'add'])));
+  }, [diffs]);
+
+  // 新規登録しようとしている時、似た名前の既存メンバーが居ないか。
+  // 同姓の別人も拾うので「同一人物かどうか」はユーザーに判断してもらう。
+  const duplicateCandidates = useMemo(() => {
+    if (targetMember || !result) return [];
+    const sei = normalize(result.person?.sei ?? '');
+    const full = normalize([result.person?.sei, result.person?.mei].filter(Boolean).join(''));
+    if (!sei && !full) return [];
+    return members.filter(m => {
+      const n = normalize(m.name);
+      if (full.length >= 2 && (n.includes(full) || full.includes(n))) return true;
+      return sei.length >= 2 && n.startsWith(sei);
+    }).slice(0, 5);
+  }, [targetMember, result, members]);
 
   // ── AI 呼び出し ──
   const handleExtract = async () => {
@@ -266,6 +351,30 @@ export default function QuickClient() {
         if (Object.keys(updates).length > 0) await updateVisit(visit.id, updates);
       }
 
+      // 既存メンバーの情報更新は チェックを入れた項目だけ。
+      // 上書き (conflict) は既定 OFF なので、明示的に選んだ時しか走らない。
+      // 訪問ログの後に回すのは、ここで失敗しても記録そのものは残すため。
+      if (!isNewMember) {
+        const patch: Record<string, unknown> = {};
+        for (const d of diffs) {
+          if (d.kind === 'same' || !diffChecked[d.field]) continue;
+          const col = MEMBER_COLUMNS[d.field];
+          if (col) patch[col] = d.nextValue;
+        }
+        if (Object.keys(patch).length > 0) {
+          try {
+            await updateMember(memberId, patch);
+          } catch (e) {
+            setError(
+              `${result?.hasVisit ? '訪問ログは登録できましたが、' : ''}メンバー情報の更新に失敗しました: ` +
+              (e instanceof Error ? e.message : String(e)),
+            );
+            setSaving(false);
+            return;
+          }
+        }
+      }
+
       router.replace(`/members/${memberId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -280,6 +389,11 @@ export default function QuickClient() {
   }, [members, pickerQuery]);
 
   const toggle = (key: string) => setChecked(c => ({ ...c, [key]: !c[key] }));
+
+  // 突き合わせ結果を種類ごとに分けて表示する
+  const conflictDiffs = diffs.filter(d => d.kind === 'conflict' || d.kind === 'append');
+  const addDiffs = diffs.filter(d => d.kind === 'add');
+  const sameDiffs = diffs.filter(d => d.kind === 'same');
 
   const RowList = ({ rows }: { rows: Row[] }) => (
     <ul className="divide-y divide-[#F0F0F0]">
@@ -434,6 +548,44 @@ export default function QuickClient() {
                       ? `「${spokenName}」さんは まだ登録されていないので、新しく登録します。`
                       : '名前が聞き取れませんでした。「変更」から既存メンバーを選ぶか、書き直してください。'}
                   </p>
+
+                  {/* 似た名前の既存メンバーがいる時の重複警告 (2026-08-09 ヒデさん指示)。
+                      同姓の別人も拾うので、同一人物かどうかはユーザーに判断してもらう。 */}
+                  {duplicateCandidates.length > 0 && (
+                    <div className="my-2 rounded-xl border border-[#FED7AA] bg-[#FFF7ED] overflow-hidden">
+                      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-[#FED7AA]">
+                        <AlertTriangle size={14} className="text-[#C2410C] shrink-0" />
+                        <span className="text-[12px] font-bold text-[#C2410C]">
+                          似た名前のメンバーが すでに登録されています
+                        </span>
+                      </div>
+                      <ul className="divide-y divide-[#FED7AA]">
+                        {duplicateCandidates.map(m => (
+                          <li key={m.id}>
+                            <button
+                              type="button"
+                              onClick={() => { tapHaptic(); setTargetMember(m); }}
+                              className="w-full text-left px-3 py-2.5 active:bg-[#FFEAD0] flex items-center gap-2"
+                            >
+                              <span className="flex-1 min-w-0">
+                                <span className="block text-[13px] font-bold">{m.name}</span>
+                                <span className="block text-[11px] text-[var(--color-subtext)]">
+                                  {formatOrgLabel(m)}
+                                </span>
+                              </span>
+                              <span className="text-[11px] font-bold text-[var(--color-primary)] shrink-0">
+                                この人にする
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="px-3 py-2 text-[10px] text-[#C2410C] border-t border-[#FED7AA]">
+                        同じ人ならタップして選んでください。別人ならそのまま新規登録して大丈夫です。
+                      </p>
+                    </div>
+                  )}
+
                   {memberRows.length > 0 ? <RowList rows={memberRows} /> : null}
                 </>
               ) : (
@@ -443,10 +595,75 @@ export default function QuickClient() {
                   <p className="text-[11px] text-[var(--color-subtext)] mt-1.5">
                     この人の記録として登録します。違う人なら「変更」から選び直してください。
                   </p>
-                  {memberRows.some(r => r.key.startsWith('m_')) && (
-                    <p className="text-[11px] text-[#C2410C] bg-[#FFEAD0] rounded-lg px-2.5 py-2 mt-2">
-                      喋られた属性情報（{memberRows.filter(r => r.key.startsWith('m_')).map(r => r.label).join('・')}）は、
-                      既存メンバーには自動で上書きしません。必要ならメンバーカードで直してください。
+
+                  {/* 登録済みの内容との突き合わせ結果 */}
+                  {conflictDiffs.length > 0 && (
+                    <div className="mt-3 rounded-xl border border-[#FECACA] bg-[#FFF1F1] overflow-hidden">
+                      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-[#FECACA]">
+                        <AlertTriangle size={14} className="text-[#DC2626] shrink-0" />
+                        <span className="text-[12px] font-bold text-[#DC2626]">
+                          登録内容と違うことを言っています（{conflictDiffs.length}件）
+                        </span>
+                      </div>
+                      <ul className="divide-y divide-[#FECACA]">
+                        {conflictDiffs.map(d => (
+                          <li key={d.field} className="px-3 py-2.5">
+                            <p className="text-[11px] text-[var(--color-subtext)] mb-1">{d.label}</p>
+                            <p className="text-[13px]">
+                              <span className="line-through text-[var(--color-subtext)]">{d.stored}</span>
+                              <span className="mx-1.5 text-[var(--color-subtext)]">→</span>
+                              <span className="font-bold text-[#DC2626]">{d.spoken}</span>
+                            </p>
+                            <label className="flex items-center gap-2 mt-1.5 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={!!diffChecked[d.field]}
+                                onChange={() => setDiffChecked(c => ({ ...c, [d.field]: !c[d.field] }))}
+                                className="w-4 h-4 accent-[#DC2626]"
+                              />
+                              <span className="text-[11px]">
+                                {d.kind === 'append' ? '登録内容の後ろに追記する' : '喋った内容で上書きする'}
+                              </span>
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {addDiffs.length > 0 && (
+                    <div className="mt-2 rounded-xl border border-[#D6E4FF] bg-[#F5F8FF] overflow-hidden">
+                      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-[#D6E4FF]">
+                        <PlusCircle size={14} className="text-[var(--color-primary)] shrink-0" />
+                        <span className="text-[12px] font-bold text-[var(--color-primary)]">
+                          まだ登録されていない項目（{addDiffs.length}件）
+                        </span>
+                      </div>
+                      <ul className="divide-y divide-[#D6E4FF]">
+                        {addDiffs.map(d => (
+                          <li key={d.field}>
+                            <label className="flex items-start gap-2.5 px-3 py-2.5 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={!!diffChecked[d.field]}
+                                onChange={() => setDiffChecked(c => ({ ...c, [d.field]: !c[d.field] }))}
+                                className="w-4 h-4 mt-0.5 shrink-0 accent-[#6366F1]"
+                              />
+                              <span className="flex-1 min-w-0">
+                                <span className="block text-[11px] text-[var(--color-subtext)]">{d.label}</span>
+                                <span className="block text-[13px] whitespace-pre-wrap break-words">{d.spoken}</span>
+                              </span>
+                            </label>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {sameDiffs.length > 0 && (
+                    <p className="flex items-center gap-1.5 text-[11px] text-[#1D7A3F] mt-2">
+                      <Check size={13} className="shrink-0" />
+                      {sameDiffs.map(d => d.label).join('・')} は登録内容と一致しています
                     </p>
                   )}
                 </div>

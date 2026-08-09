@@ -17,14 +17,16 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronDown, ChevronLeft, ChevronUp, MapPin, Loader2 } from 'lucide-react';
-import { createMember } from '../../../lib/storage';
+import { ChevronDown, ChevronLeft, ChevronUp, MapPin, Loader2, AlertTriangle, ChevronRight } from 'lucide-react';
+import Link from 'next/link';
+import { createMember, getMembers } from '../../../lib/storage';
+import { formatOrgLabel } from '../../../lib/utils';
 import { ORG_TREE } from '../../../lib/constants';
 import { guessKana } from '../../../lib/kanaGuess';
 import { tapHaptic } from '../../../lib/haptics';
 import { useSwipeBack } from '../../../lib/useSwipeBack';
 import AiAssistSheet, { type AiFieldRow } from '../../../components/AiAssistSheet';
-import type { MemberCategory } from '../../../lib/types';
+import type { Member, MemberCategory } from '../../../lib/types';
 
 const UNSET = '';
 
@@ -122,6 +124,24 @@ export default function NewMemberClient() {
     const guess = guessKana(fullName);
     setKana(guess.includes('？') ? '' : guess);
   }, [fullName]);
+
+  // ── 二重登録チェック (2026-08-09 ヒデさん指示) ──
+  // 打ち込んだ名前と似た人が既にいたら、登録する前に気づけるようにする。
+  const [existing, setExisting] = useState<Member[]>([]);
+  useEffect(() => {
+    getMembers().then(setExisting).catch(() => { /* 取れなくても登録はできる */ });
+  }, []);
+  const duplicateCandidates = useMemo(() => {
+    const norm = (s: string) => s.replace(/[\s　]/g, '');
+    const full = norm(fullName);
+    const surname = norm(sei);
+    if (full.length < 2) return [];
+    return existing.filter(m => {
+      const n = norm(m.name);
+      if (n.includes(full) || full.includes(n)) return true;
+      return surname.length >= 2 && n.startsWith(surname);
+    }).slice(0, 5);
+  }, [existing, fullName, sei]);
 
   // ── 組織 ──
   const [category, setCategory] = useState<MemberCategory>('general');
@@ -381,6 +401,37 @@ export default function NewMemberClient() {
             </div>
           </div>
         </div>
+
+        {/* ── 二重登録の注意 (2026-08-09 ヒデさん指示) ── */}
+        {duplicateCandidates.length > 0 && (
+          <div className="rounded-2xl border border-[#FED7AA] bg-[#FFF7ED] overflow-hidden">
+            <div className="flex items-center gap-1.5 px-4 py-2.5 border-b border-[#FED7AA]">
+              <AlertTriangle size={14} className="text-[#C2410C] shrink-0" />
+              <span className="text-[12px] font-bold text-[#C2410C]">
+                似た名前のメンバーが すでに登録されています
+              </span>
+            </div>
+            <ul className="divide-y divide-[#FED7AA]">
+              {duplicateCandidates.map(m => (
+                <li key={m.id}>
+                  <Link
+                    href={`/members/${m.id}`}
+                    className="flex items-center gap-2 px-4 py-2.5 active:bg-[#FFEAD0]"
+                  >
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-[13px] font-bold">{m.name}</span>
+                      <span className="block text-[11px] text-[var(--color-subtext)]">{formatOrgLabel(m)}</span>
+                    </span>
+                    <ChevronRight size={16} className="text-[var(--color-icon-gray)] shrink-0" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <p className="px-4 py-2 text-[10px] text-[#C2410C] border-t border-[#FED7AA]">
+              同じ人ならタップして既存のカードを開いてください。別人ならこのまま登録して大丈夫です。
+            </p>
+          </div>
+        )}
 
         {/* ── 組織 (本部 → 部 → 地区) ── */}
         <div className="ios-card px-4 py-3">

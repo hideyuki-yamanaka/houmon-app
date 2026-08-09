@@ -62,6 +62,32 @@ function applyMockUpdates(current: Visit, updates: Partial<VisitRow>): Visit {
   return next;
 }
 
+// お試しモード用: MemberRow (snake_case) の部分更新を Member (camelCase) にマージ。
+// visits 側の applyMockUpdates と同じ役割。
+const MEMBER_COLUMN_TO_PROP: Record<string, keyof Member> = {
+  name: 'name', name_kana: 'nameKana', district: 'district', bu: 'bu', honbu: 'honbu',
+  category: 'category', address: 'address', lat: 'lat', lng: 'lng',
+  phone: 'phone', mobile: 'mobile', birthday: 'birthday',
+  enrollment_date: 'enrollmentDate', age: 'age', workplace: 'workplace', role: 'role',
+  education_level: 'educationLevel', family: 'family', altar_status: 'altarStatus',
+  daily_practice: 'dailyPractice', newspaper: 'newspaper',
+  financial_contribution: 'financialContribution', activity_status: 'activityStatus',
+  youth_group: 'youthGroup', notes: 'notes', info: 'info',
+  visit_cycle_days: 'visitCycleDays', want_to_visit: 'wantToVisit', skipped: 'skipped',
+  address_issue_note: 'addressIssueNote', address_issue_resolved: 'addressIssueResolved',
+};
+
+function applyMockMemberUpdates(current: Member, updates: Partial<MemberRow>): Member {
+  const next = { ...current } as Record<string, unknown>;
+  for (const [col, v] of Object.entries(updates)) {
+    const prop = MEMBER_COLUMN_TO_PROP[col];
+    if (!prop) continue;
+    next[prop] = v ?? undefined;
+  }
+  next.updatedAt = new Date().toISOString();
+  return next as unknown as Member;
+}
+
 // ── Row → App 変換 ──
 
 function toMember(row: MemberRow): Member {
@@ -161,6 +187,13 @@ export async function getMember(id: string): Promise<Member | null> {
 }
 
 export async function updateMember(id: string, updates: Partial<MemberRow>): Promise<void> {
+  // お試しモード (Supabase 未接続) では メモリ上の MOCK_MEMBERS を書き換える。
+  // これが無いと supabase が null なので、ローカルでの編集が軒並みクラッシュする。
+  if (isMockMode) {
+    const idx = MOCK_MEMBERS.findIndex(m => m.id === id);
+    if (idx >= 0) MOCK_MEMBERS[idx] = applyMockMemberUpdates(MOCK_MEMBERS[idx], updates);
+    return;
+  }
   const { error } = await supabase
     .from('members')
     .update({ ...updates, updated_at: new Date().toISOString() })
