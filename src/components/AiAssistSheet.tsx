@@ -231,7 +231,9 @@ export default function AiAssistSheet({
                 <p className="text-[11px] text-[var(--color-subtext)] mb-2 leading-relaxed">
                   思いついた順にダラダラ書いて (喋って) OK です。AI が項目ごとに振り分けます。
                   <br />
-                  音声で入れる時は、キーボードの地球儀アイコンから音声入力キーボードに切り替えてください。
+                  音声入力キーボードを最初から出したい時は、iPhone の
+                  <strong>設定 → 一般 → キーボード → キーボード → 編集</strong> で
+                  一番上に並べ替えてください（アプリ側からは指定できません）。
                 </p>
                 <textarea
                   ref={textareaRef}

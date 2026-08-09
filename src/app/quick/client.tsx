@@ -346,10 +346,19 @@ export default function QuickClient() {
                 <p className="text-[11px] text-[var(--color-subtext)] leading-relaxed mb-3">
                   思いついた順にダラダラ喋ってください。AI が「メンバーの情報」と
                   「訪問ログ」に振り分けて、登録する直前に確認画面を出します。
-                  <br />
-                  音声で入れる時は、キーボードの<strong>地球儀アイコン</strong>から
-                  音声入力キーボードに切り替えてください。
                 </p>
+                <details className="mb-3 text-[11px] text-[var(--color-subtext)]">
+                  <summary className="cursor-pointer font-bold text-[var(--color-primary)]">
+                    音声入力キーボードを最初から出すには
+                  </summary>
+                  <div className="mt-1.5 leading-relaxed">
+                    どのキーボードを出すかはアプリ側からは指定できません（iOS の仕様）。
+                    <strong>設定 → 一般 → キーボード → キーボード → 編集</strong> で
+                    音声入力キーボードを<strong>一番上</strong>に並べ替えると、以降このアプリでも
+                    最初からそれが立ち上がります。
+                    その場だけ切り替えたい時は、キーボードの<strong>地球儀アイコン</strong>を長押しして選べます。
+                  </div>
+                </details>
                 <textarea
                   ref={textareaRef}
                   value={text}
