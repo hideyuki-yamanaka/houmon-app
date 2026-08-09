@@ -161,11 +161,11 @@ const AUTO_TOOL: Anthropic.Tool = {
       },
       person: {
         type: 'object',
-        description: '話に出てくる対象者の名前。言われた分だけ入れる',
+        description: '話に出てくる対象者の名前。漢字と読み仮名の両方を、分かる範囲で埋める',
         properties: {
-          sei: { type: 'string', description: '名字。例「山田」' },
-          mei: { type: 'string', description: '下の名前。例「太郎」' },
-          kana: { type: 'string', description: '読み仮名(ひらがな)。はっきり言及された時だけ' },
+          sei: { type: 'string', description: '名字の漢字。例「山田」。かなでしか分からない場合は空にする' },
+          mei: { type: 'string', description: '下の名前の漢字。例「太郎」。かなでしか分からない場合は空にする' },
+          kana: { type: 'string', description: '名前全体の読み仮名(ひらがな)。例「やまだ たろう」。漢字が分かっている場合も、読みが分かるなら必ず入れる' },
         },
       },
       member: { type: 'object', description: 'メンバーの属性情報。言われた項目だけ入れる', properties: MEMBER_PROPS },
@@ -201,8 +201,15 @@ function buildSystem(mode: Mode, today: string, memberName?: string): string {
 # 組織の選択肢 (この表記に正規化すること。一覧に無い組織名は入れない)
 ${orgOptionsText()}
 
-# 振り分けの考え方
-- 「誰の話か」を person に入れる。名字だけ、下の名前だけの時は分かる方だけ。
+# 名前の扱い (ヒデさん指示 2026-08-09)
+- 「誰の話か」を person に入れる。漢字 (sei / mei) と 読み仮名 (kana) の
+  両方を、分かる範囲で必ず埋める。
+- 音声入力だと 漢字が確定していない ことがある。その場合は 無理に漢字を
+  当てず、聞こえたままの かな を kana にだけ入れる (sei / mei は空)。
+  例) 「きだようさんとこ行った」→ kana="きだ よう" / sei,mei は空
+- 逆に漢字だけ分かって読みが不明なら kana は空でよい。
+  どちらか片方さえ埋まっていれば登録できる。
+- 名字だけ、下の名前だけ しか言われていない時も、分かる方だけ入れる。
 - 訪問の出来事 (行った/会えた/留守だった/断られた 等) が語られていれば hasVisit=true。
   人の紹介や名簿情報を伝えているだけなら hasVisit=false。
 - 「ヤング」「青年部」「男子部」等の言及があれば member.category=young。

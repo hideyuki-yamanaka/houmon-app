@@ -290,7 +290,10 @@ export default function NewMemberClient() {
   // ── 送信 ──
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const canSubmit = fullName.length > 0 && !saving;
+  // 名前は「漢字 or 読み仮名」のどちらかがあれば登録できる
+  // (ヒデさん指示 2026-08-09: 音声入力で漢字が確定しないことがあるため)。
+  const displayName = fullName || kana.trim();
+  const canSubmit = displayName.length > 0 && !saving;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -300,7 +303,7 @@ export default function NewMemberClient() {
     const nz = (v: string) => (v.trim() ? v.trim() : null);
     try {
       const created = await createMember({
-        name: fullName,
+        name: displayName,
         name_kana: nz(kana),
         category,
         honbu: nz(honbu),
@@ -574,9 +577,9 @@ export default function NewMemberClient() {
         >
           {saving ? '登録中…' : 'このメンバーを登録'}
         </button>
-        {fullName.length === 0 && (
+        {displayName.length === 0 && (
           <p className="text-[11px] text-[var(--color-subtext)] text-center">
-            名字か名前、どちらかを入れると登録できます
+            名字・名前・読み仮名のどれかを入れると登録できます
           </p>
         )}
       </div>

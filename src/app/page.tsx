@@ -65,12 +65,12 @@ export default function HomePage() {
     const v = localStorage.getItem('houmon_visitLogFilter');
     return v === 'met' || v === 'absent' || v === 'unknown_address' || v === 'moved' ? v : null;
   });
-  // 3 タブ。マップピンと メンバー一覧シートを 1 つの state で同期。
+  // 2 タブ。マップピンと メンバー一覧シートを 1 つの state で同期。
   // (2026-05-13 ヒデさん指示で連動するように修正)
   const [tab, setTab] = useState<VisitTab>(() => {
     if (typeof window === 'undefined') return 'go';
     const v = localStorage.getItem('houmon_tab');
-    return (v === 'go' || v === 'no' || v === 'skip') ? v : 'go';
+    return (v === 'go' || v === 'no') ? v : 'go';
   });
   const handleTabChange = useCallback((next: VisitTab) => {
     setTab(next);
@@ -191,15 +191,6 @@ export default function HomePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // 復元した selectedId が「もう居ないメンバー」を指していたら解除する。
-  // (別端末で削除された / データが入れ替わった 等)。これを放置すると
-  // メンバーシートは空、一覧シートは selectedId のせいで非表示、という
-  // 「地図しか出ない」状態になり、+ ボタンにも触れなくなる。
-  useEffect(() => {
-    if (loading || !selectedId) return;
-    if (!members.some(m => m.id === selectedId)) setSelectedId(null);
-  }, [loading, members, selectedId]);
-
   // ─── iPhone / iPad シームレス同期: Supabase Realtime 購読 ───
   // visits / members どちらかが変わったら debounce 付きで全件再フェッチ。
   // 片方の端末で記録/編集 → もう片方が即時反映される(自動リロード不要)。
@@ -292,7 +283,7 @@ export default function HomePage() {
   ), [handleLocate, locating, gotoQuick]);
 
   // フィルター3点（地区 / カテゴリ / 訪問ログ）を適用したメンバー (タブ判定の前)。
-  // タブ件数バッジは これを土台に「いける/いけない/スキップ」の分布を出す。
+  // タブ件数バッジは これを土台に「いける/いけない」の分布を出す。
   const preTabMembers = useMemo(
     () => applyAllFilters(members, { filter, categoryFilter, visitLogFilter }),
     [members, filter, categoryFilter, visitLogFilter],
@@ -436,7 +427,11 @@ export default function HomePage() {
         visitsByMember={visitsByMember}
         // 編集モード中は一覧シートも閉じておく。ピン編集に集中させる + 確認モーダルが
         // シートに覆われる事故を防ぐ (2026-05-07 ヒデさん指示)。
-        open={!selectedId && !editingPinMemberId && !newPin}
+        // selectedId ではなく selectedMember で判定する。
+        // 復元した id が「もう居ないメンバー」(別端末で削除された等) を指していると、
+        // メンバーシートは空・一覧シートは非表示 の「地図しか出ない」状態になり
+        // + ボタンにも触れなくなるため。
+        open={!selectedMember && !editingPinMemberId && !newPin}
         onClose={() => { /* closable=false なので呼ばれない */ }}
         onSelectMember={(id) => setSelectedId(id)}
         filter={filter}

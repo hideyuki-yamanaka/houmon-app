@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type Ref, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronRight, MapPin, Clock, Footprints, PencilLine, Star, Move, SkipForward } from 'lucide-react';
+import { ChevronRight, MapPin, Clock, Footprints, PencilLine, Star, Move } from 'lucide-react';
 import type { MemberWithVisitInfo, Visit, MemberRow } from '../lib/types';
 import { formatDate, resolveAge, stripBuildingName, formatOrgLabelShort } from '../lib/utils';
 import { getVisits, updateMember } from '../lib/storage';
@@ -58,7 +58,6 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
   // 「行きたい」トグル: optimistic に即座に塗り替え、DB は裏で更新
   // (失敗時はサイレントに元に戻す)
   const [savingWant, setSavingWant] = useState(false);
-  const [savingSkip, setSavingSkip] = useState(false);
 
   // 閉じるアニメーション中も前のメンバーを表示するため
   const lastMemberRef = useRef<MemberWithVisitInfo | null>(null);
@@ -229,35 +228,6 @@ export default function MemberBottomSheet({ member, onClose, sheetHandleRef, ren
                     } ${savingWant ? 'opacity-70' : ''}`}
                   >
                     <Star size={18} strokeWidth={2.2} fill={m.wantToVisit ? '#FFCC00' : 'none'} />
-                  </button>
-                  {/* スキップ (2026-05-13 ヒデさん指示): ★ と同じ可逆 ON/OFF パターン。
-                      ON にすると マップピン非表示 + 一覧の「スキップ」タブにだけ出る。 */}
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (savingSkip) return;
-                      tapHaptic();
-                      const next = !m.skipped;
-                      onMemberUpdate?.(m.id, { skipped: next });
-                      setSavingSkip(true);
-                      try {
-                        await updateMember(m.id, { skipped: next } as Partial<MemberRow>);
-                      } catch {
-                        onMemberUpdate?.(m.id, { skipped: !next });
-                      } finally {
-                        setSavingSkip(false);
-                      }
-                    }}
-                    aria-pressed={!!m.skipped}
-                    aria-label={m.skipped ? 'スキップを解除' : 'スキップに追加'}
-                    title={m.skipped ? 'スキップを解除' : 'スキップに追加'}
-                    className={`shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors active:scale-95 ${
-                      m.skipped
-                        ? 'bg-[#F2F2F7] border-[#8E8E93] text-[#3C3C43]'
-                        : 'bg-white border-[#D1D5DB] text-[#6E6E73]'
-                    } ${savingSkip ? 'opacity-70' : ''}`}
-                  >
-                    <SkipForward size={18} strokeWidth={2.2} fill={m.skipped ? '#8E8E93' : 'none'} />
                   </button>
                   <button
                     onClick={() => { tapHaptic(); router.push(`/visits/new?memberId=${m.id}`); }}

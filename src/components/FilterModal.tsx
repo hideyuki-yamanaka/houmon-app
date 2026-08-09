@@ -59,9 +59,9 @@ export const VISITLOG_GROUPS: {
 export const CATEGORY_FILTERS: { key: string; label: string }[] = [];
 
 // ── タブ別 動的絞り込み ──
-// 3 タブ判定 (classifyMember) と矛盾する 訪問ログ option は、そのタブでは
+// 2 タブ判定 (classifyMember) と矛盾する 訪問ログ option は、そのタブでは
 // 選んでも 必ず 0 件になるので、最初から選択肢に出さない。
-export type VisitTabKey = 'go' | 'no' | 'skip';
+export type VisitTabKey = 'go' | 'no';
 export function getVisitLogOptionsForTab(tab: VisitTabKey | undefined): typeof VISITLOG_GROUPS {
   if (!tab) return VISITLOG_GROUPS;
   if (tab === 'go') {
@@ -69,12 +69,11 @@ export function getVisitLogOptionsForTab(tab: VisitTabKey | undefined): typeof V
     // 拒否 は いけない人タブに行くので 会えた は表示するが refused は当たらない
     return VISITLOG_GROUPS.filter(g => g.key === 'met' || g.key === 'absent');
   }
-  if (tab === 'no') {
-    // いけない人: 会えた (refused のみ当たる) / 転居
-    return VISITLOG_GROUPS.filter(g => g.key === 'met' || g.key === 'moved');
-  }
-  // skip: 住所不明 のみ
-  return VISITLOG_GROUPS.filter(g => g.key === 'unknown_address');
+  // いけない人: 会えた (refused のみ当たる) / 転居 / 住所不明
+  // (2026-08-09 スキップタブ撤去にともない 住所不明 もこちらへ)
+  return VISITLOG_GROUPS.filter(
+    g => g.key === 'met' || g.key === 'moved' || g.key === 'unknown_address',
+  );
 }
 
 interface Props {
@@ -94,13 +93,13 @@ interface Props {
   }) => void;
   /** 現在のフィルターでマッチする件数（親で計算して渡す） */
   matchCount: number;
-  /** 現在の 3 タブ (いける/いけない/スキップ)。訪問ログ選択肢を動的に絞るのに使う。
+  /** 現在の 2 タブ (いける/いけない)。訪問ログ選択肢を動的に絞るのに使う。
    *  渡さない (undefined) と 後方互換で全選択肢を表示。 */
   tab?: VisitTabKey;
   /** タブ切替通知。2026-06-09 で 3 タブを モーダル内に移設したため必要。 */
   onTabChange?: (next: VisitTabKey) => void;
   /** 3 タブごとの件数バッジ (フィルタ前)。モーダル内のタブ選択 UI に出す。 */
-  tabCounts?: { go: number; no: number; skip: number };
+  tabCounts?: { go: number; no: number };
 }
 
 const SLIDE_DURATION_MS = 320;
@@ -222,7 +221,7 @@ export default function FilterModal({
 
         {/* 本体（スクロール） */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
-          {/* ── 表示する人 (いける人 / いけない人 / スキップ) ──
+          {/* ── 表示する人 (いける人 / いけない人) ──
               2026-06-09 ヒデさん指示で トップの 3 タブを ここに移設。
               代わりに 地区フィルター(すべて/ヤング/男子部) を トップに常時表示。 */}
           {onTabChange && (
@@ -232,7 +231,6 @@ export default function FilterModal({
                 {([
                   { key: 'go' as const,   label: 'いける人',  n: tabCounts?.go ?? 0 },
                   { key: 'no' as const,   label: 'いけない人', n: tabCounts?.no ?? 0 },
-                  { key: 'skip' as const, label: 'スキップ',  n: tabCounts?.skip ?? 0 },
                 ]).map((t) => {
                   const active = tab === t.key;
                   return (

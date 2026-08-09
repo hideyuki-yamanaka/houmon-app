@@ -10,22 +10,21 @@ import DistrictFilter, { type FilterSelection, matchFilter } from './DistrictFil
 import SwipeableBottomSheet, { type SheetHandle } from './SwipeableBottomSheet';
 import FilterModal, { VISITLOG_GROUPS, type CategoryKey, type VisitLogKey } from './FilterModal';
 
-// ── 3 タブ判定 (2026-05-13 ヒデさん指示) ──
-//   いける人  : 訪問対象。スキップ/転居/拒否/住所不明 以外。
-//   いけない人: システム判定。前回 訪問ログが moved or refused。
-//   スキップ  : ユーザーが ★ の隣の⏭で 手動 ON、または lastVisitStatus = unknown_address。
+// ── 2 タブ判定 ──
+//   いける人  : 訪問対象。転居/拒否/住所不明 以外。
+//   いけない人: 前回の訪問ログが moved / refused / unknown_address。
 //
-// 分類は 排他 (1人は必ず 1 タブのみ) 。優先順位:
-//   1. skipped === true  → スキップ
-//   2. lastVisitStatus === 'unknown_address' → スキップ
-//   3. lastVisitStatus === 'moved' or 'refused' → いけない人
-//   4. それ以外 → いける人
-export type VisitTab = 'go' | 'no' | 'skip';
+// 2026-08-09 ヒデさん指示で「スキップ」タブと 手動スキップ (⏭) を撤去。
+// 住所不明の人は いけない人タブに寄せた (メンバーカードの「住所不明」タグと
+// 一覧シートの絞り込みからも辿れる)。
+// members.skipped カラムと保存済みデータはそのまま残してある — 「一旦は」との
+// 指示なので、また使うことになったら判定を足すだけで戻せる。
+export type VisitTab = 'go' | 'no';
 
 export function classifyMember(m: MemberWithVisitInfo): VisitTab {
-  if (m.skipped) return 'skip';
-  if (m.lastVisitStatus === 'unknown_address') return 'skip';
-  if (m.lastVisitStatus === 'moved' || m.lastVisitStatus === 'refused') return 'no';
+  if (m.lastVisitStatus === 'moved'
+    || m.lastVisitStatus === 'refused'
+    || m.lastVisitStatus === 'unknown_address') return 'no';
   return 'go';
 }
 
@@ -61,7 +60,7 @@ interface Props {
   visitLogFilter: VisitLogKey | null;
   /** フィルターまとめて変更する（マップと一覧を同時に動かすため） */
   onFiltersChange: (next: AppliedFilters) => void;
-  /** 3 タブ (いける/いけない/スキップ)。HomePage で hold してマップピンと同期。 */
+  /** 2 タブ (いける/いけない)。HomePage で hold してマップピンと同期。 */
   tab: VisitTab;
   /** タブ切替通知 */
   onTabChange: (next: VisitTab) => void;
@@ -133,7 +132,7 @@ export default function MembersListSheet({
 
   // 3 タブごとの件数 (フィルタ前)。タブ切替 UI のバッジに使う
   const tabCounts = useMemo(() => {
-    const c = { go: 0, no: 0, skip: 0 };
+    const c = { go: 0, no: 0 };
     for (const m of members) c[classifyMember(m)]++;
     return c;
   }, [members]);
@@ -146,7 +145,7 @@ export default function MembersListSheet({
   // members は HomePage で「地区/期間/カテゴリ」までは絞り込み済み (タブ判定前)。
   // ここで タブ判定を掛けて 表示用リストを作る。
   // タブ件数バッジ (tabCounts) はこの members を そのまま走査するので、
-  // 「ヤング × (いける/いけない/スキップ)」のような件数が正しく出る。
+  // 「ヤング × (いける/いけない)」のような件数が正しく出る。
   const tabFiltered = useMemo(() => {
     const result = members.filter(m => classifyMember(m) === tab);
     result.sort((a, b) => {
@@ -260,7 +259,7 @@ export default function MembersListSheet({
                 </div>
               </div>
               {/* 地区フィルター (すべて/ヤング/男子部 + 本部→部→地区) をトップに常時表示。
-                  2026-06-09 ヒデさん指示: いける/いけない/スキップ は フィルターアイコン
+                  2026-06-09 ヒデさん指示: いける/いけない は フィルターアイコン
                   (FilterModal) に格納し、代わりに地区の絞り込みを表に出す。
                   セグメントは常時表示、本部/部/地区 の詳細は▼で開閉 (alwaysOpen 無し)。
                   カウントは preTabMembers ではなく全件 (allMembers) ベースで安定表示。 */}
@@ -326,7 +325,7 @@ export default function MembersListSheet({
         visitLogFilter={visitLogFilter}
         onChange={handleFilterChange}
         matchCount={filtered.length}
-        // 3 タブ (いける/いけない/スキップ) を モーダル内に移設 (2026-06-09)
+        // 2 タブ (いける/いけない) を モーダル内に移設 (2026-06-09)
         tab={tab}
         onTabChange={onTabChange}
         tabCounts={tabCounts}

@@ -244,7 +244,7 @@ export default function QuickClient() {
 
   const spokenName = useMemo(() => {
     const p = result?.person ?? {};
-    return [p.sei, p.mei].filter(Boolean).join(' ');
+    return [p.sei, p.mei].filter(Boolean).join(' ') || (p.kana ?? '');
   }, [result]);
 
   // ── 既存データとの突き合わせ (2026-08-09 ヒデさん指示) ──
@@ -269,11 +269,14 @@ export default function QuickClient() {
     if (targetMember || !result) return [];
     const sei = normalize(result.person?.sei ?? '');
     const full = normalize([result.person?.sei, result.person?.mei].filter(Boolean).join(''));
-    if (!sei && !full) return [];
+    const kana = normalize(result.person?.kana ?? '');
+    if (!sei && !full && !kana) return [];
     return members.filter(m => {
       const n = normalize(m.name);
       if (full.length >= 2 && (n.includes(full) || full.includes(n))) return true;
-      return sei.length >= 2 && n.startsWith(sei);
+      if (sei.length >= 2 && n.startsWith(sei)) return true;
+      const nk = normalize(m.nameKana ?? '').replace(/（仮）|\(仮\)/g, '');
+      return kana.length >= 2 && nk.length >= 2 && (nk.includes(kana) || kana.includes(nk));
     }).slice(0, 5);
   }, [targetMember, result, members]);
 
@@ -316,13 +319,16 @@ export default function QuickClient() {
     setResult(data);
 
     // 名前の照合。空白を無視して「どちらかがどちらかを含む」で拾う。
+    // 漢字が取れていない (音声入力で かな のみ) ケースがあるので、
+    // 読み仮名どうしの照合も行う。
     const full = normalize([data.person?.sei, data.person?.mei].filter(Boolean).join(''));
-    const hits = full.length >= 2
-      ? members.filter(m => {
-        const n = normalize(m.name);
-        return n.includes(full) || full.includes(n);
-      })
-      : [];
+    const kana = normalize(data.person?.kana ?? '');
+    const hits = members.filter(m => {
+      const n = normalize(m.name);
+      if (full.length >= 2 && (n.includes(full) || full.includes(n))) return true;
+      const nk = normalize(m.nameKana ?? '').replace(/（仮）|\(仮\)/g, '');
+      return kana.length >= 2 && nk.length >= 2 && (nk.includes(kana) || kana.includes(nk));
+    });
     // ぴったり 1 人だけなら自動で その人の記録として扱う (画面で変更可)
     setTargetMember(hits.length === 1 ? hits[0] : null);
 
@@ -380,8 +386,13 @@ export default function QuickClient() {
   // 画面で編集された値を使う。チェックが外れている行は無いものとして扱う。
   const editedRow = (key: string): string | undefined =>
     checked[key] ? (edits[key] ?? '').trim() || undefined : undefined;
-  const nameFromRows = () =>
-    [editedRow('sei'), editedRow('mei')].filter(Boolean).join(' ');
+  // 名前は 漢字 と 読み仮名 のどちらかが埋まっていれば OK
+  // (ヒデさん指示 2026-08-09: 音声入力で漢字が確定しないことがあるため)。
+  // 漢字が無ければ読み仮名をそのまま表示名にする。
+  const nameFromRows = () => {
+    const kanji = [editedRow('sei'), editedRow('mei')].filter(Boolean).join(' ');
+    return kanji || editedRow('kana') || '';
+  };
   const canSubmit = !saving && (isNewMember ? nameFromRows().length > 0 : true);
 
   const handleSubmit = async () => {
@@ -490,7 +501,11 @@ export default function QuickClient() {
   const renderEditor = (rowKey: string) => {
     const field = baseField(rowKey);
     const value = edits[rowKey] ?? '';
-    const cls = 'w-full bg-[#F7F7F8] rounded-lg px-2.5 py-2 text-[14px] outline-none focus:bg-white focus:ring-1 focus:ring-[#6366F1]';
+    // 入力欄は「白地 + 枠線」で統一する。
+    // 2026-08-09 ヒデさん指摘: 薄いグレー地だと、青や赤の背景を敷いたセクション
+    // (未登録 / 要確認 など) の中で入力欄が沈んでコントラストが取れなかった。
+    // 白 + 枠線ならどの背景の上でも「ここは入力欄」と分かる。
+    const cls = 'w-full bg-white border border-[#B9C0CC] rounded-lg px-2.5 py-2 text-[14px] text-[var(--color-text)] outline-none focus:border-[#6366F1] focus:ring-2 focus:ring-[#6366F1]/30';
 
     if (field === 'info' || field === 'notes' || field === 'memo') {
       return (
@@ -862,13 +877,13 @@ export default function QuickClient() {
 
                   {/* 追記: 備考・情報。今までの内容は消さない */}
                   {appendDiffs.length > 0 && (
-                    <div className="mt-2 rounded-xl border border-[#D6E4FF] bg-[#F5F8FF] overflow-hidden">
-                      <div className="px-3 py-2 border-b border-[#D6E4FF]">
+                    <div className="mt-2 rounded-xl border border-[#C3D8FF] bg-[#EFF4FF] overflow-hidden">
+                      <div className="px-3 py-2 border-b border-[#C3D8FF]">
                         <span className="text-[12px] font-bold text-[var(--color-primary)]">
                           今までの内容に追記します（{appendDiffs.length}件）
                         </span>
                       </div>
-                      <ul className="divide-y divide-[#D6E4FF]">
+                      <ul className="divide-y divide-[#C3D8FF]">
                         {appendDiffs.map(d => (
                           <li key={d.field} className="px-3 py-2.5">
                             <label className="flex items-start gap-2.5 cursor-pointer">
@@ -895,14 +910,14 @@ export default function QuickClient() {
                   )}
 
                   {addDiffs.length > 0 && (
-                    <div className="mt-2 rounded-xl border border-[#D6E4FF] bg-[#F5F8FF] overflow-hidden">
-                      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-[#D6E4FF]">
+                    <div className="mt-2 rounded-xl border border-[#C3D8FF] bg-[#EFF4FF] overflow-hidden">
+                      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-[#C3D8FF]">
                         <PlusCircle size={14} className="text-[var(--color-primary)] shrink-0" />
                         <span className="text-[12px] font-bold text-[var(--color-primary)]">
                           まだ登録されていない項目（{addDiffs.length}件）
                         </span>
                       </div>
-                      <ul className="divide-y divide-[#D6E4FF]">
+                      <ul className="divide-y divide-[#C3D8FF]">
                         {addDiffs.map(d => (
                           <li key={d.field}>
                             <div className="px-3 py-2.5">
