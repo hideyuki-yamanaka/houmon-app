@@ -33,6 +33,7 @@ import { createMember, createVisit, updateVisit, updateMember, getMembers } from
 import { supabase, isMockMode } from '../../lib/supabase';
 import { VISIT_STATUS_CONFIG, RESPONDENT_CONFIG, ORG_TREE } from '../../lib/constants';
 import { today as todayStr, formatOrgLabel, resolveAge } from '../../lib/utils';
+import { guessKana } from '../../lib/kanaGuess';
 import { tapHaptic } from '../../lib/haptics';
 import { useSwipeBack } from '../../lib/useSwipeBack';
 
@@ -245,6 +246,20 @@ export default function QuickClient() {
   const spokenName = useMemo(() => {
     const p = result?.person ?? {};
     return [p.sei, p.mei].filter(Boolean).join(' ') || (p.kana ?? '');
+  }, [result]);
+
+  // 漢字と読み仮名が「別人のもの」に見えないかチェック (2026-08-09 ヒデさん報告)。
+  // 「山中です。白川大地さんとこに行った」のように 記入者と訪問先が混ざると、
+  // 漢字＝記入者 / 読み仮名＝訪問先 という 1 人分の名前が出来てしまっていた。
+  // プロンプト側で禁止したうえで、万一混ざった時に画面で気づけるようにする。
+  // 判定は 名字の先頭 1 文字の読みだけ見る (辞書に無い字は判定しない)。
+  const nameLooksMixed = useMemo(() => {
+    const kanji = (result?.person?.sei || result?.person?.mei || '').trim();
+    const kana = normalize(result?.person?.kana ?? '');
+    if (!kanji || kana.length < 2) return false;
+    const guess = normalize(guessKana(kanji[0]).replace(/（仮）/g, ''));
+    if (!guess || guess.includes('？') || guess === kanji[0]) return false;
+    return guess[0] !== kana[0];
   }, [result]);
 
   // ── 既存データとの突き合わせ (2026-08-09 ヒデさん指示) ──
@@ -735,6 +750,21 @@ export default function QuickClient() {
                 </button>
               </div>
 
+              {/* 漢字と読み仮名がちぐはぐ = 記入者や同行者の名前が混ざった疑い
+                  (2026-08-09 ヒデさん報告の再発防止) */}
+              {nameLooksMixed && (
+                <div className="my-2 flex items-start gap-1.5 rounded-xl border border-[#FECACA] bg-[#FFF1F1] px-3 py-2.5">
+                  <AlertTriangle size={14} className="text-[#DC2626] shrink-0 mt-[2px]" />
+                  <p className="text-[11px] text-[#DC2626] leading-snug">
+                    <strong className="font-bold">漢字と読み仮名が別の人のように見えます。</strong>
+                    <br />
+                    記入者や 一緒に行った人の名前が混ざっているかもしれません。
+                    下の「名字・名前・読み仮名」が<strong className="font-bold">訪問した相手</strong>になっているか
+                    確認して、違っていればその場で直してください。
+                  </p>
+                </div>
+              )}
+
               {isNewMember ? (
                 <>
                   <p className="text-[11px] text-[var(--color-subtext)] mb-1">
@@ -1143,7 +1173,7 @@ export default function QuickClient() {
 // お試しモード (Supabase 未接続のローカル) 用のダミー結果。本番では使わない。
 const MOCK_RESULT: AutoResult = {
   hasVisit: true,
-  person: { sei: '山田', mei: '太郎' },
+  person: { sei: '山田', mei: '太郎', kana: 'やまだ たろう' },
   member: {
     honbu: '豊岡本部', bu: '豊岡部', district: '英雄地区',
     ageRange: '30代',
